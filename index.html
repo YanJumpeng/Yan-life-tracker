@@ -598,7 +598,9 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Serif SC',serif;mi
       <div class="ex-item"><label>引体向上（个）</label><div class="stepper"><button class="s-btn" onclick="adj('pu2',-5)">−</button><input class="s-input" id="pu2" value="10"><button class="s-btn" onclick="adj('pu2',5)">+</button></div></div>
       <div class="ex-item"><label>臂屈伸（个）</label><div class="stepper"><button class="s-btn" onclick="adj('di',-5)">−</button><input class="s-input" id="di" value="20"><button class="s-btn" onclick="adj('di',5)">+</button></div></div>
       <div class="ex-item"><label>骑行（km）</label><div class="stepper"><button class="s-btn" onclick="adj('cy',-1)">−</button><input class="s-input" id="cy" value="0"><button class="s-btn" onclick="adj('cy',1)">+</button></div></div>
+      <div class="ex-item"><label>骑行配速（km/h）</label><input type="number" class="s-input" id="cy_pace" value="0" min="0" step="0.5" style="width:80px"></div>
       <div class="ex-item"><label>跑步（km）</label><div class="stepper"><button class="s-btn" onclick="adj('ru',-1)">−</button><input class="s-input" id="ru" value="0"><button class="s-btn" onclick="adj('ru',1)">+</button></div></div>
+      <div class="ex-item"><label>跑步配速（min/km）</label><input type="text" class="s-input" id="ru_pace" value="" placeholder="5'30\"" style="width:80px"></div>
     </div>
   </div>
   <div class="card mb"><div class="card-head">今日备注</div><textarea class="form-textarea" id="dailyNote" placeholder="今天发生了什么？有什么感受……"></textarea></div>
@@ -622,12 +624,19 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Serif SC',serif;mi
 
 <!-- 历史 -->
 <div class="page" id="page-history" data-page="history">
-  <div class="page-header"><div><div class="ph-title">历史数据</div><div class="ph-sub" id="histSub"></div></div></div>
+  <div class="page-header">
+    <div><div class="ph-title">历史数据</div><div class="ph-sub" id="histSub"></div></div>
+    <div class="ph-actions">
+      <button class="btn btn-ghost btn-sm" onclick="histChangeMonth(-1)">← 上月</button>
+      <span id="histMonthLabel" style="font-size:.8rem;color:var(--text2);min-width:80px;text-align:center"></span>
+      <button class="btn btn-ghost btn-sm" onclick="histChangeMonth(1)">下月 →</button>
+    </div>
+  </div>
   <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
     <table class="htable">
       <thead><tr>
         <th>日期</th><th>入睡</th><th>起床</th><th>睡眠</th>
-        <th>俯卧撑</th><th>深蹲</th><th>引体</th><th>复盘</th><th>戒烟</th><th>跑步</th>
+        <th>俯卧撑</th><th>深蹲</th><th>引体</th><th>复盘</th><th>戒烟</th><th>跑步</th><th>配速</th><th>骑行</th>
       </tr></thead>
       <tbody id="histBody"></tbody>
     </table>
@@ -667,7 +676,14 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Serif SC',serif;mi
 
 <!-- 看板 -->
 <div class="page" id="page-dashboard" data-page="dashboard">
-  <div class="page-header"><div><div class="ph-title">数据看板</div><div class="ph-sub" id="dashSub"></div></div></div>
+  <div class="page-header">
+    <div><div class="ph-title">数据看板</div><div class="ph-sub" id="dashSub"></div></div>
+    <div class="ph-actions">
+      <button class="btn btn-ghost btn-sm" onclick="dashChangeMonth(-1)">← 上月</button>
+      <span id="dashMonthLabel" style="font-size:.8rem;color:var(--text2);min-width:80px;text-align:center"></span>
+      <button class="btn btn-ghost btn-sm" onclick="dashChangeMonth(1)">下月 →</button>
+    </div>
+  </div>
   <div class="g4 mb" id="statsRow"></div>
   <div class="g2 mb">
     <div class="card"><div class="card-head">睡眠时长趋势 <em>近期（h）</em></div><div style="height:120px"><svg id="sleepSvg" class="chart-svg" viewBox="0 0 400 105" preserveAspectRatio="none" style="height:105px"></svg></div><div style="display:flex;justify-content:space-between;margin-top:5px"><span style="font-size:.58rem;color:var(--text3);font-family:'JetBrains Mono',monospace" id="sleepXL">-</span><span style="font-size:.6rem;color:var(--c-checkin)">— 目标 7h</span><span style="font-size:.58rem;color:var(--text3);font-family:'JetBrains Mono',monospace" id="sleepXR">-</span></div></div>
@@ -703,6 +719,10 @@ const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 // ── State ──
 let currentUser = null;
 let authMode    = 'login';
+let histYear  = new Date().getFullYear();
+let histMonth = new Date().getMonth(); // 0-indexed
+let dashYear  = new Date().getFullYear();
+let dashMonth = new Date().getMonth();
 let jTabCur     = 'all';
 let jEditId     = null;
 let cachedRecords = [];
@@ -779,8 +799,7 @@ function initDate() {
   document.getElementById('todayStr').textContent =
     `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日　${days[now.getDay()]}`;
   const mo = now.getMonth()+1;
-  document.getElementById('histSub').textContent = `${now.getFullYear()}年 ${mo}月`;
-  document.getElementById('dashSub').textContent = `${now.getFullYear()}年 ${mo}月 · 累计统计`;
+  // histSub and dashSub are now set by their respective load functions
 }
 
 function calcSleep() {
@@ -834,6 +853,9 @@ async function loadTodayCheckin() {
     document.getElementById('di').value  = data.dips    || 0;
     document.getElementById('cy').value  = data.cycling || 0;
     document.getElementById('ru').value  = data.running || 0;
+    const hp = data.habits || {};
+    document.getElementById('cy_pace').value = hp['骑行配速'] || 0;
+    document.getElementById('ru_pace').value = hp['跑步配速'] || '';
     document.getElementById('dailyNote').value = data.note || '';
     const habits = data.habits || {};
     document.querySelectorAll('.h-chip').forEach(chip => {
@@ -850,6 +872,10 @@ async function saveCheckin() {
   const today = new Date().toISOString().split('T')[0];
   const habits = {};
   document.querySelectorAll('.h-chip').forEach(c => { habits[c.dataset.habit] = c.classList.contains('on'); });
+  const cyPace = document.getElementById('cy_pace').value;
+  const ruPace = document.getElementById('ru_pace').value;
+  if (cyPace && +cyPace > 0) habits['骑行配速'] = cyPace;
+  if (ruPace) habits['跑步配速'] = ruPace;
   const durVal = parseFloat(document.getElementById('durT').value) || null;
   const payload = {
     user_id: currentUser.id, date: today,
@@ -891,16 +917,18 @@ async function updateStreak() {
 // ══════════════════════════
 async function loadAndRenderHistory() {
   showLoading('加载历史数据…');
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const start = new Date(histYear, histMonth, 1).toISOString().split('T')[0];
+  const end   = new Date(histYear, histMonth+1, 0).toISOString().split('T')[0];
+  document.getElementById('histMonthLabel').textContent = `${histYear}年${histMonth+1}月`;
+  document.getElementById('histSub').textContent = `${histYear}年${histMonth+1}月`;
   const { data, error } = await db.from('daily_records').select('*')
     .eq('user_id', currentUser.id).gte('date', start).order('date', {ascending:false});
   hideLoading();
   if (error) { toast('加载失败'); return; }
-  cachedRecords = data || [];
+  cachedRecords = (data || []).filter(r => r.date <= end);
   const tbody = document.getElementById('histBody');
   if (!cachedRecords.length) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--text3)">本月暂无记录</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:2rem;color:var(--text3)">${histYear}年${histMonth+1}月暂无记录</td></tr>`;
     return;
   }
   tbody.innerHTML = cachedRecords.map(r => {
@@ -923,8 +951,17 @@ async function loadAndRenderHistory() {
       <td class="${h['复盘']?'c-ok':'c-bad'}">${h['复盘']?'✓':'✗'}</td>
       <td class="${h['戒烟']?'c-ok':'c-bad'}">${h['戒烟']?'✓':'✗'}</td>
       <td>${r.running||'/'}</td>
+      <td>${h['跑步配速']||'/'}</td>
+      <td>${r.cycling||'/'}</td>
     </tr>`;
   }).join('');
+}
+
+function histChangeMonth(delta) {
+  histMonth += delta;
+  if (histMonth < 0)  { histMonth = 11; histYear--; }
+  if (histMonth > 11) { histMonth = 0;  histYear++; }
+  loadAndRenderHistory();
 }
 
 // ══════════════════════════
@@ -1157,12 +1194,23 @@ async function addBook() {
 // ══════════════════════════
 //  DASHBOARD
 // ══════════════════════════
+function dashChangeMonth(delta) {
+  dashMonth += delta;
+  if (dashMonth < 0)  { dashMonth = 11; dashYear--; }
+  if (dashMonth > 11) { dashMonth = 0;  dashYear++; }
+  renderDash();
+}
+
 async function renderDash() {
   if (!currentUser) return;
-  // Load recent records for charts
+  const start = new Date(dashYear, dashMonth, 1).toISOString().split('T')[0];
+  const end   = new Date(dashYear, dashMonth+1, 0).toISOString().split('T')[0];
+  document.getElementById('dashMonthLabel').textContent = `${dashYear}年${dashMonth+1}月`;
+  document.getElementById('dashSub').textContent = `${dashYear}年${dashMonth+1}月 · 统计`;
+  // Load records for selected month
   const { data } = await db.from('daily_records').select('*')
-    .eq('user_id', currentUser.id).order('date', {ascending:false}).limit(30);
-  const records = (data || []).reverse();
+    .eq('user_id', currentUser.id).gte('date', start).order('date', {ascending:false});
+  const records = (data || []).filter(r => r.date <= end).reverse();
   if (!records.length) {
     document.getElementById('statsRow').innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--text3)">暂无数据，先去打卡吧！</div>`;
     return;
