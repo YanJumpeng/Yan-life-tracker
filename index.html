@@ -682,13 +682,15 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
     <div class="card">
       <div class="card-head">习惯打卡</div>
       <div class="habits-wrap" id="habitsWrap">
-        <div class="h-chip" data-habit="复盘" onclick="this.classList.toggle('on')"><span class="hd"></span>睡前复盘</div>
-        <div class="h-chip" data-habit="戒烟" onclick="this.classList.toggle('on')"><span class="hd"></span>戒烟</div>
-        <div class="h-chip" data-habit="戒黄" onclick="this.classList.toggle('on')"><span class="hd"></span>戒黄</div>
-        <div class="h-chip" data-habit="早起" onclick="this.classList.toggle('on')"><span class="hd"></span>早起</div>
-        <div class="h-chip" data-habit="读书" onclick="this.classList.toggle('on')"><span class="hd"></span>读书</div>
-        <div class="h-chip" data-habit="冥想" onclick="this.classList.toggle('on')"><span class="hd"></span>冥想</div>
+        <div class="h-chip" data-habit="深度阅读" onclick="this.classList.toggle('on')"><span class="hd"></span>深度阅读</div>
+        <div class="h-chip" data-habit="锻炼身体" onclick="this.classList.toggle('on')"><span class="hd"></span>锻炼身体</div>
         <div class="h-chip" data-habit="写作" onclick="this.classList.toggle('on')"><span class="hd"></span>写作</div>
+        <div class="h-chip" data-habit="学习技能" onclick="this.classList.toggle('on')"><span class="hd"></span>学一门技能</div>
+        <div class="h-chip" data-habit="整理房间" onclick="this.classList.toggle('on')"><span class="hd"></span>整理房间</div>
+        <div class="h-chip" data-habit="独处思考" onclick="this.classList.toggle('on')"><span class="hd"></span>独处思考</div>
+        <div class="h-chip" data-habit="主动社交" onclick="this.classList.toggle('on')"><span class="hd"></span>主动社交</div>
+        <div class="h-chip" data-habit="复盘" onclick="this.classList.toggle('on')"><span class="hd"></span>复盘总结</div>
+        <div class="h-chip" data-habit="早起" onclick="this.classList.toggle('on')"><span class="hd"></span>早起</div>
       </div>
     </div>
   </div>
@@ -738,7 +740,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
     <table class="htable">
       <thead><tr>
         <th>日期</th><th>入睡</th><th>起床</th><th>睡眠</th>
-        <th>俯卧撑</th><th>深蹲</th><th>引体</th><th>复盘</th><th>戒烟</th><th>跑步</th><th>配速</th><th>骑行</th>
+        <th>俯卧撑</th><th>深蹲</th><th>引体</th><th>复盘</th><th>锻炼</th><th>跑步</th><th>配速</th><th>骑行</th>
       </tr></thead>
       <tbody id="histBody"></tbody>
     </table>
@@ -1056,7 +1058,7 @@ async function loadAndRenderHistory() {
       <td>${r.squat||'/'}</td>
       <td style="color:var(--c-todo);font-weight:500">${r.pullup||'/'}</td>
       <td class="${h['复盘']?'c-ok':'c-bad'}" style="font-size:.9rem">${h['复盘']?'✓':'✗'}</td>
-      <td class="${h['戒烟']?'c-ok':'c-bad'}" style="font-size:.9rem">${h['戒烟']?'✓':'✗'}</td>
+      <td class="${h['锻炼身体']?'c-ok':'c-bad'}" style="font-size:.9rem">${h['锻炼身体']?'✓':'✗'}</td>
       <td style="color:var(--c-journal);font-weight:600">${r.running||'/'}</td>
       <td style="color:var(--text2)">${h['跑步配速']||'/'}</td>
       <td style="color:var(--c-history)">${r.cycling||'/'}</td>
