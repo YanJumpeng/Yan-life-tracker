@@ -606,6 +606,10 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 .mood-btn:hover{background:var(--bg2);transform:scale(1.08)}
 .mood-btn.active{border-color:var(--c-dash);background:var(--c-dash-l);transform:scale(1.12)}
 .mood-btn.active span{color:var(--c-dash);font-weight:700}
+
+.time-star{cursor:pointer;transition:transform .15s;line-height:0}
+.time-star:hover{transform:scale(1.2)}
+.time-star.on svg polygon{fill:var(--c-dash);stroke:var(--c-dash)}
 </style>
 </head>
 <body>
@@ -723,6 +727,27 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
         <div class="mood-btn" data-mood="3" onclick="setMood(3)">😐<span>一般</span></div>
         <div class="mood-btn" data-mood="4" onclick="setMood(4)">😊<span>不错</span></div>
         <div class="mood-btn" data-mood="5" onclick="setMood(5)">🤩<span>很棒</span></div>
+      </div>
+    </div>
+    <!-- Time 打卡 -->
+    <div class="card" style="margin-top:1rem">
+      <div class="card-head">Time</div>
+      <div style="display:flex;gap:.7rem;justify-content:center;padding:.5rem 0" id="timeStars">
+        <div class="time-star" data-idx="0" onclick="toggleStar(0)">
+          <svg viewBox="0 0 24 24" width="32" height="32"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="none" stroke="var(--c-dash)" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="time-star" data-idx="1" onclick="toggleStar(1)">
+          <svg viewBox="0 0 24 24" width="32" height="32"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="none" stroke="var(--c-dash)" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="time-star" data-idx="2" onclick="toggleStar(2)">
+          <svg viewBox="0 0 24 24" width="32" height="32"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="none" stroke="var(--c-dash)" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="time-star" data-idx="3" onclick="toggleStar(3)">
+          <svg viewBox="0 0 24 24" width="32" height="32"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="none" stroke="var(--c-dash)" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="time-star" data-idx="4" onclick="toggleStar(4)">
+          <svg viewBox="0 0 24 24" width="32" height="32"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="none" stroke="var(--c-dash)" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </div>
       </div>
     </div>
     <!-- 今日读书 -->
@@ -1085,6 +1110,7 @@ async function loadTodayCheckin() {
       if (habits[h]) chip.classList.add('on'); else chip.classList.remove('on');
     });
     if (habits.mood) setMood(habits.mood);
+    if (habits['time']) setTimeScore(habits['time']);
     if (habits['今日书名']) {
       const el = document.getElementById('todayBook'); if(el) el.value = habits['今日书名'];
       const pg = document.getElementById('bookPages'); if(pg) pg.value = habits['读了页数']||0;
@@ -1092,6 +1118,30 @@ async function loadTodayCheckin() {
       const nt = document.getElementById('bookNote');  if(nt) nt.value = habits['读书摘记']||'';
     }
   }
+}
+
+function toggleStar(idx) {
+  const stars = document.querySelectorAll('.time-star');
+  // 点击已点亮的最后一颗 → 全灭；否则点亮到第idx颗
+  const currentOn = [...stars].filter(s=>s.classList.contains('on')).length;
+  const clickedOn = stars[idx].classList.contains('on');
+  stars.forEach((s, i) => {
+    if (currentOn === idx+1 && clickedOn) {
+      s.classList.remove('on'); // 全灭
+    } else {
+      i <= idx ? s.classList.add('on') : s.classList.remove('on');
+    }
+  });
+}
+
+function getTimeScore() {
+  return document.querySelectorAll('.time-star.on').length;
+}
+
+function setTimeScore(v) {
+  document.querySelectorAll('.time-star').forEach((s,i) => {
+    i < v ? s.classList.add('on') : s.classList.remove('on');
+  });
 }
 
 function setMood(v) {
@@ -1113,6 +1163,8 @@ async function saveCheckin() {
   if (ruPace) habits['跑步配速'] = ruPace;
   const moodActive = document.querySelector('.mood-btn.active');
   if (moodActive) habits['mood'] = +moodActive.dataset.mood;
+  const timeScore = getTimeScore();
+  if (timeScore > 0) habits['time'] = timeScore;
   const todayBook = document.getElementById('todayBook')?.value?.trim();
   const bookPages = +document.getElementById('bookPages')?.value || 0;
   const bookAt    = +document.getElementById('bookAt')?.value || 0;
