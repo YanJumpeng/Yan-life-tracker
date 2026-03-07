@@ -12,66 +12,155 @@
 const supabase = (() => {
   function createClient(url, key) {
     let _session = null;
+
+    // Helper: extract user from session (handles both old and new Supabase response formats)
+    function extractUser(d) {
+      if (!d) return null;
+      // New format: d.user exists directly
+      if (d.user && d.user.id) return d.user;
+      // Old format: user info in top-level
+      if (d.id && d.email !== undefined) return d;
+      // Stored session with user object
+      if (d.access_token && d.user) return d.user;
+      return null;
+    }
+
     const headers = () => ({
       'Content-Type': 'application/json',
       'apikey': key,
-      'Authorization': `Bearer ${_session?.access_token || key}`
+      'Authorization': `Bearer ${_session ? _session.access_token : key}`
     });
 
     // Auth
     const auth = {
       _listeners: [],
       onAuthStateChange(cb) { this._listeners.push(cb); return { data: { subscription: { unsubscribe: () => {} } } }; },
-      _notify(event, session) { _session = session; this._listeners.forEach(cb => cb(event, session)); },
+      _notify(event, session) {
+        _session = session;
+        // Ensure session.user is populated
+        if (session && !session.user) {
+          session.user = extractUser(session) || { id: '', email: '' };
+        }
+        this._listeners.forEach(cb => cb(event, session));
+      },
       async getSession() {
         const s = localStorage.getItem('sb_session');
-        if (s) { _session = JSON.parse(s); return { data: { session: _session } }; }
+        if (s) {
+          try {
+            _session = JSON.parse(s);
+            if (_session && !_session.user) _session.user = extractUser(_session) || { id: '', email: '' };
+            return { data: { session: _session } };
+          } catch(e) { localStorage.removeItem('sb_session'); }
+        }
         return { data: { session: null } };
       },
       async signInWithPassword({ email, password }) {
-        const r = await fetch(`${url}/auth/v1/token?grant_type=password`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': key },
-          body: JSON.stringify({ email, password })
-        });
-        const d = await r.json();
-        if (d.error || d.error_code) return { error: { message: d.error_description || d.msg || d.error } };
-        _session = d; localStorage.setItem('sb_session', JSON.stringify(d));
-        auth._notify('SIGNED_IN', d);
-        return { data: { session: d }, error: null };
+        try {
+          const r = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': key },
+            body: JSON.stringify({ email, password })
+          });
+          const d = await r.json();
+          if (!r.ok || d.error || d.error_code) return { error: { message: d.error_description || d.msg || d.error || 'Login failed' } };
+          // Ensure user object exists
+          if (!d.user) d.user = extractUser(d) || { id: d.user_id || '', email };
+          _session = d;
+          localStorage.setItem('sb_session', JSON.stringify(d));
+          auth._notify('SIGNED_IN', d);
+          return { data: { session: d }, error: null };
+        } catch(e) { return { error: { message: e.message } }; }
       },
       async signUp({ email, password }) {
-        const r = await fetch(`${url}/auth/v1/signup`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': key },
-          body: JSON.stringify({ email, password })
-        });
-        const d = await r.json();
-        if (d.error || d.error_code) return { error: { message: d.error_description || d.msg || d.error } };
-        if (d.access_token) { _session = d; localStorage.setItem('sb_session', JSON.stringify(d)); auth._notify('SIGNED_IN', d); }
-        return { data: d, error: null };
+        try {
+          const r = await fetch(`${url}/auth/v1/signup`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': key },
+            body: JSON.stringify({ email, password })
+          });
+          const d = await r.json();
+          if (!r.ok || d.error || d.error_code) return { error: { message: d.error_description || d.msg || d.error || 'Signup failed' } };
+          if (d.access_token) {
+            if (!d.user) d.user = extractUser(d) || { id: '', email };
+            _session = d;
+            localStorage.setItem('sb_session', JSON.stringify(d));
+            auth._notify('SIGNED_IN', d);
+          }
+          return { data: d, error: null };
+        } catch(e) { return { error: { message: e.message } }; }
       },
       async signInWithOAuth({ provider, options }) {
         window.location.href = `${url}/auth/v1/authorize?provider=${provider}&redirect_to=${encodeURIComponent(options?.redirectTo || window.location.href)}`;
       },
       async signOut() {
-        await fetch(`${url}/auth/v1/logout`, { method: 'POST', headers: headers() });
-        _session = null; localStorage.removeItem('sb_session');
+        try { await fetch(`${url}/auth/v1/logout`, { method: 'POST', headers: headers() }); } catch(e) {}
+        _session = null;
+        localStorage.removeItem('sb_session');
         auth._notify('SIGNED_OUT', null);
       }
     };
 
-    // Check for OAuth callback
+    // Check for OAuth callback in URL hash
     const hash = window.location.hash;
     if (hash && hash.includes('access_token')) {
       const params = new URLSearchParams(hash.substring(1));
-      const session = { access_token: params.get('access_token'), refresh_token: params.get('refresh_token'), user: { id: params.get('user_id'), email: '' } };
-      _session = session; localStorage.setItem('sb_session', JSON.stringify(session));
-      window.location.hash = '';
+      const at = params.get('access_token');
+      if (at) {
+        // Fetch user info from token
+        fetch(`${url}/auth/v1/user`, { headers: { 'apikey': key, 'Authorization': `Bearer ${at}` } })
+          .then(r => r.json()).then(user => {
+            const session = { access_token: at, refresh_token: params.get('refresh_token'), user };
+            _session = session;
+            localStorage.setItem('sb_session', JSON.stringify(session));
+            window.location.hash = '';
+            auth._notify('SIGNED_IN', session);
+          }).catch(() => { window.location.hash = ''; });
+        return { auth, from };
+      }
     }
 
-    // Restore session on load
+    // 页面加载恢复 session —— 验证 token 并获取最新 user.id
     const saved = localStorage.getItem('sb_session');
-    if (saved) { _session = JSON.parse(saved); setTimeout(() => auth._notify('SIGNED_IN', _session), 50); }
-    else { setTimeout(() => auth._notify('SIGNED_OUT', null), 50); }
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        _session = parsed;
+        if (parsed.user && parsed.user.id) {
+          // 先立即恢复让页面快速显示，再后台验证 token 是否仍有效
+          setTimeout(() => auth._notify('SIGNED_IN', _session), 50);
+          fetch(`${url}/auth/v1/user`, { headers: { 'apikey': key, 'Authorization': `Bearer ${parsed.access_token}` } })
+            .then(r => r.ok ? r.json() : null)
+            .then(user => {
+              if (user && user.id) {
+                _session.user = user;
+                localStorage.setItem('sb_session', JSON.stringify(_session));
+              } else {
+                // token 已过期，清除并跳回登录
+                localStorage.removeItem('sb_session');
+                _session = null;
+                auth._notify('SIGNED_OUT', null);
+              }
+            }).catch(() => { /* 网络问题不强制登出 */ });
+        } else {
+          // 有 token 但缺少 user.id（修复旧版本存储的残缺 session）
+          fetch(`${url}/auth/v1/user`, { headers: { 'apikey': key, 'Authorization': `Bearer ${parsed.access_token}` } })
+            .then(r => r.ok ? r.json() : null)
+            .then(user => {
+              if (user && user.id) {
+                _session.user = user;
+                localStorage.setItem('sb_session', JSON.stringify(_session));
+                auth._notify('SIGNED_IN', _session);
+              } else {
+                localStorage.removeItem('sb_session');
+                auth._notify('SIGNED_OUT', null);
+              }
+            }).catch(() => { auth._notify('SIGNED_OUT', null); });
+        }
+      } catch(e) {
+        localStorage.removeItem('sb_session');
+        setTimeout(() => auth._notify('SIGNED_OUT', null), 50);
+      }
+    } else {
+      setTimeout(() => auth._notify('SIGNED_OUT', null), 50);
+    }
 
     // Query builder
     function from(table) {
@@ -112,9 +201,8 @@ const supabase = (() => {
           return { data: result, error: null, select() { return { single() { return Promise.resolve({ data: result, error: null }); } }; } };
         },
         async upsert(payload, opts) {
-          const prefer = `resolution=merge-duplicates,return=representation`;
-          const conflictParam = opts?.onConflict ? `?on_conflict=${opts.onConflict}` : '';
-          const r = await fetch(`${url}/rest/v1/${table}${conflictParam}`, {
+          const prefer = `resolution=${opts?.onConflict ? 'merge-duplicates' : 'merge-duplicates'},return=representation`;
+          const r = await fetch(`${url}/rest/v1/${table}`, {
             method: 'POST', headers: { ...headers(), 'Prefer': prefer },
             body: JSON.stringify(payload)
           });
@@ -186,9 +274,9 @@ const supabase = (() => {
 .auth-field input:focus{border-color:var(--c-checkin)}
 .auth-err{font-size:.75rem;color:var(--bad);margin-bottom:.8rem;min-height:1.2rem}
 .auth-btn{
-  width:100%;padding:.72rem;border:none;border-radius:10px;
-  background:var(--c-checkin);color:#fff;font-family:'Barlow','Noto Sans SC',sans-serif;
-  font-size:1rem;font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:.03em;
+  width:100%;padding:.65rem;border:none;border-radius:9px;
+  background:var(--c-checkin);color:#fff;font-family:'Noto Serif SC',serif;
+  font-size:.88rem;font-weight:400;cursor:pointer;transition:all .18s;
 }
 .auth-btn:hover{filter:brightness(1.08);box-shadow:0 3px 10px rgba(224,123,57,.35)}
 .auth-btn:disabled{opacity:.5;cursor:not-allowed}
@@ -252,21 +340,20 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 
 /* ─── SIDEBAR ─── */
 .sidebar{
-  width:220px;min-height:100vh;background:var(--surface);
+  width:210px;min-height:100vh;background:var(--surface);
   border-right:1px solid var(--border);display:flex;flex-direction:column;
   position:fixed;top:0;left:0;bottom:0;
-  box-shadow:2px 0 20px rgba(26,35,50,.08);z-index:100;
+  box-shadow:2px 0 12px rgba(39,33,26,.05);z-index:100;
 }
 .logo{padding:1.5rem 1.4rem 1.3rem;border-bottom:1px solid var(--border);background:linear-gradient(135deg,#fff,#fdf9f5)}
 .logo-zh{font-size:1.3rem;font-weight:500;background:linear-gradient(120deg,var(--c-checkin),var(--c-dash));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:.22em}
-.logo-en{font-family:'Barlow Condensed',sans-serif;font-size:.7rem;color:var(--text3);letter-spacing:.2em;margin-top:3px;text-transform:uppercase}
+.logo-en{font-family:'Crimson Pro',serif;font-size:.7rem;color:var(--text3);letter-spacing:.14em;margin-top:3px;font-style:italic}
 .nav-wrap{padding:.9rem .7rem;flex:1;overflow-y:auto}
 .nav-sec{margin-bottom:1.4rem}
 .nav-sec-lbl{font-size:.58rem;color:var(--text3);letter-spacing:.25em;text-transform:uppercase;padding:0 .6rem;margin-bottom:.35rem}
 .nav-item{
-  display:flex;align-items:center;gap:.6rem;padding:.5rem .8rem;border-radius:10px;
-  cursor:pointer;font-size:.88rem;font-weight:400;color:var(--text2);transition:all .2s ease;margin-bottom:3px;
-  letter-spacing:.01em;
+  display:flex;align-items:center;gap:.55rem;padding:.48rem .7rem;border-radius:9px;
+  cursor:pointer;font-size:.82rem;font-weight:300;color:var(--text2);transition:all .18s;margin-bottom:2px;
 }
 .nav-item:hover{background:var(--bg);color:var(--text)}
 .nav-item.active{font-weight:400;color:#fff}
@@ -290,7 +377,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 
 /* ─── PAGE HEADER ─── */
 .page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.6rem;padding-bottom:1.2rem;border-bottom:3px solid transparent}
-.ph-title{font-size:1.7rem;font-weight:700;letter-spacing:.01em;line-height:1.2}
+.ph-title{font-size:1.55rem;font-weight:500;letter-spacing:.03em}
 .ph-sub{font-family:'Crimson Pro',serif;font-size:.8rem;color:var(--text3);font-style:italic;margin-top:3px}
 .ph-actions{display:flex;gap:.6rem;align-items:center;flex-shrink:0;margin-top:.2rem}
 [data-page="checkin"] .page-header{border-color:var(--c-checkin)}
@@ -308,7 +395,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 
 /* ─── CARDS ─── */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.3rem 1.4rem;box-shadow:var(--shadow)}
-.card-head{font-size:.68rem;color:var(--text2);letter-spacing:.15em;text-transform:uppercase;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;font-weight:600}
+.card-head{font-size:.63rem;color:var(--text3);letter-spacing:.2em;text-transform:uppercase;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between}
 .card-head em{font-style:normal;font-size:.72rem;color:var(--text2);letter-spacing:.04em;text-transform:none}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
 .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem}
@@ -348,7 +435,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 .stepper{display:flex;align-items:center;gap:.4rem}
 .s-btn{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--bdr2);background:var(--surface);color:var(--text2);cursor:pointer;font-size:.92rem;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
 .s-btn:hover{border-color:var(--c-checkin);color:var(--c-checkin);background:var(--c-checkin-l)}
-.s-input{width:58px;text-align:center;background:var(--sf2);border:1.5px solid var(--border);border-radius:8px;padding:.35rem;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.95rem;outline:none;font-weight:500}
+.s-input{width:54px;text-align:center;background:var(--sf2);border:1.5px solid var(--border);border-radius:7px;padding:.28rem;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.88rem;outline:none}
 .ex-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem}
 .ex-item label{font-size:.65rem;color:var(--text3);letter-spacing:.1em;display:block;margin-bottom:.3rem}
 
@@ -369,8 +456,8 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 
 /* ─── HISTORY TABLE ─── */
 .htable{width:100%;border-collapse:collapse}
-.htable th{font-size:.65rem;color:var(--text2);letter-spacing:.15em;text-transform:uppercase;text-align:left;padding:.6rem .85rem;border-bottom:2px solid var(--c-history);font-weight:600;background:var(--c-history-l)}
-.htable td{padding:.7rem .85rem;border-bottom:1px solid var(--border);font-size:.82rem;color:var(--text2);font-family:'JetBrains Mono',monospace}
+.htable th{font-size:.6rem;color:var(--text3);letter-spacing:.18em;text-transform:uppercase;text-align:left;padding:.55rem .8rem;border-bottom:2px solid var(--border);font-weight:400;background:var(--c-history-l)}
+.htable td{padding:.62rem .8rem;border-bottom:1px solid var(--border);font-size:.78rem;color:var(--text2);font-family:'JetBrains Mono',monospace}
 .htable tr:hover td{background:var(--c-history-l)}
 .htable tr:last-child td{border-bottom:none}
 .c-ok{color:var(--ok)!important}.c-bad{color:var(--bad)!important}
@@ -486,15 +573,11 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:3px}
-
 /* ─── 统计卡数字增强 ─── */
 .sc-val{font-size:2rem!important;font-weight:700!important;font-family:'Barlow Condensed','JetBrains Mono',monospace!important;line-height:1!important}
 .sc-unit{font-size:.75rem!important;font-weight:500!important;color:var(--text3)!important;letter-spacing:.05em!important}
 .sc-lbl{font-size:.72rem!important;color:var(--text2)!important;font-weight:500!important}
-.c-ok{color:var(--ok)!important;font-weight:600!important}
-.c-bad{color:var(--bad)!important;font-weight:600!important}
-.c-warn{color:var(--warn)!important;font-weight:600!important}
-.c-txt{color:var(--text)!important;font-weight:500!important}
+
 </style>
 </head>
 <body>
@@ -943,7 +1026,7 @@ async function loadAndRenderHistory() {
     tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:2rem;color:var(--text3)">${histYear}年${histMonth+1}月暂无记录</td></tr>`;
     return;
   }
-  tbody.innerHTML = cachedRecords.map((r, idx) => {
+  tbody.innerHTML = cachedRecords.map(r => {
     const dur = r.sleep_hours;
     const sc = dur>=7?'c-ok':dur&&dur<5?'c-bad':dur?'c-warn':'';
     const wk = r.wake_time ? r.wake_time.slice(0,5) : '/';
@@ -1448,8 +1531,8 @@ async function saveEditHist() {
   if (pace) habits['跑步配速'] = pace; else delete habits['跑步配速'];
 
   const payload = {
-    sleep_time: sleepT || null,
-    wake_time:  wakeT  || null,
+    sleep_time:  sleepT || null,
+    wake_time:   wakeT  || null,
     sleep_hours: sleepH,
     pushup:  +document.getElementById('eh_pushup').value  || 0,
     squat:   +document.getElementById('eh_squat').value   || 0,
@@ -1461,11 +1544,10 @@ async function saveEditHist() {
     habits
   };
 
-  const { error } = await db.from('daily_records').update(payload)
-    .eq('id', _editHistRecord.id);
-
+  const { error } = await db.from('daily_records').update(payload).eq('id', _editHistRecord.id);
   if (error) { alert('保存失败: ' + (error.message||JSON.stringify(error))); return; }
   closeEditHist();
+  toast('✓ 记录已更新');
   loadAndRenderHistory();
 }
 
@@ -1474,5 +1556,6 @@ document.getElementById('editHistModal').addEventListener('click', function(e) {
   if (e.target === this) closeEditHist();
 });
 </script>
+
 </body>
 </html>
