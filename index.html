@@ -941,7 +941,7 @@ async function loadAndRenderHistory() {
     const h = r.habits||{};
     const d = new Date(r.date);
     const dateStr = `${d.getMonth()+1}月${d.getDate()}日`;
-    return`<tr>
+    return`<tr style='cursor:pointer' onclick='editHistRecord(${JSON.stringify(r)})'>
       <td class="c-txt">${dateStr}</td>
       <td>${r.sleep_time?r.sleep_time.slice(0,5):'/'}</td>
       <td class="${wc}">${wk}</td>
@@ -1370,6 +1370,98 @@ function toast(msg) {
   t.textContent=msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2600);
 }
+</script>
+<!-- 编辑历史记录弹窗 -->
+<div id="editHistModal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.45);align-items:center;justify-content:center">
+  <div style="background:var(--surface);border-radius:16px;padding:1.8rem;width:90%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+    <div style="font-size:1rem;font-weight:500;margin-bottom:1.2rem;color:var(--text)">编辑记录 · <span id="editHistDate"></span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+      <div><label style="font-size:.7rem;color:var(--text3)">入睡</label><input id="eh_sleep" type="time" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">起床</label><input id="eh_wake" type="time" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">俯卧撑</label><input id="eh_pushup" type="number" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">深蹲</label><input id="eh_squat" type="number" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">引体向上</label><input id="eh_pullup" type="number" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">曲臂伸</label><input id="eh_dips" type="number" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">跑步(km)</label><input id="eh_running" type="number" step="0.01" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">配速(min/km)</label><input id="eh_pace" type="text" placeholder="5'30&quot;" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">骑行(km)</label><input id="eh_cycling" type="number" step="0.1" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">备注</label><input id="eh_note" type="text" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+    </div>
+    <div style="display:flex;gap:.8rem;margin-top:1.2rem;justify-content:flex-end">
+      <button onclick="closeEditHist()" style="padding:.5rem 1.2rem;border:1px solid var(--border);background:var(--sf2);color:var(--text);border-radius:8px;cursor:pointer">取消</button>
+      <button onclick="saveEditHist()" style="padding:.5rem 1.2rem;border:none;background:var(--c-checkin);color:#fff;border-radius:8px;cursor:pointer;font-weight:500">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let _editHistRecord = null;
+
+function editHistRecord(r) {
+  _editHistRecord = r;
+  const h = r.habits || {};
+  document.getElementById('editHistDate').textContent = r.date;
+  document.getElementById('eh_sleep').value = r.sleep_time ? r.sleep_time.slice(0,5) : '';
+  document.getElementById('eh_wake').value = r.wake_time ? r.wake_time.slice(0,5) : '';
+  document.getElementById('eh_pushup').value = r.pushup || 0;
+  document.getElementById('eh_squat').value = r.squat || 0;
+  document.getElementById('eh_pullup').value = r.pullup || 0;
+  document.getElementById('eh_dips').value = r.dips || 0;
+  document.getElementById('eh_running').value = r.running || 0;
+  document.getElementById('eh_pace').value = h['跑步配速'] || '';
+  document.getElementById('eh_cycling').value = r.cycling || 0;
+  document.getElementById('eh_note').value = r.note || '';
+  const modal = document.getElementById('editHistModal');
+  modal.style.display = 'flex';
+}
+
+function closeEditHist() {
+  document.getElementById('editHistModal').style.display = 'none';
+  _editHistRecord = null;
+}
+
+async function saveEditHist() {
+  if (!_editHistRecord) return;
+  const sleepT = document.getElementById('eh_sleep').value;
+  const wakeT  = document.getElementById('eh_wake').value;
+  let sleepH = null;
+  if (sleepT && wakeT) {
+    const [sh,sm] = sleepT.split(':').map(Number);
+    const [wh,wm] = wakeT.split(':').map(Number);
+    let diff = (wh*60+wm) - (sh*60+sm);
+    if (diff < 0) diff += 1440;
+    sleepH = +(diff/60).toFixed(2);
+  }
+  const pace = document.getElementById('eh_pace').value;
+  const habits = { ...(_editHistRecord.habits||{}) };
+  if (pace) habits['跑步配速'] = pace; else delete habits['跑步配速'];
+
+  const payload = {
+    sleep_time: sleepT || null,
+    wake_time:  wakeT  || null,
+    sleep_hours: sleepH,
+    pushup:  +document.getElementById('eh_pushup').value  || 0,
+    squat:   +document.getElementById('eh_squat').value   || 0,
+    pullup:  +document.getElementById('eh_pullup').value  || 0,
+    dips:    +document.getElementById('eh_dips').value    || 0,
+    running: +document.getElementById('eh_running').value || 0,
+    cycling: +document.getElementById('eh_cycling').value || 0,
+    note:    document.getElementById('eh_note').value,
+    habits
+  };
+
+  const { error } = await db.from('daily_records').update(payload)
+    .eq('id', _editHistRecord.id);
+
+  if (error) { alert('保存失败: ' + (error.message||JSON.stringify(error))); return; }
+  closeEditHist();
+  loadAndRenderHistory();
+}
+
+// 点击弹窗外部关闭
+document.getElementById('editHistModal').addEventListener('click', function(e) {
+  if (e.target === this) closeEditHist();
+});
 </script>
 </body>
 </html>
