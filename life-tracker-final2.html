@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日迹 · 生活记录</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ─── CONFIG BANNER ─── */
+.config-banner{
+  position:fixed;top:0;left:0;right:0;z-index:9999;
+  background:linear-gradient(90deg,#e07b39,#c05a18);
+  color:#fff;font-size:.78rem;padding:.5rem 1.2rem;
+  display:flex;align-items:center;justify-content:space-between;gap:1rem;
+  font-family:'Noto Serif SC',serif;
+}
+.config-banner.hide{display:none}
+.config-banner a{color:#ffe0c8;text-decoration:underline;cursor:pointer}
+
+/* ─── AUTH SCREEN ─── */
+.auth-screen{
+  display:none;position:fixed;inset:0;z-index:500;
+  background:var(--bg);
+  align-items:center;justify-content:center;
+}
+.auth-screen.show{display:flex}
+.auth-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:20px;padding:2.5rem 2rem;width:100%;max-width:380px;
+  box-shadow:0 8px 32px rgba(39,33,26,.12);text-align:center;
+}
+.auth-logo{
+  font-size:1.8rem;font-weight:500;letter-spacing:.25em;
+  background:linear-gradient(120deg,var(--c-checkin),var(--c-dash));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  margin-bottom:.4rem;
+}
+.auth-sub{font-family:'Crimson Pro',serif;font-size:.82rem;color:var(--text3);font-style:italic;margin-bottom:2rem}
+.auth-tabs{display:flex;border:1.5px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:1.5rem}
+.auth-tab{flex:1;padding:.5rem;font-size:.82rem;cursor:pointer;border:none;background:transparent;color:var(--text2);transition:all .18s;font-family:'Noto Serif SC',serif}
+.auth-tab.active{background:var(--c-checkin);color:#fff}
+.auth-field{margin-bottom:.9rem;text-align:left}
+.auth-field label{font-size:.62rem;color:var(--text3);letter-spacing:.15em;text-transform:uppercase;display:block;margin-bottom:.3rem}
+.auth-field input{
+  width:100%;background:var(--sf2);border:1.5px solid var(--border);
+  border-radius:9px;padding:.55rem .8rem;color:var(--text);
+  font-family:'Noto Serif SC',serif;font-size:.85rem;outline:none;
+  transition:border-color .18s;
+}
+.auth-field input:focus{border-color:var(--c-checkin)}
+.auth-err{font-size:.75rem;color:var(--bad);margin-bottom:.8rem;min-height:1.2rem}
+.auth-btn{
+  width:100%;padding:.65rem;border:none;border-radius:9px;
+  background:var(--c-checkin);color:#fff;font-family:'Noto Serif SC',serif;
+  font-size:.88rem;font-weight:400;cursor:pointer;transition:all .18s;
+}
+.auth-btn:hover{filter:brightness(1.08);box-shadow:0 3px 10px rgba(224,123,57,.35)}
+.auth-btn:disabled{opacity:.5;cursor:not-allowed}
+.auth-divider{display:flex;align-items:center;gap:.7rem;margin:.9rem 0;color:var(--text3);font-size:.72rem}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.auth-google{
+  width:100%;padding:.58rem;border:1.5px solid var(--border);border-radius:9px;
+  background:var(--surface);color:var(--text2);font-family:'Noto Serif SC',serif;
+  font-size:.83rem;cursor:pointer;transition:all .18s;display:flex;align-items:center;justify-content:center;gap:.5rem;
+}
+.auth-google:hover{border-color:var(--bdr2);background:var(--sf2)}
+
+/* ─── LOADING ─── */
+.loading-overlay{
+  display:none;position:fixed;inset:0;z-index:800;
+  background:rgba(247,244,240,.85);backdrop-filter:blur(4px);
+  align-items:center;justify-content:center;flex-direction:column;gap:.8rem;
+}
+.loading-overlay.show{display:flex}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--c-checkin);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:.8rem;color:var(--text3)}
+
+/* ─── USER BAR ─── */
+.user-bar{
+  display:flex;align-items:center;gap:.6rem;
+  padding:.8rem 1.2rem;border-top:1px solid var(--border);
+  font-size:.75rem;color:var(--text2);
+}
+.user-avatar{
+  width:28px;height:28px;border-radius:50%;
+  background:linear-gradient(135deg,var(--c-checkin),var(--c-dash));
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:.72rem;font-weight:500;flex-shrink:0;
+}
+.user-email{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.68rem}
+.signout-btn{
+  font-size:.65rem;color:var(--text3);cursor:pointer;padding:.2rem .45rem;
+  border-radius:5px;border:1px solid var(--border);background:transparent;
+  transition:all .15s;white-space:nowrap;
+}
+.signout-btn:hover{border-color:var(--bad);color:var(--bad)}
+
+:root {
+  --bg:#f7f4f0; --bg2:#eeebe5; --surface:#fff; --sf2:#fdfcfb;
+  --border:#e5e0d8; --bdr2:#d8d1c7; --text:#27211a; --text2:#6b5f53; --text3:#a89b8e;
+  --shadow:0 1px 4px rgba(39,33,26,.07),0 6px 16px rgba(39,33,26,.04);
+  --shad-lg:0 4px 12px rgba(39,33,26,.10),0 12px 32px rgba(39,33,26,.06);
+  --c-checkin:#e07b39; --c-checkin-l:#fdf0e6;
+  --c-todo:#4e8ab5;    --c-todo-l:#e8f3fb;
+  --c-history:#7c6fcd; --c-history-l:#f0eefb;
+  --c-journal:#4aab7e; --c-journal-l:#e6f7f0;
+  --c-reading:#c0574f; --c-reading-l:#fdf0ef;
+  --c-dash:#b07d2e;    --c-dash-l:#fdf5e6;
+  --ok:#3e9a68; --ok-l:#e8f5ee; --warn:#c08a1e; --warn-l:#fef8e7; --bad:#c0392b; --bad-l:#fdf0ee; --info:#2c7db5; --info-l:#e8f4fc;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Noto Serif SC',serif;min-height:100vh}
+.app{display:flex;min-height:100vh}
+
+/* ─── SIDEBAR ─── */
+.sidebar{
+  width:210px;min-height:100vh;background:var(--surface);
+  border-right:1px solid var(--border);display:flex;flex-direction:column;
+  position:fixed;top:0;left:0;bottom:0;
+  box-shadow:2px 0 12px rgba(39,33,26,.05);z-index:100;
+}
+.logo{padding:1.5rem 1.4rem 1.3rem;border-bottom:1px solid var(--border);background:linear-gradient(135deg,#fff,#fdf9f5)}
+.logo-zh{font-size:1.3rem;font-weight:500;background:linear-gradient(120deg,var(--c-checkin),var(--c-dash));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:.22em}
+.logo-en{font-family:'Crimson Pro',serif;font-size:.7rem;color:var(--text3);letter-spacing:.14em;margin-top:3px;font-style:italic}
+.nav-wrap{padding:.9rem .7rem;flex:1;overflow-y:auto}
+.nav-sec{margin-bottom:1.4rem}
+.nav-sec-lbl{font-size:.58rem;color:var(--text3);letter-spacing:.25em;text-transform:uppercase;padding:0 .6rem;margin-bottom:.35rem}
+.nav-item{
+  display:flex;align-items:center;gap:.55rem;padding:.48rem .7rem;border-radius:9px;
+  cursor:pointer;font-size:.82rem;font-weight:300;color:var(--text2);transition:all .18s;margin-bottom:2px;
+}
+.nav-item:hover{background:var(--bg);color:var(--text)}
+.nav-item.active{font-weight:400;color:#fff}
+.nav-icon{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0;background:var(--bg2);transition:all .18s}
+.nav-item.active .nav-icon{background:rgba(255,255,255,.2)}
+.nav-item[data-mod="checkin"].active{background:var(--c-checkin)}
+.nav-item[data-mod="todo"].active{background:var(--c-todo)}
+.nav-item[data-mod="history"].active{background:var(--c-history)}
+.nav-item[data-mod="journal"].active{background:var(--c-journal)}
+.nav-item[data-mod="reading"].active{background:var(--c-reading)}
+.nav-item[data-mod="dashboard"].active{background:var(--c-dash)}
+.sidebar-foot{padding:.9rem 1.2rem;border-top:1px solid var(--border);background:linear-gradient(to top,var(--sf2),#fff)}
+.streak-n{font-family:'Crimson Pro',serif;font-size:2.2rem;background:linear-gradient(135deg,var(--c-checkin),var(--c-dash));-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:600;line-height:1;text-align:center}
+.streak-l{font-size:.62rem;color:var(--text3);letter-spacing:.1em;margin-top:3px;text-align:center}
+
+/* ─── MAIN ─── */
+.main{margin-left:210px;flex:1;padding:2rem 2.2rem 5rem}
+.page{display:none}
+.page.active{display:block;animation:fadeUp .25s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+
+/* ─── PAGE HEADER ─── */
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.6rem;padding-bottom:1.2rem;border-bottom:3px solid transparent}
+.ph-title{font-size:1.55rem;font-weight:500;letter-spacing:.03em}
+.ph-sub{font-family:'Crimson Pro',serif;font-size:.8rem;color:var(--text3);font-style:italic;margin-top:3px}
+.ph-actions{display:flex;gap:.6rem;align-items:center;flex-shrink:0;margin-top:.2rem}
+[data-page="checkin"] .page-header{border-color:var(--c-checkin)}
+[data-page="todo"] .page-header{border-color:var(--c-todo)}
+[data-page="history"] .page-header{border-color:var(--c-history)}
+[data-page="journal"] .page-header{border-color:var(--c-journal)}
+[data-page="reading"] .page-header{border-color:var(--c-reading)}
+[data-page="dashboard"] .page-header{border-color:var(--c-dash)}
+[data-page="checkin"] .ph-title{color:var(--c-checkin)}
+[data-page="todo"] .ph-title{color:var(--c-todo)}
+[data-page="history"] .ph-title{color:var(--c-history)}
+[data-page="journal"] .ph-title{color:var(--c-journal)}
+[data-page="reading"] .ph-title{color:var(--c-reading)}
+[data-page="dashboard"] .ph-title{color:var(--c-dash)}
+
+/* ─── CARDS ─── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.3rem 1.4rem;box-shadow:var(--shadow)}
+.card-head{font-size:.63rem;color:var(--text3);letter-spacing:.2em;text-transform:uppercase;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between}
+.card-head em{font-style:normal;font-size:.72rem;color:var(--text2);letter-spacing:.04em;text-transform:none}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+.mb{margin-bottom:1.2rem}
+
+/* ─── STAT CARDS ─── */
+.stat-card{border-radius:14px;padding:1.1rem 1.3rem;box-shadow:var(--shadow);position:relative;overflow:hidden;border:1px solid transparent}
+.stat-card .sc-bg{position:absolute;right:-12px;top:-12px;font-size:3.5rem;opacity:.08;line-height:1}
+.stat-card .sl{font-size:.6rem;letter-spacing:.18em;text-transform:uppercase;margin-bottom:.35rem;font-weight:400}
+.stat-card .sv{font-family:'Crimson Pro',serif;font-size:2rem;font-weight:600;line-height:1}
+.stat-card .su{font-size:.72rem;margin-left:2px;font-weight:300}
+.stat-card .st{font-size:.68rem;margin-top:.35rem;font-weight:300}
+.sc-orange{background:linear-gradient(135deg,#fff5ed,#fff);border-color:#f5d5b8;color:var(--c-checkin)}
+.sc-orange .sl,.sc-orange .st{color:#c06020}
+.sc-blue{background:linear-gradient(135deg,#e8f3fb,#fff);border-color:#b8d8f0;color:var(--c-todo)}
+.sc-blue .sl,.sc-blue .st{color:#2a6a9a}
+.sc-purple{background:linear-gradient(135deg,#f0eefb,#fff);border-color:#ccc8ee;color:var(--c-history)}
+.sc-purple .sl,.sc-purple .st{color:#6055b0}
+.sc-green{background:linear-gradient(135deg,#e6f7f0,#fff);border-color:#b0ddc8;color:var(--ok)}
+.sc-green .sl,.sc-green .st{color:#2e7a52}
+
+/* ─── FORM ─── */
+.form-group{margin-bottom:.95rem}
+.form-label{display:block;font-size:.62rem;color:var(--text3);letter-spacing:.15em;text-transform:uppercase;margin-bottom:.32rem}
+.form-input,.form-select,.form-textarea{width:100%;background:var(--sf2);border:1.5px solid var(--border);border-radius:9px;padding:.52rem .78rem;color:var(--text);font-family:'Noto Serif SC',serif;font-size:.83rem;font-weight:300;outline:none;transition:border-color .18s,box-shadow .18s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--c-checkin);box-shadow:0 0 0 3px rgba(224,123,57,.12);background:var(--surface)}
+.form-textarea{resize:vertical;min-height:95px;line-height:1.9}
+.form-input[readonly]{color:var(--c-checkin);background:var(--c-checkin-l);border-color:rgba(224,123,57,.25);cursor:default;font-family:'JetBrains Mono',monospace}
+.time-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem}
+.habits-wrap{display:flex;flex-wrap:wrap;gap:.45rem}
+.h-chip{display:flex;align-items:center;gap:.42rem;padding:.38rem .82rem;border:1.5px solid var(--bdr2);border-radius:18px;cursor:pointer;font-size:.77rem;color:var(--text2);transition:all .18s;background:var(--sf2);user-select:none}
+.h-chip:hover{border-color:var(--c-checkin);color:var(--c-checkin)}
+.h-chip.on{border-color:currentColor;background:var(--c-checkin-l);color:var(--c-checkin)}
+.h-chip.on .hd{background:var(--c-checkin)}
+.hd{width:6px;height:6px;border-radius:50%;background:var(--bdr2);transition:background .18s}
+.stepper{display:flex;align-items:center;gap:.4rem}
+.s-btn{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--bdr2);background:var(--surface);color:var(--text2);cursor:pointer;font-size:.92rem;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.s-btn:hover{border-color:var(--c-checkin);color:var(--c-checkin);background:var(--c-checkin-l)}
+.s-input{width:54px;text-align:center;background:var(--sf2);border:1.5px solid var(--border);border-radius:7px;padding:.28rem;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.88rem;outline:none}
+.ex-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem}
+.ex-item label{font-size:.65rem;color:var(--text3);letter-spacing:.1em;display:block;margin-bottom:.3rem}
+
+/* ─── BUTTONS ─── */
+.btn{padding:.58rem 1.2rem;border-radius:9px;cursor:pointer;font-family:'Noto Serif SC',serif;font-size:.81rem;font-weight:400;letter-spacing:.04em;transition:all .18s;border:none;display:inline-flex;align-items:center;gap:.4rem}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-sm{padding:.36rem .82rem;font-size:.74rem}
+.btn-primary{background:var(--c-checkin);color:#fff}
+.btn-primary:hover:not(:disabled){filter:brightness(1.08);box-shadow:0 3px 10px rgba(224,123,57,.35)}
+.btn-blue{background:var(--c-todo);color:#fff}
+.btn-blue:hover:not(:disabled){filter:brightness(1.08)}
+.btn-green{background:var(--c-journal);color:#fff}
+.btn-green:hover:not(:disabled){filter:brightness(1.08)}
+.btn-red{background:var(--c-reading);color:#fff}
+.btn-red:hover:not(:disabled){filter:brightness(1.08)}
+.btn-ghost{background:transparent;border:1.5px solid var(--bdr2);color:var(--text2)}
+.btn-ghost:hover:not(:disabled){border-color:var(--c-checkin);color:var(--c-checkin);background:var(--c-checkin-l)}
+
+/* ─── HISTORY TABLE ─── */
+.htable{width:100%;border-collapse:collapse}
+.htable th{font-size:.6rem;color:var(--text3);letter-spacing:.18em;text-transform:uppercase;text-align:left;padding:.55rem .8rem;border-bottom:2px solid var(--border);font-weight:400;background:var(--c-history-l)}
+.htable td{padding:.62rem .8rem;border-bottom:1px solid var(--border);font-size:.78rem;color:var(--text2);font-family:'JetBrains Mono',monospace}
+.htable tr:hover td{background:var(--c-history-l)}
+.htable tr:last-child td{border-bottom:none}
+.c-ok{color:var(--ok)!important}.c-bad{color:var(--bad)!important}
+.c-warn{color:var(--warn)!important}.c-txt{color:var(--text)!important;font-weight:400}
+
+/* ─── TODO ─── */
+.todo-scroll{overflow-x:auto;padding-bottom:.5rem}
+.todo-tbl{border-collapse:collapse;min-width:100%}
+.todo-tbl th{padding:.6rem .85rem;background:var(--c-todo-l);border:1px solid #cce0f0;font-size:.72rem;color:var(--c-todo);font-weight:500;white-space:nowrap;text-align:center;min-width:118px}
+.todo-tbl th.cat-head{background:linear-gradient(135deg,var(--c-todo),#3a7aa5);color:#fff;text-align:left;width:86px;min-width:86px}
+.todo-tbl td{padding:.45rem .7rem;border:1px solid var(--border);vertical-align:top;min-width:118px}
+.todo-tbl td.cat-cell{background:var(--c-todo-l);font-size:.7rem;color:var(--c-todo);font-weight:500;letter-spacing:.05em;vertical-align:middle;min-width:86px;width:86px}
+.todo-tbl tr.cat-sep td{background:linear-gradient(135deg,#f0f7fd,var(--c-todo-l));padding:.45rem 1rem;font-size:.68rem;color:var(--c-todo);font-weight:600;letter-spacing:.12em;text-transform:uppercase;border-color:#cce0f0}
+.todo-cell{display:flex;flex-direction:column;gap:3px}
+.t-item{display:flex;align-items:flex-start;gap:.38rem;padding:3px 6px;border-radius:6px;cursor:pointer;transition:background .15s;font-size:.74rem;color:var(--text2);line-height:1.4}
+.t-item:hover{background:var(--c-todo-l)}
+.t-item.done{text-decoration:line-through;color:var(--text3)}
+.t-cb{width:13px;height:13px;border:1.5px solid var(--bdr2);border-radius:3px;flex-shrink:0;margin-top:1px;transition:all .15s;display:flex;align-items:center;justify-content:center;background:var(--surface);font-size:9px;color:#fff}
+.t-item.done .t-cb{background:var(--c-todo);border-color:var(--c-todo)}
+.t-add{font-size:.68rem;color:var(--text3);cursor:pointer;padding:3px 6px;border-radius:4px;border:1px dashed transparent;transition:all .15s;margin-top:1px}
+.t-add:hover{border-color:var(--c-todo);color:var(--c-todo);background:var(--c-todo-l)}
+.today-col{background:rgba(78,138,181,.04)!important}
+.today-head{color:var(--c-todo)!important;background:rgba(78,138,181,.12)!important}
+
+/* ─── JOURNAL ─── */
+.j-tabs{display:flex;gap:.45rem;margin-bottom:1.2rem;flex-wrap:wrap}
+.j-tab{padding:.33rem .88rem;border:1.5px solid var(--bdr2);border-radius:16px;font-size:.77rem;color:var(--text2);cursor:pointer;transition:all .18s;background:transparent}
+.j-tab.active{border-color:var(--c-journal);color:var(--c-journal);background:var(--c-journal-l)}
+.j-list{display:flex;flex-direction:column;gap:.75rem}
+.j-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem 1.4rem;cursor:pointer;transition:all .18s;box-shadow:var(--shadow);border-left:4px solid transparent}
+.j-card[data-type="daily"]{border-left-color:var(--info)}
+.j-card[data-type="weekly"]{border-left-color:var(--warn)}
+.j-card[data-type="monthly"]{border-left-color:var(--c-journal)}
+.j-card:hover{transform:translateY(-2px);box-shadow:var(--shad-lg)}
+.j-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:.45rem}
+.j-title{font-size:.9rem;color:var(--text);font-weight:400}
+.j-meta{font-family:'Crimson Pro',serif;font-size:.75rem;color:var(--text3);font-style:italic}
+.j-prev{font-size:.77rem;color:var(--text3);line-height:1.9;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.j-badge{display:inline-block;padding:.14rem .52rem;border-radius:8px;font-size:.58rem;letter-spacing:.08em;margin-right:.45rem}
+.jb-d{background:var(--info-l);color:var(--info)}
+.jb-w{background:var(--warn-l);color:var(--warn)}
+.jb-m{background:var(--c-journal-l);color:var(--c-journal)}
+.j-editor{display:none}
+.j-editor.on{display:block}
+.ed-hd{display:flex;align-items:center;gap:.75rem;margin-bottom:1.3rem;flex-wrap:wrap}
+.ed-back{background:transparent;border:none;color:var(--text3);cursor:pointer;font-size:.83rem;padding:.3rem .5rem;border-radius:7px;transition:all .15s}
+.ed-back:hover{background:var(--bg2);color:var(--text)}
+.ed-title-inp{flex:1;background:transparent;border:none;border-bottom:2px solid var(--border);color:var(--text);font-family:'Noto Serif SC',serif;font-size:1.22rem;font-weight:400;padding:.28rem 0;outline:none}
+.ed-title-inp:focus{border-color:var(--c-journal)}
+.ed-title-inp::placeholder{color:var(--text3)}
+.ed-body{width:100%;min-height:360px;background:transparent;border:none;color:var(--text);font-family:'Noto Serif SC',serif;font-size:.88rem;font-weight:300;line-height:2.4;padding:1rem 0;outline:none;resize:none}
+.ed-body::placeholder{color:var(--text3)}
+
+/* ─── BOOKS ─── */
+.book-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+.b-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem;box-shadow:var(--shadow);transition:all .2s;cursor:pointer;position:relative;overflow:hidden}
+.b-card::before{content:'';position:absolute;top:0;right:0;width:60px;height:60px;border-radius:0 12px 0 100%;opacity:.35}
+.b-card[data-status="done"]::before{background:var(--ok)}
+.b-card[data-status="reading"]::before{background:var(--info)}
+.b-card[data-status="want"]::before{background:var(--warn)}
+.b-card:hover{transform:translateY(-3px);box-shadow:var(--shad-lg)}
+.b-title{font-size:.9rem;color:var(--text);margin-bottom:.22rem;font-weight:400}
+.b-author{font-family:'Crimson Pro',serif;font-size:.77rem;color:var(--text3);font-style:italic;margin-bottom:.7rem}
+.b-badge{display:inline-block;padding:.16rem .58rem;border-radius:10px;font-size:.6rem;letter-spacing:.1em;margin-bottom:.5rem}
+.bs-r{background:var(--info-l);color:var(--info)}
+.bs-d{background:var(--ok-l);color:var(--ok)}
+.bs-w{background:var(--warn-l);color:var(--warn)}
+.b-note{font-size:.72rem;color:var(--text3);margin:.28rem 0;line-height:1.6}
+.b-stars{font-size:.72rem;letter-spacing:2px;margin:.28rem 0}
+.b-prog{height:3px;background:var(--bg2);border-radius:2px;overflow:hidden;margin-top:.55rem}
+.b-fill{height:100%;border-radius:2px;transition:width .6s ease}
+.b-card[data-status="done"] .b-fill{background:linear-gradient(90deg,var(--ok),#74c49a)}
+.b-card[data-status="reading"] .b-fill{background:linear-gradient(90deg,var(--info),#6ab0e0)}
+.b-plabel{font-size:.6rem;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-top:3px}
+
+/* ─── CHARTS ─── */
+.chart-svg{width:100%;overflow:visible}
+.cg-line{stroke:var(--border);stroke-width:1;stroke-dasharray:3,4}
+.cg-label{fill:var(--text3);font-size:9.5px;font-family:'JetBrains Mono',monospace}
+.ch-dot{cursor:pointer;transition:r .15s}
+.ch-dot:hover{r:5}
+.bar-chart{display:flex;align-items:flex-end;gap:5px;height:90px}
+.bc-col{display:flex;flex-direction:column;align-items:center;flex:1;gap:3px}
+.bc-bar{width:100%;border-radius:4px 4px 0 0;transition:opacity .2s;cursor:pointer}
+.bc-bar:hover{opacity:.7}
+.bc-x{font-size:.57rem;color:var(--text3);font-family:'JetBrains Mono',monospace}
+.radials{display:flex;flex-wrap:wrap;gap:1.2rem;justify-content:space-around;padding:.3rem 0}
+.rad-item{text-align:center}
+.rad-lbl{font-size:.67rem;color:var(--text2);margin-top:.35rem;letter-spacing:.04em}
+.heatmap{display:grid;grid-template-columns:repeat(31,1fr);gap:4px}
+.hm-cell{aspect-ratio:1;border-radius:4px;cursor:pointer;transition:transform .12s,box-shadow .12s}
+.hm-cell:hover{transform:scale(1.45);box-shadow:0 2px 6px rgba(0,0,0,.18);z-index:5}
+.hm-0{background:var(--bg2)}.hm-1{background:#f5d5b8}.hm-2{background:#e8a86e}.hm-3{background:#d97d3a}.hm-4{background:#c05a18}
+.hm-legend{display:flex;align-items:center;gap:.38rem;margin-top:.7rem}
+.hm-legend span{font-size:.6rem;color:var(--text3)}
+.hm-box{width:11px;height:11px;border-radius:3px}
+.sq-wrap{display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap}
+.sq-legend{display:flex;flex-direction:column;gap:.55rem;min-width:160px}
+.sq-row{display:flex;align-items:center;gap:.55rem}
+.sq-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.sq-name{font-size:.75rem;color:var(--text2)}
+.sq-cnt{font-size:.78rem;color:var(--text);margin-left:auto;font-family:'JetBrains Mono',monospace;font-weight:500}
+
+/* ─── EMPTY STATE ─── */
+.empty-state{text-align:center;padding:3rem 1rem;color:var(--text3)}
+.empty-icon{font-size:2.5rem;margin-bottom:.8rem;opacity:.4}
+.empty-text{font-size:.85rem;line-height:1.8}
+
+/* ─── TOAST ─── */
+.toast{position:fixed;bottom:2rem;right:2rem;background:var(--text);color:#fff;border-radius:10px;padding:.7rem 1.2rem;font-size:.8rem;opacity:0;transform:translateY(8px);transition:all .28s;z-index:999;pointer-events:none;box-shadow:var(--shad-lg)}
+.toast.show{opacity:1;transform:translateY(0)}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- Config banner -->
+<div class="config-banner" id="configBanner">
+  ⚙️ 请先配置 Supabase — 在下方代码中填入你的 <strong>SUPABASE_URL</strong> 和 <strong>SUPABASE_ANON_KEY</strong>，<a onclick="document.getElementById('configBanner').classList.add('hide')">知道了，先关闭</a>
+</div>
+
+<!-- Auth screen -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo">日　迹</div>
+    <div class="auth-sub">daily chronicle · 记录每一天</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')">登录</button>
+      <button class="auth-tab" onclick="switchAuthTab('signup')">注册</button>
+    </div>
+    <div class="auth-field">
+      <label>邮箱</label>
+      <input type="email" id="authEmail" placeholder="your@email.com">
+    </div>
+    <div class="auth-field">
+      <label>密码</label>
+      <input type="password" id="authPwd" placeholder="••••••••" onkeydown="if(event.key==='Enter')doAuth()">
+    </div>
+    <div class="auth-err" id="authErr"></div>
+    <button class="auth-btn" id="authBtn" onclick="doAuth()">登录</button>
+    <div class="auth-divider">或</div>
+    <button class="auth-google" onclick="signInGoogle()">
+      <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      使用 Google 账号登录
+    </button>
+  </div>
+</div>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">加载中…</div>
+</div>
+
+<!-- App -->
+<div class="app" id="appWrap" style="display:none">
+<nav class="sidebar">
+  <div class="logo">
+    <div class="logo-zh">日　迹</div>
+    <div class="logo-en">daily chronicle</div>
+  </div>
+  <div class="nav-wrap">
+    <div class="nav-sec">
+      <div class="nav-sec-lbl">记录</div>
+      <div class="nav-item active" data-mod="checkin" onclick="go('checkin',this)"><span class="nav-icon">☀</span>今日打卡</div>
+      <div class="nav-item" data-mod="todo" onclick="go('todo',this)"><span class="nav-icon">☑</span>Todo 看板</div>
+      <div class="nav-item" data-mod="history" onclick="go('history',this)"><span class="nav-icon">≡</span>历史数据</div>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-sec-lbl">笔记</div>
+      <div class="nav-item" data-mod="journal" onclick="go('journal',this)"><span class="nav-icon">✦</span>日记 / 周记</div>
+      <div class="nav-item" data-mod="reading" onclick="go('reading',this)"><span class="nav-icon">◇</span>读书记录</div>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-sec-lbl">统计</div>
+      <div class="nav-item" data-mod="dashboard" onclick="go('dashboard',this)"><span class="nav-icon">◈</span>数据看板</div>
+    </div>
+  </div>
+  <div class="sidebar-foot">
+    <div class="streak-n" id="sN">0</div>
+    <div class="streak-l">连续打卡天数</div>
+    <div style="height:.8rem"></div>
+    <div class="user-bar" style="padding:0">
+      <div class="user-avatar" id="userAvatar">Y</div>
+      <div class="user-email" id="userEmail">-</div>
+      <button class="signout-btn" onclick="signOut()">退出</button>
+    </div>
+  </div>
+</nav>
+
+<main class="main">
+
+<!-- 打卡 -->
+<div class="page active" id="page-checkin" data-page="checkin">
+  <div class="page-header">
+    <div><div class="ph-title">今日打卡</div><div class="ph-sub" id="todayStr"></div></div>
+  </div>
+  <div class="g2 mb">
+    <div class="card">
+      <div class="card-head">睡眠记录</div>
+      <div class="time-row">
+        <div class="form-group"><label class="form-label">入睡</label><input type="time" class="form-input" id="sleepT" value="23:30"></div>
+        <div class="form-group"><label class="form-label">起床</label><input type="time" class="form-input" id="wakeT" value="06:00"></div>
+        <div class="form-group"><label class="form-label">时长</label><input type="text" class="form-input" id="durT" readonly></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">习惯打卡</div>
+      <div class="habits-wrap" id="habitsWrap">
+        <div class="h-chip" data-habit="复盘" onclick="this.classList.toggle('on')"><span class="hd"></span>睡前复盘</div>
+        <div class="h-chip" data-habit="戒烟" onclick="this.classList.toggle('on')"><span class="hd"></span>戒烟</div>
+        <div class="h-chip" data-habit="戒黄" onclick="this.classList.toggle('on')"><span class="hd"></span>戒黄</div>
+        <div class="h-chip" data-habit="早起" onclick="this.classList.toggle('on')"><span class="hd"></span>早起</div>
+        <div class="h-chip" data-habit="读书" onclick="this.classList.toggle('on')"><span class="hd"></span>读书</div>
+        <div class="h-chip" data-habit="冥想" onclick="this.classList.toggle('on')"><span class="hd"></span>冥想</div>
+        <div class="h-chip" data-habit="写作" onclick="this.classList.toggle('on')"><span class="hd"></span>写作</div>
+      </div>
+    </div>
+  </div>
+  <div class="card mb">
+    <div class="card-head">健身数据</div>
+    <div class="ex-grid">
+      <div class="ex-item"><label>俯卧撑（个）</label><div class="stepper"><button class="s-btn" onclick="adj('pu',-10)">−</button><input class="s-input" id="pu" value="100"><button class="s-btn" onclick="adj('pu',10)">+</button></div></div>
+      <div class="ex-item"><label>深蹲（个）</label><div class="stepper"><button class="s-btn" onclick="adj('sq',-5)">−</button><input class="s-input" id="sq" value="10"><button class="s-btn" onclick="adj('sq',5)">+</button></div></div>
+      <div class="ex-item"><label>引体向上（个）</label><div class="stepper"><button class="s-btn" onclick="adj('pu2',-5)">−</button><input class="s-input" id="pu2" value="10"><button class="s-btn" onclick="adj('pu2',5)">+</button></div></div>
+      <div class="ex-item"><label>臂屈伸（个）</label><div class="stepper"><button class="s-btn" onclick="adj('di',-5)">−</button><input class="s-input" id="di" value="20"><button class="s-btn" onclick="adj('di',5)">+</button></div></div>
+      <div class="ex-item"><label>骑行（km）</label><div class="stepper"><button class="s-btn" onclick="adj('cy',-1)">−</button><input class="s-input" id="cy" value="0"><button class="s-btn" onclick="adj('cy',1)">+</button></div></div>
+      <div class="ex-item"><label>跑步（km）</label><div class="stepper"><button class="s-btn" onclick="adj('ru',-1)">−</button><input class="s-input" id="ru" value="0"><button class="s-btn" onclick="adj('ru',1)">+</button></div></div>
+    </div>
+  </div>
+  <div class="card mb"><div class="card-head">今日备注</div><textarea class="form-textarea" id="dailyNote" placeholder="今天发生了什么？有什么感受……"></textarea></div>
+  <div style="display:flex;gap:.7rem">
+    <button class="btn btn-primary" id="saveCheckinBtn" onclick="saveCheckin()">✓ 保存打卡</button>
+    <button class="btn btn-ghost" onclick="go('todo',document.querySelector('[data-mod=todo]'))">跳转 Todo →</button>
+  </div>
+</div>
+
+<!-- Todo -->
+<div class="page" id="page-todo" data-page="todo">
+  <div class="page-header">
+    <div><div class="ph-title">Todo 看板</div><div class="ph-sub">按日期追踪任务进度</div></div>
+    <div class="ph-actions">
+      <button class="btn btn-ghost btn-sm" onclick="addTodoCol()">＋ 日期</button>
+      <button class="btn btn-blue btn-sm" onclick="addTodoRow()">＋ 分类</button>
+    </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden"><div class="todo-scroll"><table class="todo-tbl" id="todoTbl"></table></div></div>
+</div>
+
+<!-- 历史 -->
+<div class="page" id="page-history" data-page="history">
+  <div class="page-header"><div><div class="ph-title">历史数据</div><div class="ph-sub" id="histSub"></div></div></div>
+  <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
+    <table class="htable">
+      <thead><tr>
+        <th>日期</th><th>入睡</th><th>起床</th><th>睡眠</th>
+        <th>俯卧撑</th><th>深蹲</th><th>引体</th><th>复盘</th><th>戒烟</th><th>跑步</th>
+      </tr></thead>
+      <tbody id="histBody"></tbody>
+    </table>
+  </div></div>
+</div>
+
+<!-- 日记 -->
+<div class="page" id="page-journal" data-page="journal">
+  <div class="page-header"><div><div class="ph-title">笔记</div></div><div class="ph-actions"><button class="btn btn-green btn-sm" id="newJBtn" onclick="newJ()">＋ 新建</button></div></div>
+  <div id="jListWrap">
+    <div class="j-tabs">
+      <button class="j-tab active" onclick="jTab(this,'all')">全部</button>
+      <button class="j-tab" onclick="jTab(this,'daily')">日记</button>
+      <button class="j-tab" onclick="jTab(this,'weekly')">周记</button>
+      <button class="j-tab" onclick="jTab(this,'monthly')">月记</button>
+    </div>
+    <div class="j-list" id="jList"></div>
+  </div>
+  <div class="j-editor" id="jEditor">
+    <div class="ed-hd">
+      <button class="ed-back" onclick="backJ()">← 返回</button>
+      <input class="ed-title-inp" id="edT" placeholder="标题……">
+      <select class="form-select" id="edType" style="width:78px;font-size:.72rem">
+        <option value="daily">日记</option><option value="weekly">周记</option><option value="monthly">月记</option>
+      </select>
+      <button class="btn btn-green btn-sm" id="saveJBtn" onclick="saveJ()">保存</button>
+    </div>
+    <textarea class="ed-body" id="edB" placeholder="开始书写……"></textarea>
+  </div>
+</div>
+
+<!-- 读书 -->
+<div class="page" id="page-reading" data-page="reading">
+  <div class="page-header"><div><div class="ph-title">读书记录</div></div><div class="ph-actions"><button class="btn btn-red btn-sm" onclick="addBook()">＋ 添加</button></div></div>
+  <div class="book-grid" id="bookGrid"></div>
+</div>
+
+<!-- 看板 -->
+<div class="page" id="page-dashboard" data-page="dashboard">
+  <div class="page-header"><div><div class="ph-title">数据看板</div><div class="ph-sub" id="dashSub"></div></div></div>
+  <div class="g4 mb" id="statsRow"></div>
+  <div class="g2 mb">
+    <div class="card"><div class="card-head">睡眠时长趋势 <em>近期（h）</em></div><div style="height:120px"><svg id="sleepSvg" class="chart-svg" viewBox="0 0 400 105" preserveAspectRatio="none" style="height:105px"></svg></div><div style="display:flex;justify-content:space-between;margin-top:5px"><span style="font-size:.58rem;color:var(--text3);font-family:'JetBrains Mono',monospace" id="sleepXL">-</span><span style="font-size:.6rem;color:var(--c-checkin)">— 目标 7h</span><span style="font-size:.58rem;color:var(--text3);font-family:'JetBrains Mono',monospace" id="sleepXR">-</span></div></div>
+    <div class="card"><div class="card-head">起床时间 <em>越早越绿</em></div><div id="wakeBar" class="bar-chart"></div></div>
+  </div>
+  <div class="g2 mb">
+    <div class="card"><div class="card-head">俯卧撑每日完成</div><div id="puBar" class="bar-chart"></div></div>
+    <div class="card"><div class="card-head">习惯完成率 <em>本月</em></div><div class="radials" id="habitRadial"></div></div>
+  </div>
+  <div class="g2 mb">
+    <div class="card"><div class="card-head">本月打卡热力图</div><div class="heatmap" id="heatmap"></div><div class="hm-legend"><span>无</span><div class="hm-box hm-0"></div><div class="hm-box hm-1"></div><div class="hm-box hm-2"></div><div class="hm-box hm-3"></div><div class="hm-box hm-4"></div><span>满</span></div></div>
+    <div class="card"><div class="card-head">睡眠质量分布</div><div class="sq-wrap"><svg id="sqSvg" viewBox="0 0 160 130" style="width:145px;flex-shrink:0"></svg><div class="sq-legend" id="sqLegend"></div></div></div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  ⚙️  配置区 — 填入你的 Supabase 项目信息
+//  在 Supabase Dashboard → Settings → API 中找到
+// ═══════════════════════════════════════════════
+const SUPABASE_URL  = 'https://mkzuggwwkobupbuiggxm.supabase.co';
+const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1renVnZ3d3a29idXBidWlnZ3htIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MDg5ODEsImV4cCI6MjA4ODM4NDk4MX0.MNqk_aauoO5oVUu6X4Ib_OZTo2KD5THFe0tEJeqtpS0';
+// ═══════════════════════════════════════════════
+
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── State ──
+let currentUser = null;
+let authMode    = 'login';
+let jTabCur     = 'all';
+let jEditId     = null;
+let cachedRecords = [];
+let cachedTodos   = [];
+let cachedJournals = [];
+let cachedBooks   = [];
+
+// Todo local structure
+const todoCols = [
+  {date:'3/1',day:'周日'},{date:'3/2',day:'周一'},
+  {date:'3/3',day:'周二'},{date:'3/4',day:'周三'},
+  {date:'3/5',day:'周四'},{date:'3/6',day:'周五'},
+  {date:'3/7',day:'周六'},
+];
+
+// ── AUTH ──
+function switchAuthTab(mode) {
+  authMode = mode;
+  document.querySelectorAll('.auth-tab').forEach((t,i) => t.classList.toggle('active', (i===0&&mode==='login')||(i===1&&mode==='signup')));
+  document.getElementById('authBtn').textContent = mode === 'login' ? '登录' : '注册';
+  document.getElementById('authErr').textContent = '';
+}
+
+async function doAuth() {
+  const email = document.getElementById('authEmail').value.trim();
+  const pwd   = document.getElementById('authPwd').value;
+  const btn   = document.getElementById('authBtn');
+  if (!email || !pwd) { document.getElementById('authErr').textContent = '请填写邮箱和密码'; return; }
+  btn.disabled = true; btn.textContent = '处理中…';
+  const fn = authMode === 'login'
+    ? db.auth.signInWithPassword({ email, password: pwd })
+    : db.auth.signUp({ email, password: pwd });
+  const { error } = await fn;
+  btn.disabled = false; btn.textContent = authMode === 'login' ? '登录' : '注册';
+  if (error) { document.getElementById('authErr').textContent = error.message; return; }
+  if (authMode === 'signup') { toast('注册成功！请检查邮箱完成验证'); }
+}
+
+async function signInGoogle() {
+  await db.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
+}
+
+async function signOut() {
+  await db.auth.signOut();
+  currentUser = null;
+  document.getElementById('appWrap').style.display = 'none';
+  document.getElementById('authScreen').classList.add('show');
+}
+
+// ── INIT ──
+db.auth.onAuthStateChange(async (event, session) => {
+  if (session?.user) {
+    currentUser = session.user;
+    document.getElementById('authScreen').classList.remove('show');
+    document.getElementById('appWrap').style.display = 'flex';
+    document.getElementById('configBanner').classList.add('hide');
+    const email = currentUser.email || '';
+    document.getElementById('userEmail').textContent = email;
+    document.getElementById('userAvatar').textContent = email.charAt(0).toUpperCase();
+    initDate();
+    calcSleep();
+    await loadTodayCheckin();
+    renderDash();
+  } else {
+    document.getElementById('appWrap').style.display = 'none';
+    document.getElementById('authScreen').classList.add('show');
+  }
+});
+
+// Date
+function initDate() {
+  const now = new Date();
+  const days = ['周日','周一','周二','周三','周四','周五','周六'];
+  document.getElementById('todayStr').textContent =
+    `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日　${days[now.getDay()]}`;
+  const mo = now.getMonth()+1;
+  document.getElementById('histSub').textContent = `${now.getFullYear()}年 ${mo}月`;
+  document.getElementById('dashSub').textContent = `${now.getFullYear()}年 ${mo}月 · 累计统计`;
+}
+
+function calcSleep() {
+  const s=document.getElementById('sleepT').value;
+  const w=document.getElementById('wakeT').value;
+  if(!s||!w)return;
+  let[sh,sm]=s.split(':').map(Number);
+  let[wh,wm]=w.split(':').map(Number);
+  let d=(wh*60+wm)-(sh*60+sm);
+  if(d<0)d+=1440;
+  document.getElementById('durT').value=(d/60).toFixed(2)+' h';
+}
+document.getElementById('sleepT').addEventListener('change',calcSleep);
+document.getElementById('wakeT').addEventListener('change',calcSleep);
+function adj(id,delta){ const el=document.getElementById(id); el.value=Math.max(0,(+el.value||0)+delta); }
+
+// ── NAV ──
+function go(id, el) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(el) el.classList.add('active');
+  if(id==='dashboard') renderDash();
+  if(id==='history')   loadAndRenderHistory();
+  if(id==='journal')   loadAndRenderJournals();
+  if(id==='reading')   loadAndRenderBooks();
+  if(id==='todo')      loadAndRenderTodo();
+}
+
+// ── LOADING ──
+function showLoading(txt='加载中…') {
+  document.getElementById('loadingText').textContent = txt;
+  document.getElementById('loadingOverlay').classList.add('show');
+}
+function hideLoading() { document.getElementById('loadingOverlay').classList.remove('show'); }
+
+// ══════════════════════════
+//  CHECKIN
+// ══════════════════════════
+async function loadTodayCheckin() {
+  if (!currentUser) return;
+  const today = new Date().toISOString().split('T')[0];
+  const { data } = await db.from('daily_records').select('*').eq('user_id', currentUser.id).eq('date', today).maybeSingle();
+  if (data) {
+    if(data.sleep_time) document.getElementById('sleepT').value = data.sleep_time.slice(0,5);
+    if(data.wake_time)  document.getElementById('wakeT').value  = data.wake_time.slice(0,5);
+    calcSleep();
+    document.getElementById('pu').value  = data.pushup  || 0;
+    document.getElementById('sq').value  = data.squat   || 0;
+    document.getElementById('pu2').value = data.pullup  || 0;
+    document.getElementById('di').value  = data.dips    || 0;
+    document.getElementById('cy').value  = data.cycling || 0;
+    document.getElementById('ru').value  = data.running || 0;
+    document.getElementById('dailyNote').value = data.note || '';
+    const habits = data.habits || {};
+    document.querySelectorAll('.h-chip').forEach(chip => {
+      const h = chip.dataset.habit;
+      if (habits[h]) chip.classList.add('on'); else chip.classList.remove('on');
+    });
+  }
+}
+
+async function saveCheckin() {
+  if (!currentUser) return;
+  const btn = document.getElementById('saveCheckinBtn');
+  btn.disabled = true; btn.textContent = '保存中…';
+  const today = new Date().toISOString().split('T')[0];
+  const habits = {};
+  document.querySelectorAll('.h-chip').forEach(c => { habits[c.dataset.habit] = c.classList.contains('on'); });
+  const durVal = parseFloat(document.getElementById('durT').value) || null;
+  const payload = {
+    user_id: currentUser.id, date: today,
+    sleep_time: document.getElementById('sleepT').value || null,
+    wake_time:  document.getElementById('wakeT').value  || null,
+    sleep_hours: durVal,
+    pushup:  +document.getElementById('pu').value  || 0,
+    squat:   +document.getElementById('sq').value  || 0,
+    pullup:  +document.getElementById('pu2').value || 0,
+    dips:    +document.getElementById('di').value  || 0,
+    cycling: +document.getElementById('cy').value  || 0,
+    running: +document.getElementById('ru').value  || 0,
+    note:    document.getElementById('dailyNote').value,
+    habits,
+  };
+  const { error } = await db.from('daily_records').upsert(payload, { onConflict: 'user_id,date' });
+  btn.disabled = false; btn.textContent = '✓ 保存打卡';
+  if (error) { toast('保存失败：' + error.message); return; }
+  toast('✓ 打卡成功！保持节奏 🔥');
+  updateStreak();
+}
+
+async function updateStreak() {
+  const { data } = await db.from('daily_records').select('date').eq('user_id', currentUser.id).order('date', {ascending:false}).limit(60);
+  if (!data) return;
+  let streak = 0;
+  const now = new Date();
+  for (let i = 0; i < data.length; i++) {
+    const d = new Date(data[i].date);
+    const diff = Math.round((now - d) / 86400000);
+    if (diff === i || diff === i+1) streak++;
+    else break;
+  }
+  document.getElementById('sN').textContent = streak;
+}
+
+// ══════════════════════════
+//  HISTORY
+// ══════════════════════════
+async function loadAndRenderHistory() {
+  showLoading('加载历史数据…');
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const { data, error } = await db.from('daily_records').select('*')
+    .eq('user_id', currentUser.id).gte('date', start).order('date', {ascending:false});
+  hideLoading();
+  if (error) { toast('加载失败'); return; }
+  cachedRecords = data || [];
+  const tbody = document.getElementById('histBody');
+  if (!cachedRecords.length) {
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--text3)">本月暂无记录</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = cachedRecords.map(r => {
+    const dur = r.sleep_hours;
+    const sc = dur>=7?'c-ok':dur&&dur<5?'c-bad':dur?'c-warn':'';
+    const wk = r.wake_time ? r.wake_time.slice(0,5) : '/';
+    const wh = r.wake_time ? parseInt(r.wake_time) : null;
+    const wc = wh!=null ? (wh>=8?'c-bad':wh<=6?'c-ok':'') : '';
+    const h = r.habits||{};
+    const d = new Date(r.date);
+    const dateStr = `${d.getMonth()+1}月${d.getDate()}日`;
+    return`<tr>
+      <td class="c-txt">${dateStr}</td>
+      <td>${r.sleep_time?r.sleep_time.slice(0,5):'/'}</td>
+      <td class="${wc}">${wk}</td>
+      <td class="${sc}">${dur||'/'}</td>
+      <td class="c-txt">${r.pushup||0}</td>
+      <td>${r.squat||'/'}</td>
+      <td>${r.pullup||'/'}</td>
+      <td class="${h['复盘']?'c-ok':'c-bad'}">${h['复盘']?'✓':'✗'}</td>
+      <td class="${h['戒烟']?'c-ok':'c-bad'}">${h['戒烟']?'✓':'✗'}</td>
+      <td>${r.running||'/'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ══════════════════════════
+//  TODO
+// ══════════════════════════
+async function loadAndRenderTodo() {
+  showLoading('加载 Todo…');
+  // Load current week todos
+  const dates = todoCols.map(c => {
+    const [m,d] = c.date.split('/');
+    return `2026-0${m}-${d.padStart(2,'0')}`;
+  });
+  const { data } = await db.from('todos').select('*').eq('user_id', currentUser.id).in('date', dates);
+  hideLoading();
+  cachedTodos = data || [];
+  renderTodoTable();
+}
+
+function renderTodoTable() {
+  const tbl = document.getElementById('todoTbl');
+  const today = '3/7';
+  // Build category structure from DB data
+  const catMap = {};
+  cachedTodos.forEach(t => {
+    const d = new Date(t.date);
+    const key = `${d.getMonth()+1}/${d.getDate()}`;
+    if (!catMap[t.category]) catMap[t.category] = {};
+    if (!catMap[t.category][t.label]) catMap[t.category][t.label] = {};
+    if (!catMap[t.category][t.label][key]) catMap[t.category][t.label][key] = [];
+    catMap[t.category][t.label][key].push(t);
+  });
+  // Ensure default categories exist
+  ['工作','个人'].forEach(cat => { if (!catMap[cat]) catMap[cat] = {}; });
+  if (!catMap['工作']['日常']) catMap['工作']['日常'] = {};
+  if (!catMap['工作']['今日']) catMap['工作']['今日'] = {};
+  if (!catMap['个人']['每日']) catMap['个人']['每日'] = {};
+  if (!catMap['个人']['AI成长']) catMap['个人']['AI成长'] = {};
+
+  let h = `<thead><tr><th class="cat-head">分类</th>`;
+  todoCols.forEach(c => {
+    const isTd = c.date === today;
+    h += `<th class="${isTd?'today-head':''}">${c.date}<br><span style="font-size:.6rem;font-weight:300;opacity:.75">${c.day}</span></th>`;
+  });
+  h += `</tr></thead><tbody>`;
+  Object.entries(catMap).forEach(([cat, rows]) => {
+    h += `<tr class="cat-sep"><td colspan="${todoCols.length+1}">${cat}</td></tr>`;
+    Object.entries(rows).forEach(([label, dateItems]) => {
+      h += `<tr><td class="cat-cell">${label}</td>`;
+      todoCols.forEach(col => {
+        const isTd = col.date === today;
+        const items = dateItems[col.date] || [];
+        h += `<td class="${isTd?'today-col':''}"><div class="todo-cell">`;
+        items.forEach(item => {
+          h += `<div class="t-item${item.done?' done':''}" onclick="toggleTodoItem('${item.id}',this)">
+            <div class="t-cb">${item.done?'✓':''}</div><span>${item.title}</span>
+          </div>`;
+        });
+        h += `<div class="t-add" onclick="addTodoItem('${cat}','${label}','${col.date}')">＋</div>`;
+        h += `</div></td>`;
+      });
+      h += `</tr>`;
+    });
+  });
+  h += `</tbody>`;
+  tbl.innerHTML = h;
+}
+
+async function toggleTodoItem(id, el) {
+  const item = cachedTodos.find(t => t.id === id);
+  if (!item) return;
+  const newDone = !item.done;
+  el.classList.toggle('done', newDone);
+  el.querySelector('.t-cb').textContent = newDone ? '✓' : '';
+  item.done = newDone;
+  await db.from('todos').update({ done: newDone }).eq('id', id);
+}
+
+async function addTodoItem(cat, label, dateStr) {
+  const title = prompt('添加任务：'); if (!title) return;
+  const [m, d] = dateStr.split('/');
+  const date = `2026-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  const payload = { user_id: currentUser.id, date, category: cat, label, title, done: false };
+  const { data } = await db.from('todos').insert(payload).select().single();
+  if (data) cachedTodos.push(data);
+  renderTodoTable();
+}
+
+function addTodoCol() {
+  const d = prompt('日期（如 3/15）：'); if (!d) return;
+  const days = ['周日','周一','周二','周三','周四','周五','周六'];
+  const p = d.split('/');
+  const dt = new Date(2026, +p[0]-1, +p[1]);
+  if (!todoCols.find(c => c.date === d)) todoCols.push({ date: d, day: days[dt.getDay()] });
+  loadAndRenderTodo();
+}
+
+function addTodoRow() {
+  const cat = prompt('所属分类（如 工作 / 个人）：'); if (!cat) return;
+  const label = prompt('行标签：'); if (!label) return;
+  toast(`分类「${cat} · ${label}」已创建，点击 ＋ 添加任务`);
+  loadAndRenderTodo();
+}
+
+// ══════════════════════════
+//  JOURNAL
+// ══════════════════════════
+async function loadAndRenderJournals() {
+  showLoading('加载笔记…');
+  const { data } = await db.from('journal_entries').select('*').eq('user_id', currentUser.id).order('entry_date', {ascending:false}).limit(50);
+  hideLoading();
+  cachedJournals = data || [];
+  renderJournalList();
+}
+
+function renderJournalList() {
+  const filtered = jTabCur === 'all' ? cachedJournals : cachedJournals.filter(j => j.type === jTabCur);
+  const tl = {daily:'日记', weekly:'周记', monthly:'月记'};
+  const bc = {daily:'jb-d', weekly:'jb-w', monthly:'jb-m'};
+  if (!filtered.length) {
+    document.getElementById('jList').innerHTML = `<div class="empty-state"><div class="empty-icon">✦</div><div class="empty-text">还没有笔记<br>点击右上角新建一篇</div></div>`;
+    return;
+  }
+  document.getElementById('jList').innerHTML = filtered.map(j => `
+    <div class="j-card" data-type="${j.type}" onclick="openJ('${j.id}')">
+      <div class="j-top">
+        <div class="j-title"><span class="j-badge ${bc[j.type]}">${tl[j.type]}</span>${j.title}</div>
+        <div class="j-meta">${j.entry_date}</div>
+      </div>
+      <div class="j-prev">${j.body||''}</div>
+    </div>`).join('');
+}
+
+function jTab(el, t) {
+  document.querySelectorAll('.j-tab').forEach(x => x.classList.remove('active'));
+  el.classList.add('active'); jTabCur = t; renderJournalList();
+}
+
+function openJ(id) {
+  const j = cachedJournals.find(x => x.id === id); if (!j) return;
+  jEditId = id;
+  document.getElementById('edT').value = j.title;
+  document.getElementById('edB').value = j.body || '';
+  document.getElementById('edType').value = j.type;
+  document.getElementById('jListWrap').style.display = 'none';
+  document.getElementById('jEditor').classList.add('on');
+  document.getElementById('newJBtn').style.display = 'none';
+}
+
+function newJ() {
+  jEditId = null;
+  document.getElementById('edT').value = '';
+  document.getElementById('edB').value = '';
+  document.getElementById('edType').value = 'daily';
+  document.getElementById('jListWrap').style.display = 'none';
+  document.getElementById('jEditor').classList.add('on');
+  document.getElementById('newJBtn').style.display = 'none';
+  setTimeout(() => document.getElementById('edT').focus(), 50);
+}
+
+function backJ() {
+  document.getElementById('jListWrap').style.display = '';
+  document.getElementById('jEditor').classList.remove('on');
+  document.getElementById('newJBtn').style.display = '';
+}
+
+async function saveJ() {
+  const title = document.getElementById('edT').value.trim();
+  const body  = document.getElementById('edB').value.trim();
+  const type  = document.getElementById('edType').value;
+  if (!title) { toast('请填写标题'); return; }
+  const btn = document.getElementById('saveJBtn');
+  btn.disabled = true; btn.textContent = '保存中…';
+  const today = new Date().toISOString().split('T')[0];
+  let error;
+  if (jEditId) {
+    ({ error } = await db.from('journal_entries').update({ title, body, type, updated_at: new Date().toISOString() }).eq('id', jEditId));
+    if (!error) {
+      const j = cachedJournals.find(x => x.id === jEditId);
+      if (j) { j.title = title; j.body = body; j.type = type; }
+    }
+  } else {
+    const payload = { user_id: currentUser.id, type, title, body, entry_date: today };
+    const { data, error: e } = await db.from('journal_entries').insert(payload).select().single();
+    error = e;
+    if (data) cachedJournals.unshift(data);
+  }
+  btn.disabled = false; btn.textContent = '保存';
+  if (error) { toast('保存失败：' + error.message); return; }
+  backJ(); renderJournalList(); toast('✓ 笔记已保存');
+}
+
+// ══════════════════════════
+//  BOOKS
+// ══════════════════════════
+async function loadAndRenderBooks() {
+  showLoading('加载书单…');
+  const { data } = await db.from('books').select('*').eq('user_id', currentUser.id).order('created_at', {ascending:false});
+  hideLoading();
+  cachedBooks = data || [];
+  renderBookGrid();
+}
+
+function renderBookGrid() {
+  const sl = {reading:'在读', done:'已读', want:'想读'};
+  const sc = {reading:'bs-r', done:'bs-d', want:'bs-w'};
+  if (!cachedBooks.length) {
+    document.getElementById('bookGrid').innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">◇</div><div class="empty-text">书架还是空的<br>点击右上角添加第一本书</div></div>`;
+    return;
+  }
+  document.getElementById('bookGrid').innerHTML = cachedBooks.map(b => `
+    <div class="b-card" data-status="${b.status}">
+      <div class="b-title">${b.title}</div>
+      <div class="b-author">${b.author||''}</div>
+      <span class="b-badge ${sc[b.status]}">${sl[b.status]}</span>
+      ${b.note?`<div class="b-note">${b.note}</div>`:''}
+      ${b.rating?`<div class="b-stars" style="color:var(--warn)">${'★'.repeat(b.rating)}${'☆'.repeat(5-b.rating)}</div>`:''}
+      <div class="b-prog"><div class="b-fill" style="width:${b.progress}%"></div></div>
+      ${b.status==='reading'?`<div class="b-plabel">${b.progress}% 完成</div>`:''}
+    </div>`).join('');
+}
+
+async function addBook() {
+  const title = prompt('书名：'); if (!title) return;
+  const author = prompt('作者：') || '';
+  const payload = { user_id: currentUser.id, title, author, status:'want', progress:0, rating:0 };
+  const { data } = await db.from('books').insert(payload).select().single();
+  if (data) { cachedBooks.unshift(data); renderBookGrid(); toast('✓ 已添加书籍'); }
+}
+
+// ══════════════════════════
+//  DASHBOARD
+// ══════════════════════════
+async function renderDash() {
+  if (!currentUser) return;
+  // Load recent records for charts
+  const { data } = await db.from('daily_records').select('*')
+    .eq('user_id', currentUser.id).order('date', {ascending:false}).limit(30);
+  const records = (data || []).reverse();
+  if (!records.length) {
+    document.getElementById('statsRow').innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--text3)">暂无数据，先去打卡吧！</div>`;
+    return;
+  }
+  const recent = records.slice(-10);
+  updateStreak();
+  // Stats
+  const avgSleep = recent.reduce((a,r)=>a+(+r.sleep_hours||0),0)/recent.filter(r=>r.sleep_hours).length || 0;
+  const totalPu = records.reduce((a,r)=>a+(+r.pushup||0),0);
+  const totalRun = records.reduce((a,r)=>a+(+r.running||0),0).toFixed(1);
+  const statsData = [
+    {l:'平均睡眠',v:avgSleep.toFixed(1),u:'h',t:avgSleep>=7?'✓ 达标':'↓ 不足',cls:'sc-orange',ico:'🌙'},
+    {l:'打卡天数',v:records.length,u:'天',t:'近期累计',cls:'sc-blue',ico:'🔥'},
+    {l:'俯卧撑',v:totalPu,u:'个',t:'累计',cls:'sc-purple',ico:'💪'},
+    {l:'跑步里程',v:totalRun,u:'km',t:'累计',cls:'sc-green',ico:'🏃'},
+  ];
+  document.getElementById('statsRow').innerHTML = statsData.map(s=>`
+    <div class="stat-card ${s.cls}">
+      <div class="sc-bg">${s.ico}</div>
+      <div class="sl">${s.l}</div>
+      <div class="sv">${s.v}<span class="su">${s.u}</span></div>
+      <div class="st">${s.t}</div>
+    </div>`).join('');
+
+  if (recent.length >= 2) {
+    document.getElementById('sleepXL').textContent = recent[0].date;
+    document.getElementById('sleepXR').textContent = recent[recent.length-1].date;
+    renderSleepSvg(recent);
+    renderWakeBar(recent);
+    renderPuBar(recent);
+  }
+  renderHabitRadial(records);
+  renderHeatmap(records);
+  renderSleepQuality(records);
+}
+
+function renderSleepSvg(data) {
+  const svg = document.getElementById('sleepSvg');
+  const vals = data.map(r => +r.sleep_hours || 0).filter(v => v > 0);
+  if (vals.length < 2) { svg.innerHTML = ''; return; }
+  const W=400,H=100,pad=24;
+  const mn=Math.min(3,...vals), mx=Math.max(11,...vals);
+  const toY=v=>H-pad-((v-mn)/(mx-mn+.1))*(H-pad*2);
+  const toX=(_,i)=>(i/(vals.length-1))*(W-pad*2)+pad;
+  const pts=vals.map((v,i)=>[toX(null,i),toY(v)]);
+  const line=pts.map((p,i)=>i===0?`M${p[0]},${p[1]}`:`L${p[0]},${p[1]}`).join(' ');
+  const area=`${line} L${pts[pts.length-1][0]},${H-pad} L${pad},${H-pad} Z`;
+  let grid='';
+  [4,5,6,7,8].forEach(v=>{
+    const y=toY(v);
+    grid+=`<line class="cg-line" x1="${pad}" y1="${y}" x2="${W-pad}" y2="${y}"/>`;
+    grid+=`<text class="cg-label" x="${pad-4}" y="${y+3.5}" text-anchor="end">${v}</text>`;
+  });
+  const ty=toY(7);
+  grid+=`<line x1="${pad}" y1="${ty}" x2="${W-pad}" y2="${ty}" stroke="var(--c-checkin)" stroke-width="1.5" stroke-dasharray="5,3" opacity=".6"/>`;
+  svg.innerHTML=`<defs><linearGradient id="slg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--info)" stop-opacity=".35"/><stop offset="100%" stop-color="var(--info)" stop-opacity="0"/></linearGradient></defs>
+    ${grid}<path d="${area}" fill="url(#slg)"/>
+    <path d="${line}" fill="none" stroke="var(--info)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    ${pts.map((p,i)=>{const v=vals[i];const c=v>=7?'var(--ok)':v<5?'var(--bad)':'var(--c-checkin)';return`<circle class="ch-dot" cx="${p[0]}" cy="${p[1]}" r="4" fill="${c}" stroke="white" stroke-width="1.5"><title>${data[i].date}: ${v}h</title></circle>`;}).join('')}`;
+}
+
+function renderWakeBar(data) {
+  const c = document.getElementById('wakeBar');
+  const vals = data.map(r => { if(!r.wake_time)return null; const[h,m]=r.wake_time.split(':').map(Number); return h+m/60; });
+  const filtered = vals.filter(v=>v!=null);
+  if (!filtered.length) { c.innerHTML=''; return; }
+  const mn=Math.min(...filtered), mx=Math.max(...filtered);
+  c.innerHTML=vals.map((v,i)=>{
+    if(v==null)return`<div class="bc-col" style="height:100px"><div class="bc-bar" style="height:5%;background:var(--bg2)"></div><div class="bc-x">${new Date(data[i].date).getDate()}</div></div>`;
+    const h=10+(v-mn)/(mx-mn+.1)*85;
+    const col=v<=6?'var(--ok)':v>=9?'var(--bad)':'var(--warn)';
+    return`<div class="bc-col" style="height:100px"><div class="bc-bar" style="height:${h}%;background:${col}" title="${data[i].date}: ${data[i].wake_time}起床"></div><div class="bc-x">${new Date(data[i].date).getDate()}</div></div>`;
+  }).join('');
+}
+
+function renderPuBar(data) {
+  const c = document.getElementById('puBar');
+  const vals = data.map(r => +r.pushup || 0);
+  const mx = Math.max(...vals, 1);
+  c.innerHTML=vals.map((v,i)=>{
+    const h=(v/mx)*88+12;
+    const isLast=i===vals.length-1;
+    return`<div class="bc-col" style="height:100px"><div class="bc-bar" style="height:${h}%;background:${isLast?'var(--c-history)':'rgba(124,111,205,.45)'}" title="${data[i].date}: ${v}个"></div><div class="bc-x">${new Date(data[i].date).getDate()}</div></div>`;
+  }).join('');
+}
+
+function renderHabitRadial(records) {
+  const names = ['复盘','戒烟','戒黄','早起','写作'];
+  const colors = ['var(--ok)','var(--c-checkin)','var(--c-todo)','var(--warn)','var(--c-reading)'];
+  const total = records.length || 1;
+  const r=28,cx=36,cy=36,sw=5,circ=2*Math.PI*r;
+  document.getElementById('habitRadial').innerHTML=names.map((name,ni)=>{
+    const done=records.filter(r=>(r.habits||{})[name]).length;
+    const pct=done/total;
+    const dash=pct*circ;
+    return`<div class="rad-item"><svg viewBox="0 0 72 72" width="64" height="64">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--bg2)" stroke-width="${sw}"/>
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${colors[ni]}" stroke-width="${sw}"
+        stroke-dasharray="${dash} ${circ}" stroke-linecap="round"
+        transform="rotate(-90 ${cx} ${cy})" style="transition:stroke-dasharray .9s ease"/>
+      <text x="${cx}" y="${cy+4}" text-anchor="middle" fill="var(--text)" font-size="11" font-family="JetBrains Mono,monospace">${Math.round(pct*100)}%</text>
+    </svg><div class="rad-lbl">${name}</div></div>`;
+  }).join('');
+}
+
+function renderHeatmap(records) {
+  const dateSet = new Set(records.map(r => new Date(r.date).getDate()));
+  const habitCounts = {};
+  records.forEach(r => {
+    const d = new Date(r.date).getDate();
+    const h = Object.values(r.habits||{}).filter(Boolean).length;
+    habitCounts[d] = h;
+  });
+  document.getElementById('heatmap').innerHTML=Array.from({length:31},(_,i)=>{
+    const day=i+1;
+    const h=habitCounts[day]||0;
+    const l=dateSet.has(day)?(h>=6?4:h>=4?3:h>=2?2:1):0;
+    return`<div class="hm-cell hm-${l}" title="${day}日${dateSet.has(day)?' · 已打卡':''}"></div>`;
+  }).join('');
+}
+
+function renderSleepQuality(records) {
+  const svg=document.getElementById('sqSvg');
+  const segs=[
+    {label:'充足 ≥7h',count:records.filter(r=>+r.sleep_hours>=7).length,color:'var(--ok)'},
+    {label:'一般 5~7h',count:records.filter(r=>{const h=+r.sleep_hours;return h>=5&&h<7;}).length,color:'var(--warn)'},
+    {label:'不足 <5h', count:records.filter(r=>r.sleep_hours&&+r.sleep_hours<5).length,color:'var(--bad)'},
+  ];
+  const total=segs.reduce((a,s)=>a+s.count,0)||1;
+  const cx=72,cy=62,r=48,ir=30;
+  let angle=-Math.PI/2,paths='';
+  segs.forEach(s=>{
+    if(!s.count)return;
+    const sw=(s.count/total)*2*Math.PI;
+    const x1=cx+r*Math.cos(angle),y1=cy+r*Math.sin(angle);
+    const x2=cx+r*Math.cos(angle+sw),y2=cy+r*Math.sin(angle+sw);
+    const large=sw>Math.PI?1:0;
+    const mid=angle+sw/2;
+    const lx=cx+(r+14)*Math.cos(mid),ly=cy+(r+14)*Math.sin(mid);
+    paths+=`<path d="M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} Z" fill="${s.color}" opacity=".85"/>`;
+    paths+=`<text x="${lx}" y="${ly+3.5}" text-anchor="middle" fill="var(--text2)" font-size="9.5" font-family="JetBrains Mono,monospace">${Math.round(s.count/total*100)}%</text>`;
+    angle+=sw;
+  });
+  paths+=`<circle cx="${cx}" cy="${cy}" r="${ir}" fill="var(--surface)"/>`;
+  paths+=`<text x="${cx}" y="${cy+5}" text-anchor="middle" fill="var(--text)" font-size="14" font-family="JetBrains Mono,monospace" font-weight="500">${records.length}</text>`;
+  paths+=`<text x="${cx}" y="${cy+17}" text-anchor="middle" fill="var(--text3)" font-size="8">天记录</text>`;
+  svg.innerHTML=paths;
+  document.getElementById('sqLegend').innerHTML=segs.map(s=>`
+    <div class="sq-row"><div class="sq-dot" style="background:${s.color}"></div>
+    <span class="sq-name">${s.label}</span><span class="sq-cnt">${s.count}天</span></div>`).join('');
+}
+
+// ── TOAST ──
+function toast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2600);
+}
+</script>
+</body>
+</html>
