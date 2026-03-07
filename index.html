@@ -791,6 +791,7 @@ async function loadAndRenderHistory() {
       <td class="${h['复盘']?'c-ok':'c-bad'}">${h['复盘']?'✓':'✗'}</td>
       <td class="${h['戒烟']?'c-ok':'c-bad'}">${h['戒烟']?'✓':'✗'}</td>
       <td>${r.running||'/'}</td>
+      <td>${r.pace||'/'}</td>
     </tr>`;
   }).join('');
 }
