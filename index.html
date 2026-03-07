@@ -489,6 +489,11 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Serif SC',serif;mi
 
 <!-- 历史 -->
 <div class="page" id="page-history" data-page="history">
+    <div style="display:flex;align-items:center;gap:1rem;padding:.8rem 1.2rem;background:var(--surface);border-bottom:1px solid var(--border);margin-bottom:1rem">
+      <button onclick="changeHistoryMonth(-1)" style="border:1px solid var(--border);background:var(--sf2);color:var(--text);border-radius:8px;padding:.35rem .8rem;cursor:pointer;font-size:.85rem">◀</button>
+      <span id="histMonthLabel" style="font-weight:500;font-size:.95rem;min-width:80px;text-align:center"></span>
+      <button onclick="changeHistoryMonth(1)" style="border:1px solid var(--border);background:var(--sf2);color:var(--text);border-radius:8px;padding:.35rem .8rem;cursor:pointer;font-size:.85rem">▶</button>
+    </div>
   <div class="page-header"><div><div class="ph-title">历史数据</div><div class="ph-sub" id="histSub"></div></div></div>
   <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
     <table class="htable">
