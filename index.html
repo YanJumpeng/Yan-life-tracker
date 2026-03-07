@@ -544,9 +544,9 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 .cg-label{fill:var(--text3);font-size:9.5px;font-family:'JetBrains Mono',monospace}
 .ch-dot{cursor:pointer;transition:r .15s}
 .ch-dot:hover{r:5}
-.bar-chart{display:flex;align-items:flex-end;gap:5px;height:90px}
-.bc-col{display:flex;flex-direction:column;align-items:center;flex:1;gap:3px}
-.bc-bar{width:100%;border-radius:4px 4px 0 0;transition:opacity .2s;cursor:pointer}
+.bar-chart{display:flex;align-items:flex-end;gap:2px;height:90px;padding:0 2px}
+.bc-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;flex:1;gap:3px;height:100%}
+.bc-bar{width:100%;border-radius:3px 3px 0 0;transition:height .3s ease,opacity .2s;cursor:pointer;min-height:3px}
 .bc-bar:hover{opacity:.7}
 .bc-x{font-size:.57rem;color:var(--text3);font-family:'JetBrains Mono',monospace}
 .radials{display:flex;flex-wrap:wrap;gap:1.2rem;justify-content:space-around;padding:.3rem 0}
@@ -1550,27 +1550,31 @@ function renderSleepSvg(data) {
 
 function renderWakeBar(data) {
   const c = document.getElementById('wakeBar');
+  const H = 72; // px
   const vals = data.map(r=>{ if(!r.wake_time)return null; const[h,m]=r.wake_time.split(':').map(Number); return h+m/60; });
   const filtered=vals.filter(v=>v!=null);
   if(!filtered.length){c.innerHTML='';return;}
   const mn=Math.min(...filtered), mx=Math.max(...filtered);
   c.innerHTML=vals.map((v,i)=>{
-    if(v==null)return`<div class="bc-col"><div class="bc-bar" style="height:5%;background:var(--bg2)"></div><div class="bc-x">${new Date(data[i].date).getDate()}</div></div>`;
-    const h=10+(v-mn)/(mx-mn+.1)*85;
+    const day=new Date(data[i].date).getDate();
+    if(v==null)return`<div class="bc-col"><div class="bc-bar" style="height:4px;background:var(--bg2)"></div><div class="bc-x">${day}</div></div>`;
+    const px=Math.round(8+(v-mn)/(mx-mn+.1)*(H-8));
     const col=v<8?'var(--ok)':v<9?'var(--warn)':'var(--bad)';
-    return`<div class="bc-col"><div class="bc-bar" style="height:${h}%;background:${col}" title="${data[i].date} ${data[i].wake_time}起床"></div><div class="bc-x">${new Date(data[i].date).getDate()}</div></div>`;
+    return`<div class="bc-col"><div class="bc-bar" style="height:${px}px;background:${col}" title="${data[i].date} ${data[i].wake_time}起床"></div><div class="bc-x">${day}</div></div>`;
   }).join('');
 }
 
 function renderRunBar(data) {
   const c = document.getElementById('runBar');
   if(!c)return;
+  const H = 72; // px
   const vals = data.map(r=>+r.running||0);
-  const mx = Math.max(...vals,1);
+  const mx = Math.max(...vals,0.1);
   c.innerHTML=vals.map((v,i)=>{
-    const h=v>0?(v/mx)*88+12:4;
-    const col=v>=5?'var(--ok)':v>=2?'var(--c-journal)':'var(--bg2)';
-    return`<div class="bc-col"><div class="bc-bar" style="height:${h}%;background:${col}" title="${data[i].date}: ${v}km"></div><div class="bc-x">${new Date(data[i].date).getDate()}</div></div>`;
+    const day=new Date(data[i].date).getDate();
+    const px=v>0?Math.round((v/mx)*(H-6)+6):4;
+    const col=v>=5?'var(--ok)':v>=2?'var(--c-journal)':v>0?'var(--c-todo)':'var(--bg2)';
+    return`<div class="bc-col"><div class="bc-bar" style="height:${px}px;background:${col}" title="${data[i].date}: ${v}km"></div><div class="bc-x">${day}</div></div>`;
   }).join('');
 }
 
