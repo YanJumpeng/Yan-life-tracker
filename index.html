@@ -932,7 +932,7 @@ async function loadAndRenderHistory() {
     tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:2rem;color:var(--text3)">${histYear}年${histMonth+1}月暂无记录</td></tr>`;
     return;
   }
-  tbody.innerHTML = cachedRecords.map(r => {
+  tbody.innerHTML = cachedRecords.map((r, idx) => {
     const dur = r.sleep_hours;
     const sc = dur>=7?'c-ok':dur&&dur<5?'c-bad':dur?'c-warn':'';
     const wk = r.wake_time ? r.wake_time.slice(0,5) : '/';
@@ -941,7 +941,7 @@ async function loadAndRenderHistory() {
     const h = r.habits||{};
     const d = new Date(r.date);
     const dateStr = `${d.getMonth()+1}月${d.getDate()}日`;
-    return`<tr style='cursor:pointer' onclick='editHistRecord(${JSON.stringify(r)})'>
+    return`<tr style='cursor:pointer' onclick='editHistRecord(cachedRecords[${idx}])'>
       <td class="c-txt">${dateStr}</td>
       <td>${r.sleep_time?r.sleep_time.slice(0,5):'/'}</td>
       <td class="${wc}">${wk}</td>
