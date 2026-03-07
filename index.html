@@ -7,7 +7,139 @@
 <title>日迹 · 生活记录</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+// Minimal Supabase client - no eval, no external dependencies
+const supabase = (() => {
+  function createClient(url, key) {
+    let _session = null;
+    const headers = () => ({
+      'Content-Type': 'application/json',
+      'apikey': key,
+      'Authorization': `Bearer ${_session?.access_token || key}`
+    });
+
+    // Auth
+    const auth = {
+      _listeners: [],
+      onAuthStateChange(cb) { this._listeners.push(cb); return { data: { subscription: { unsubscribe: () => {} } } }; },
+      _notify(event, session) { _session = session; this._listeners.forEach(cb => cb(event, session)); },
+      async getSession() {
+        const s = localStorage.getItem('sb_session');
+        if (s) { _session = JSON.parse(s); return { data: { session: _session } }; }
+        return { data: { session: null } };
+      },
+      async signInWithPassword({ email, password }) {
+        const r = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': key },
+          body: JSON.stringify({ email, password })
+        });
+        const d = await r.json();
+        if (d.error || d.error_code) return { error: { message: d.error_description || d.msg || d.error } };
+        _session = d; localStorage.setItem('sb_session', JSON.stringify(d));
+        auth._notify('SIGNED_IN', d);
+        return { data: { session: d }, error: null };
+      },
+      async signUp({ email, password }) {
+        const r = await fetch(`${url}/auth/v1/signup`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'apikey': key },
+          body: JSON.stringify({ email, password })
+        });
+        const d = await r.json();
+        if (d.error || d.error_code) return { error: { message: d.error_description || d.msg || d.error } };
+        if (d.access_token) { _session = d; localStorage.setItem('sb_session', JSON.stringify(d)); auth._notify('SIGNED_IN', d); }
+        return { data: d, error: null };
+      },
+      async signInWithOAuth({ provider, options }) {
+        window.location.href = `${url}/auth/v1/authorize?provider=${provider}&redirect_to=${encodeURIComponent(options?.redirectTo || window.location.href)}`;
+      },
+      async signOut() {
+        await fetch(`${url}/auth/v1/logout`, { method: 'POST', headers: headers() });
+        _session = null; localStorage.removeItem('sb_session');
+        auth._notify('SIGNED_OUT', null);
+      }
+    };
+
+    // Check for OAuth callback
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const session = { access_token: params.get('access_token'), refresh_token: params.get('refresh_token'), user: { id: params.get('user_id'), email: '' } };
+      _session = session; localStorage.setItem('sb_session', JSON.stringify(session));
+      window.location.hash = '';
+    }
+
+    // Restore session on load
+    const saved = localStorage.getItem('sb_session');
+    if (saved) { _session = JSON.parse(saved); setTimeout(() => auth._notify('SIGNED_IN', _session), 50); }
+    else { setTimeout(() => auth._notify('SIGNED_OUT', null), 50); }
+
+    // Query builder
+    function from(table) {
+      let _filters = [], _select = '*', _order = null, _limit = null, _single = false, _maybeSingle = false, _upsertOpts = null;
+      const q = {
+        select(cols) { _select = cols || '*'; return q; },
+        eq(col, val) { _filters.push(`${col}=eq.${encodeURIComponent(val)}`); return q; },
+        gte(col, val) { _filters.push(`${col}=gte.${encodeURIComponent(val)}`); return q; },
+        in(col, vals) { _filters.push(`${col}=in.(${vals.map(v => encodeURIComponent(v)).join(',')})`); return q; },
+        order(col, opts) { _order = `${col}${opts?.ascending === false ? '.desc' : ''}`; return q; },
+        limit(n) { _limit = n; return q; },
+        single() { _single = true; return q.exec(); },
+        maybeSingle() { _maybeSingle = true; return q.exec(); },
+        then(res, rej) { return q.exec().then(res, rej); },
+        async exec() {
+          let endpoint = `${url}/rest/v1/${table}?select=${_select}`;
+          if (_filters.length) endpoint += '&' + _filters.join('&');
+          if (_order) endpoint += `&order=${_order}`;
+          if (_limit) endpoint += `&limit=${_limit}`;
+          if (_single || _maybeSingle) endpoint += '&limit=1';
+          const h = { ...headers(), 'Prefer': 'return=representation' };
+          if (_single) h['Accept'] = 'application/vnd.pgrst.object+json';
+          const r = await fetch(endpoint, { headers: h });
+          const d = await r.json();
+          if (!r.ok) return { data: null, error: d };
+          if (_single) return { data: d, error: null };
+          if (_maybeSingle) return { data: Array.isArray(d) ? (d[0] || null) : d, error: null };
+          return { data: d, error: null };
+        },
+        async insert(payload) {
+          const r = await fetch(`${url}/rest/v1/${table}`, {
+            method: 'POST', headers: { ...headers(), 'Prefer': 'return=representation' },
+            body: JSON.stringify(payload)
+          });
+          const d = await r.json();
+          if (!r.ok) return { data: null, error: d };
+          const result = Array.isArray(d) ? d[0] : d;
+          return { data: result, error: null, select() { return { single() { return Promise.resolve({ data: result, error: null }); } }; } };
+        },
+        async upsert(payload, opts) {
+          const prefer = `resolution=${opts?.onConflict ? 'merge-duplicates' : 'merge-duplicates'},return=representation`;
+          const r = await fetch(`${url}/rest/v1/${table}`, {
+            method: 'POST', headers: { ...headers(), 'Prefer': prefer },
+            body: JSON.stringify(payload)
+          });
+          const d = await r.json();
+          if (!r.ok) return { data: null, error: d };
+          return { data: d, error: null };
+        },
+        update(payload) {
+          return {
+            eq(col, val) {
+              return fetch(`${url}/rest/v1/${table}?${col}=eq.${encodeURIComponent(val)}`, {
+                method: 'PATCH', headers: { ...headers(), 'Prefer': 'return=representation' },
+                body: JSON.stringify(payload)
+              }).then(r => r.json()).then(d => ({ data: d, error: null }));
+            }
+          };
+        }
+      };
+      return q;
+    }
+
+    return { auth, from, auth };
+  }
+  return { createClient };
+})();
+</script>
 <style>
 /* ─── CONFIG BANNER ─── */
 .config-banner{
@@ -490,11 +622,6 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Serif SC',serif;mi
 
 <!-- 历史 -->
 <div class="page" id="page-history" data-page="history">
-<div style="display:flex;align-items:center;gap:1rem;padding:.8rem 1.2rem;background:var(--surface);border-bottom:1px solid var(--border);margin-bottom:1rem;border-radius:12px;">
-  <button onclick="changeHistoryMonth(-1)" style="border:1px solid var(--border);background:var(--sf2);color:var(--text);border-radius:8px;padding:.35rem .9rem;cursor:pointer;font-size:1rem">◀</button>
-  <span id="histMonthLabel" style="font-weight:500;font-size:1rem;min-width:100px;text-align:center;color:var(--text)"></span>
-  <button onclick="changeHistoryMonth(1)" style="border:1px solid var(--border);background:var(--sf2);color:var(--text);border-radius:8px;padding:.35rem .9rem;cursor:pointer;font-size:1rem">▶</button>
-</div>
   <div class="page-header"><div><div class="ph-title">历史数据</div><div class="ph-sub" id="histSub"></div></div></div>
   <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
     <table class="htable">
@@ -762,24 +889,12 @@ async function updateStreak() {
 // ══════════════════════════
 //  HISTORY
 // ══════════════════════════
-let _histYear = new Date().getFullYear();
-let _histMonth = new Date().getMonth();
-
-function changeHistoryMonth(delta) {
-  _histMonth += delta;
-  if (_histMonth > 11) { _histMonth = 0; _histYear++; }
-  if (_histMonth < 0)  { _histMonth = 11; _histYear--; }
-  loadAndRenderHistory();
-}
-
 async function loadAndRenderHistory() {
   showLoading('加载历史数据…');
-  const start = new Date(_histYear, _histMonth, 1).toISOString().split('T')[0];
-  const end   = new Date(_histYear, _histMonth + 1, 0).toISOString().split('T')[0];
-  const label = document.getElementById('histMonthLabel');
-  if (label) label.textContent = `${_histYear}年${_histMonth+1}月`;
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
   const { data, error } = await db.from('daily_records').select('*')
-    .eq('user_id', currentUser.id).gte('date', start).lte('date', end).order('date', {ascending:false});
+    .eq('user_id', currentUser.id).gte('date', start).order('date', {ascending:false});
   hideLoading();
   if (error) { toast('加载失败'); return; }
   cachedRecords = data || [];
@@ -808,7 +923,6 @@ async function loadAndRenderHistory() {
       <td class="${h['复盘']?'c-ok':'c-bad'}">${h['复盘']?'✓':'✗'}</td>
       <td class="${h['戒烟']?'c-ok':'c-bad'}">${h['戒烟']?'✓':'✗'}</td>
       <td>${r.running||'/'}</td>
-      <td>${r.pace||'/'}</td>
     </tr>`;
   }).join('');
 }
