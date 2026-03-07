@@ -112,8 +112,9 @@ const supabase = (() => {
           return { data: result, error: null, select() { return { single() { return Promise.resolve({ data: result, error: null }); } }; } };
         },
         async upsert(payload, opts) {
-          const prefer = `resolution=${opts?.onConflict ? 'merge-duplicates' : 'merge-duplicates'},return=representation`;
-          const r = await fetch(`${url}/rest/v1/${table}`, {
+          const prefer = `resolution=merge-duplicates,return=representation`;
+          const conflictParam = opts?.onConflict ? `?on_conflict=${opts.onConflict}` : '';
+          const r = await fetch(`${url}/rest/v1/${table}${conflictParam}`, {
             method: 'POST', headers: { ...headers(), 'Prefer': prefer },
             body: JSON.stringify(payload)
           });
