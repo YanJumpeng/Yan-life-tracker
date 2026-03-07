@@ -490,6 +490,11 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Serif SC',serif;mi
 
 <!-- 历史 -->
 <div class="page" id="page-history" data-page="history">
+<div style="display:flex;align-items:center;gap:1rem;padding:.8rem 1.2rem;background:var(--surface);border-bottom:1px solid var(--border);margin-bottom:1rem;border-radius:12px;">
+  <button onclick="changeHistoryMonth(-1)" style="border:1px solid var(--border);background:var(--sf2);color:var(--text);border-radius:8px;padding:.35rem .9rem;cursor:pointer;font-size:1rem">◀</button>
+  <span id="histMonthLabel" style="font-weight:500;font-size:1rem;min-width:100px;text-align:center;color:var(--text)"></span>
+  <button onclick="changeHistoryMonth(1)" style="border:1px solid var(--border);background:var(--sf2);color:var(--text);border-radius:8px;padding:.35rem .9rem;cursor:pointer;font-size:1rem">▶</button>
+</div>
   <div class="page-header"><div><div class="ph-title">历史数据</div><div class="ph-sub" id="histSub"></div></div></div>
   <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
     <table class="htable">
@@ -757,6 +762,16 @@ async function updateStreak() {
 // ══════════════════════════
 //  HISTORY
 // ══════════════════════════
+let _histYear = new Date().getFullYear();
+let _histMonth = new Date().getMonth();
+
+function changeHistoryMonth(delta) {
+  _histMonth += delta;
+  if (_histMonth > 11) { _histMonth = 0; _histYear++; }
+  if (_histMonth < 0)  { _histMonth = 11; _histYear--; }
+  loadAndRenderHistory();
+}
+
 async function loadAndRenderHistory() {
   showLoading('加载历史数据…');
   const now = new Date();
