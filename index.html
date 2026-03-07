@@ -774,10 +774,12 @@ function changeHistoryMonth(delta) {
 
 async function loadAndRenderHistory() {
   showLoading('加载历史数据…');
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const start = new Date(_histYear, _histMonth, 1).toISOString().split('T')[0];
+  const end   = new Date(_histYear, _histMonth + 1, 0).toISOString().split('T')[0];
+  const label = document.getElementById('histMonthLabel');
+  if (label) label.textContent = `${_histYear}年${_histMonth+1}月`;
   const { data, error } = await db.from('daily_records').select('*')
-    .eq('user_id', currentUser.id).gte('date', start).order('date', {ascending:false});
+    .eq('user_id', currentUser.id).gte('date', start).lte('date', end).order('date', {ascending:false});
   hideLoading();
   if (error) { toast('加载失败'); return; }
   cachedRecords = data || [];
