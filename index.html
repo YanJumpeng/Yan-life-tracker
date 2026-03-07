@@ -205,8 +205,9 @@ const supabase = (() => {
           return { data: result, error: null, select() { return { single() { return Promise.resolve({ data: result, error: null }); } }; } };
         },
         async upsert(payload, opts) {
-          const prefer = `resolution=${opts?.onConflict ? 'merge-duplicates' : 'merge-duplicates'},return=representation`;
-          const r = await fetch(`${url}/rest/v1/${table}`, {
+          const prefer = `resolution=merge-duplicates,return=representation`;
+          const conflict = opts?.onConflict ? `?on_conflict=${encodeURIComponent(opts.onConflict)}` : '';
+          const r = await fetch(`${url}/rest/v1/${table}${conflict}`, {
             method: 'POST', headers: { ...headers(), 'Prefer': prefer },
             body: JSON.stringify(payload)
           });
@@ -1673,6 +1674,10 @@ function toast(msg) {
       <div><label style="font-size:.7rem;color:var(--text3)">骑行(km)</label><input id="eh_cycling" type="number" step="0.1" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
       <div><label style="font-size:.7rem;color:var(--text3)">备注</label><input id="eh_note" type="text" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
     </div>
+    <div style="margin-top:.9rem">
+      <div style="font-size:.7rem;color:var(--text3);margin-bottom:.5rem">习惯打卡</div>
+      <div id="eh_habits" style="display:flex;flex-wrap:wrap;gap:.4rem"></div>
+    </div>
     <div style="display:flex;gap:.8rem;margin-top:1.2rem;justify-content:flex-end">
       <button onclick="closeEditHist()" style="padding:.5rem 1.2rem;border:1px solid var(--border);background:var(--sf2);color:var(--text);border-radius:8px;cursor:pointer">取消</button>
       <button onclick="saveEditHist()" style="padding:.5rem 1.2rem;border:none;background:var(--c-checkin);color:#fff;border-radius:8px;cursor:pointer;font-weight:500">保存</button>
@@ -1697,6 +1702,11 @@ function editHistRecord(r) {
   document.getElementById('eh_pace').value = h['跑步配速'] || '';
   document.getElementById('eh_cycling').value = r.cycling || 0;
   document.getElementById('eh_note').value = r.note || '';
+  // 渲染习惯芯片
+  const habitKeys = ['深度阅读','锻炼身体','写作','学习技能','整理房间','独处思考','主动社交','复盘','早起'];
+  document.getElementById('eh_habits').innerHTML = habitKeys.map(k =>
+    `<div class="h-chip${h[k]?' on':''}" data-habit="${k}" onclick="this.classList.toggle('on')" style="font-size:.75rem;padding:.28rem .7rem">${k}</div>`
+  ).join('');
   const modal = document.getElementById('editHistModal');
   modal.style.display = 'flex';
 }
@@ -1721,6 +1731,12 @@ async function saveEditHist() {
   const pace = document.getElementById('eh_pace').value;
   const habits = { ...(_editHistRecord.habits||{}) };
   if (pace) habits['跑步配速'] = pace; else delete habits['跑步配速'];
+  // 读取习惯芯片状态
+  document.querySelectorAll('#eh_habits .h-chip').forEach(chip => {
+    const k = chip.dataset.habit;
+    if (chip.classList.contains('on')) habits[k] = true;
+    else delete habits[k];
+  });
 
   const payload = {
     sleep_time:  sleepT || null,
