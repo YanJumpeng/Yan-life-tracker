@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+<meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>日迹 · 生活记录</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 /* ─── CONFIG BANNER ─── */
 .config-banner{
@@ -491,11 +490,6 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Serif SC',serif;mi
 
 <!-- 历史 -->
 <div class="page" id="page-history" data-page="history">
-    <div style="display:flex;align-items:center;gap:1rem;padding:.8rem 1.2rem;background:var(--surface);border-bottom:1px solid var(--border);margin-bottom:1rem">
-      <button onclick="changeHistoryMonth(-1)" style="border:1px solid var(--border);background:var(--sf2);color:var(--text);border-radius:8px;padding:.35rem .8rem;cursor:pointer;font-size:.85rem">◀</button>
-      <span id="histMonthLabel" style="font-weight:500;font-size:.95rem;min-width:80px;text-align:center"></span>
-      <button onclick="changeHistoryMonth(1)" style="border:1px solid var(--border);background:var(--sf2);color:var(--text);border-radius:8px;padding:.35rem .8rem;cursor:pointer;font-size:.85rem">▶</button>
-    </div>
   <div class="page-header"><div><div class="ph-title">历史数据</div><div class="ph-sub" id="histSub"></div></div></div>
   <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
     <table class="htable">
@@ -640,7 +634,6 @@ db.auth.onAuthStateChange(async (event, session) => {
     calcSleep();
     await loadTodayCheckin();
     renderDash();
-    hideLoading();
   } else {
     document.getElementById('appWrap').style.display = 'none';
     document.getElementById('authScreen').classList.add('show');
