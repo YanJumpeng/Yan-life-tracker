@@ -186,9 +186,9 @@ const supabase = (() => {
 .auth-field input:focus{border-color:var(--c-checkin)}
 .auth-err{font-size:.75rem;color:var(--bad);margin-bottom:.8rem;min-height:1.2rem}
 .auth-btn{
-  width:100%;padding:.65rem;border:none;border-radius:9px;
-  background:var(--c-checkin);color:#fff;font-family:'Noto Serif SC',serif;
-  font-size:.88rem;font-weight:400;cursor:pointer;transition:all .18s;
+  width:100%;padding:.72rem;border:none;border-radius:10px;
+  background:var(--c-checkin);color:#fff;font-family:'Barlow','Noto Sans SC',sans-serif;
+  font-size:1rem;font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:.03em;
 }
 .auth-btn:hover{filter:brightness(1.08);box-shadow:0 3px 10px rgba(224,123,57,.35)}
 .auth-btn:disabled{opacity:.5;cursor:not-allowed}
@@ -290,7 +290,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 
 /* ─── PAGE HEADER ─── */
 .page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.6rem;padding-bottom:1.2rem;border-bottom:3px solid transparent}
-.ph-title{font-size:1.55rem;font-weight:500;letter-spacing:.03em}
+.ph-title{font-size:1.7rem;font-weight:700;letter-spacing:.01em;line-height:1.2}
 .ph-sub{font-family:'Crimson Pro',serif;font-size:.8rem;color:var(--text3);font-style:italic;margin-top:3px}
 .ph-actions{display:flex;gap:.6rem;align-items:center;flex-shrink:0;margin-top:.2rem}
 [data-page="checkin"] .page-header{border-color:var(--c-checkin)}
@@ -486,6 +486,15 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--bdr2);border-radius:3px}
+
+/* ─── 统计卡数字增强 ─── */
+.sc-val{font-size:2rem!important;font-weight:700!important;font-family:'Barlow Condensed','JetBrains Mono',monospace!important;line-height:1!important}
+.sc-unit{font-size:.75rem!important;font-weight:500!important;color:var(--text3)!important;letter-spacing:.05em!important}
+.sc-lbl{font-size:.72rem!important;color:var(--text2)!important;font-weight:500!important}
+.c-ok{color:var(--ok)!important;font-weight:600!important}
+.c-bad{color:var(--bad)!important;font-weight:600!important}
+.c-warn{color:var(--warn)!important;font-weight:600!important}
+.c-txt{color:var(--text)!important;font-weight:500!important}
 </style>
 </head>
 <body>
