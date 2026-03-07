@@ -1077,6 +1077,8 @@ async function saveCheckin() {
   const ruPace = document.getElementById('ru_pace').value;
   if (cyPace && +cyPace > 0) habits['骑行配速'] = cyPace;
   if (ruPace) habits['跑步配速'] = ruPace;
+  const moodActive = document.querySelector('.mood-btn.active');
+  if (moodActive) habits['mood'] = +moodActive.dataset.mood;
   const durVal = parseFloat(document.getElementById('durT').value) || null;
   const payload = {
     user_id: currentUser.id, date: today,
