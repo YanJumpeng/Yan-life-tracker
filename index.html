@@ -578,6 +578,8 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 .sc-unit{font-size:.75rem!important;font-weight:500!important;color:var(--text3)!important;letter-spacing:.05em!important}
 .sc-lbl{font-size:.72rem!important;color:var(--text2)!important;font-weight:500!important}
 
+
+.c-bold{font-weight:700!important;}
 </style>
 </head>
 <body>
@@ -1028,26 +1030,29 @@ async function loadAndRenderHistory() {
   }
   tbody.innerHTML = cachedRecords.map((r, idx) => {
     const dur = r.sleep_hours;
-    const sc = dur>=7?'c-ok':dur&&dur<5?'c-bad':dur?'c-warn':'';
+    // 睡眠颜色：<6h 红色加粗，≥8h 绿色加粗，其余橙色
+    const sc = dur>=8 ? 'c-ok c-bold' : dur&&dur<6 ? 'c-bad c-bold' : dur ? 'c-warn' : '';
     const wk = r.wake_time ? r.wake_time.slice(0,5) : '/';
     const wh = r.wake_time ? parseInt(r.wake_time) : null;
-    const wc = wh!=null ? (wh>=8?'c-bad':wh<=6?'c-ok':'') : '';
+    const wm = r.wake_time ? parseInt(r.wake_time.split(':')[1]||0) : 0;
+    // 起床时间：7点之前绿色（早起达标），7点后橙色，8点后红色
+    const wc = wh!=null ? (wh<7 ? 'c-ok c-bold' : wh<8 ? 'c-warn' : 'c-bad') : '';
     const h = r.habits||{};
     const d = new Date(r.date);
     const dateStr = `${d.getMonth()+1}月${d.getDate()}日`;
-    return`<tr style='cursor:pointer' onclick='editHistRecord(cachedRecords[${idx}])'>
-      <td class="c-txt">${dateStr}</td>
-      <td>${r.sleep_time?r.sleep_time.slice(0,5):'/'}</td>
+    return`<tr style='cursor:pointer;transition:background .15s' onclick='editHistRecord(cachedRecords[${idx}])'>
+      <td class="c-txt" style="font-weight:600">${dateStr}</td>
+      <td style="color:var(--text3)">${r.sleep_time?r.sleep_time.slice(0,5):'/'}</td>
       <td class="${wc}">${wk}</td>
       <td class="${sc}">${dur||'/'}</td>
-      <td class="c-txt">${r.pushup||0}</td>
+      <td class="c-txt" style="font-weight:600;color:var(--c-checkin)">${r.pushup||0}</td>
       <td>${r.squat||'/'}</td>
-      <td>${r.pullup||'/'}</td>
-      <td class="${h['复盘']?'c-ok':'c-bad'}">${h['复盘']?'✓':'✗'}</td>
-      <td class="${h['戒烟']?'c-ok':'c-bad'}">${h['戒烟']?'✓':'✗'}</td>
-      <td>${r.running||'/'}</td>
-      <td>${h['跑步配速']||'/'}</td>
-      <td>${r.cycling||'/'}</td>
+      <td style="color:var(--c-todo);font-weight:500">${r.pullup||'/'}</td>
+      <td class="${h['复盘']?'c-ok':'c-bad'}" style="font-size:.9rem">${h['复盘']?'✓':'✗'}</td>
+      <td class="${h['戒烟']?'c-ok':'c-bad'}" style="font-size:.9rem">${h['戒烟']?'✓':'✗'}</td>
+      <td style="color:var(--c-journal);font-weight:600">${r.running||'/'}</td>
+      <td style="color:var(--text2)">${h['跑步配速']||'/'}</td>
+      <td style="color:var(--c-history)">${r.cycling||'/'}</td>
     </tr>`;
   }).join('');
 }
