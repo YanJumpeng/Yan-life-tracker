@@ -580,6 +580,11 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 
 
 .c-bold{font-weight:700!important;}
+
+.hstat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem 1.1rem;box-shadow:var(--shadow);text-align:center}
+.hstat-val{font-size:2rem;font-weight:700;font-family:'Barlow Condensed',monospace;line-height:1;margin-bottom:.35rem}
+.hstat-lbl{font-size:.72rem;color:var(--text2);font-weight:500;display:flex;flex-direction:column;gap:2px;line-height:1.4}
+.hstat-lbl small{font-size:.65rem;color:var(--text3)}
 </style>
 </head>
 <body>
@@ -738,6 +743,8 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
       <tbody id="histBody"></tbody>
     </table>
   </div></div>
+  <!-- 月度统计面板 -->
+  <div id="histStats" style="display:none;grid-template-columns:repeat(4,1fr);gap:1rem;margin-top:1.2rem;padding:0 .2rem"></div>
 </div>
 
 <!-- 日记 -->
@@ -1055,6 +1062,67 @@ async function loadAndRenderHistory() {
       <td style="color:var(--c-history)">${r.cycling||'/'}</td>
     </tr>`;
   }).join('');
+
+  // 渲染月度统计
+  renderHistStats(cachedRecords);
+}
+
+function renderHistStats(records) {
+  const el = document.getElementById('histStats');
+  if (!el || !records.length) { if(el) el.style.display='none'; return; }
+  el.style.display = 'grid';
+
+  let lateNight=0, greenSleep=0, warnSleep=0, alertSleep=0, earlyRise=0;
+  let totalRun=0, totalPushup=0, totalPullup=0;
+
+  records.forEach(r => {
+    const dur = parseFloat(r.sleep_hours) || 0;
+    const sh = r.sleep_time ? parseInt(r.sleep_time.split(':')[0]) : null;
+    const wh = r.wake_time  ? parseInt(r.wake_time.split(':')[0])  : null;
+    if (sh !== null && (sh >= 2 && sh <= 11)) lateNight++;
+    if (dur >= 8) greenSleep++;
+    else if (dur > 0 && dur <= 6) alertSleep++;
+    else if (dur > 0) warnSleep++;
+    if (wh !== null && wh < 8) earlyRise++;
+    totalRun    += parseFloat(r.running) || 0;
+    totalPushup += parseInt(r.pushup)    || 0;
+    totalPullup += parseInt(r.pullup)    || 0;
+  });
+
+  el.innerHTML = `
+    <div class="hstat-card" style="border-top:3px solid var(--bad)">
+      <div class="hstat-val" style="color:var(--bad)">${lateNight}</div>
+      <div class="hstat-lbl">入睡报警<small>2点后</small></div>
+    </div>
+    <div class="hstat-card" style="border-top:3px solid var(--ok)">
+      <div class="hstat-val" style="color:var(--ok)">${greenSleep}</div>
+      <div class="hstat-lbl">优质睡眠<small>&gt;8小时</small></div>
+    </div>
+    <div class="hstat-card" style="border-top:3px solid var(--bad)">
+      <div class="hstat-val" style="color:var(--bad)">${alertSleep}</div>
+      <div class="hstat-lbl">睡眠报警<small>≤6小时</small></div>
+    </div>
+    <div class="hstat-card" style="border-top:3px solid var(--ok)">
+      <div class="hstat-val" style="color:var(--ok)">${earlyRise}</div>
+      <div class="hstat-lbl">早起天数<small>8点前起床</small></div>
+    </div>
+    <div class="hstat-card" style="border-top:3px solid var(--warn)">
+      <div class="hstat-val" style="color:var(--warn)">${warnSleep}</div>
+      <div class="hstat-lbl">平和睡眠<small>6-8小时</small></div>
+    </div>
+    <div class="hstat-card" style="border-top:3px solid var(--c-journal)">
+      <div class="hstat-val" style="color:var(--c-journal)">${totalRun.toFixed(1)}<span style="font-size:.75rem">km</span></div>
+      <div class="hstat-lbl">跑步里程<small>本月累计</small></div>
+    </div>
+    <div class="hstat-card" style="border-top:3px solid var(--c-checkin)">
+      <div class="hstat-val" style="color:var(--c-checkin)">${totalPushup}</div>
+      <div class="hstat-lbl">俯卧撑<small>本月累计</small></div>
+    </div>
+    <div class="hstat-card" style="border-top:3px solid var(--c-todo)">
+      <div class="hstat-val" style="color:var(--c-todo)">${totalPullup}</div>
+      <div class="hstat-lbl">引体向上<small>本月累计</small></div>
+    </div>
+  `;
 }
 
 function histChangeMonth(delta) {
