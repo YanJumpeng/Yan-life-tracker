@@ -725,6 +725,34 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
         <div class="mood-btn" data-mood="5" onclick="setMood(5)">🤩<span>很棒</span></div>
       </div>
     </div>
+    <!-- 今日读书 -->
+    <div class="card" style="margin-top:1rem;flex:1">
+      <div class="card-head">今日读书</div>
+      <div style="display:flex;flex-direction:column;gap:.7rem">
+        <div>
+          <label class="form-label" style="font-size:.7rem">书名</label>
+          <input type="text" id="todayBook" class="form-input" placeholder="在读的书…" style="width:100%">
+        </div>
+        <div style="display:flex;gap:.7rem">
+          <div style="flex:1">
+            <label class="form-label" style="font-size:.7rem">读了多少页</label>
+            <div class="stepper">
+              <button class="s-btn" onclick="adj('bookPages',-5)">−</button>
+              <input class="s-input" id="bookPages" value="0" type="number" min="0">
+              <button class="s-btn" onclick="adj('bookPages',5)">+</button>
+            </div>
+          </div>
+          <div style="flex:1">
+            <label class="form-label" style="font-size:.7rem">读到第几页</label>
+            <input type="number" id="bookAt" class="form-input" placeholder="第N页" min="0" style="width:100%">
+          </div>
+        </div>
+        <div>
+          <label class="form-label" style="font-size:.7rem">今日摘记（可选）</label>
+          <textarea id="bookNote" rows="2" class="form-input" placeholder="一句话感悟…" style="width:100%;resize:none;line-height:1.5"></textarea>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="card mb">
     <div class="card-head">健身数据</div>
@@ -1057,6 +1085,12 @@ async function loadTodayCheckin() {
       if (habits[h]) chip.classList.add('on'); else chip.classList.remove('on');
     });
     if (habits.mood) setMood(habits.mood);
+    if (habits['今日书名']) {
+      const el = document.getElementById('todayBook'); if(el) el.value = habits['今日书名'];
+      const pg = document.getElementById('bookPages'); if(pg) pg.value = habits['读了页数']||0;
+      const at = document.getElementById('bookAt');    if(at) at.value = habits['读到第几页']||'';
+      const nt = document.getElementById('bookNote');  if(nt) nt.value = habits['读书摘记']||'';
+    }
   }
 }
 
@@ -1079,6 +1113,12 @@ async function saveCheckin() {
   if (ruPace) habits['跑步配速'] = ruPace;
   const moodActive = document.querySelector('.mood-btn.active');
   if (moodActive) habits['mood'] = +moodActive.dataset.mood;
+  const todayBook = document.getElementById('todayBook')?.value?.trim();
+  const bookPages = +document.getElementById('bookPages')?.value || 0;
+  const bookAt    = +document.getElementById('bookAt')?.value || 0;
+  const bookNote  = document.getElementById('bookNote')?.value?.trim();
+  if (todayBook) { habits['今日书名'] = todayBook; habits['读了页数'] = bookPages; habits['读到第几页'] = bookAt; }
+  if (bookNote)  habits['读书摘记'] = bookNote;
   const durVal = parseFloat(document.getElementById('durT').value) || null;
   const payload = {
     user_id: currentUser.id, date: today,
