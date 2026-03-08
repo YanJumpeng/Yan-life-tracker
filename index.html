@@ -1062,6 +1062,27 @@ document.getElementById('sleepT').addEventListener('change',calcSleep);
 document.getElementById('wakeT').addEventListener('change',calcSleep);
 function adj(id,delta){ const el=document.getElementById(id); el.value=Math.max(0,(+el.value||0)+delta); }
 
+function parsePace(str) {
+  if (!str) return null;
+  str = str.trim();
+  const m1 = str.match(/^(\d+)[':'](\d+)/);
+  if (m1) return +m1[1]*60 + +m1[2];
+  if (/^\d+$/.test(str)) return +str;
+  return null;
+}
+function formatPace(secs) {
+  if (!secs || secs <= 0) return '';
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return m + "'" + String(s).padStart(2,'0') + '"';
+}
+function adjPace(delta) {
+  const el = document.getElementById('ru_pace');
+  let secs = parsePace(el.value) || 330;
+  secs = Math.max(60, secs + delta);
+  el.value = formatPace(secs);
+}
+
 // ── NAV ──
 function go(id, el) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
