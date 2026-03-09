@@ -1454,7 +1454,8 @@ async function loadAndRenderJournals() {
 }
 
 function renderJournalList() {
-  const filtered = jTabCur === 'all' ? cachedJournals : cachedJournals.filter(j => j.type === jTabCur);
+  const sorted = [...cachedJournals].sort((a, b) => (b.entry_date||'').localeCompare(a.entry_date||''));
+  const filtered = jTabCur === 'all' ? sorted : sorted.filter(j => j.type === jTabCur);
   const tl = {daily:'日记', weekly:'周记', monthly:'月记'};
   const bc = {daily:'jb-d', weekly:'jb-w', monthly:'jb-m'};
   if (!filtered.length) {
