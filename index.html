@@ -843,7 +843,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
       <button class="j-tab" onclick="jTab(this,'weekly')">周记</button>
       <button class="j-tab" onclick="jTab(this,'monthly')">月记</button>
     </div>
-    <div class="j-list" id="jList"></div>
+    <div class="j-list" id="jList" style="max-height:62vh;overflow-y:auto;padding-right:4px;scroll-behavior:smooth"></div>
   </div>
   <div class="j-editor" id="jEditor">
     <div class="ed-hd">
