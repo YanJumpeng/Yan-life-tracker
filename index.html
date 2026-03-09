@@ -1523,10 +1523,13 @@ async function saveJ() {
     const payload = { user_id: currentUser.id, type, title, body, entry_date: today };
     const { data, error: e } = await db.from('journal_entries').insert(payload);
     error = e;
-    if (data) cachedJournals.unshift(data);
+    if (data) {
+      const rec = Array.isArray(data) ? data[0] : data;
+      if (rec) cachedJournals.unshift(rec);
+    }
   }
   btn.disabled = false; btn.textContent = '保存';
-  if (error) { toast('保存失败：' + error.message); return; }
+  if (error) { toast('保存失败：' + (error.message || error.details || JSON.stringify(error))); return; }
   backJ(); renderJournalList(); toast('✓ 笔记已保存');
 }
 
