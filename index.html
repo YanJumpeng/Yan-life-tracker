@@ -1521,7 +1521,7 @@ async function saveJ() {
     }
   } else {
     const payload = { user_id: currentUser.id, type, title, body, entry_date: today };
-    const { data, error: e } = await db.from('journal_entries').insert(payload).select().single();
+    const { data, error: e } = await db.from('journal_entries').insert(payload);
     error = e;
     if (data) cachedJournals.unshift(data);
   }
