@@ -1509,6 +1509,7 @@ async function saveJ() {
   const body  = document.getElementById('edB').value.trim();
   const type  = document.getElementById('edType').value;
   if (!title) { toast('请填写标题'); return; }
+  if (!currentUser || !currentUser.id) { toast('⚠️ 登录已过期，请刷新页面重新登录'); return; }
   const btn = document.getElementById('saveJBtn');
   btn.disabled = true; btn.textContent = '保存中…';
   const today = new Date().toISOString().split('T')[0];
