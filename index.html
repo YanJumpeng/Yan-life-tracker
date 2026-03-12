@@ -818,6 +818,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
       <button class="btn btn-ghost btn-sm" onclick="histChangeMonth(-1)">← 上月</button>
       <span id="histMonthLabel" style="font-size:.8rem;color:var(--text2);min-width:80px;text-align:center"></span>
       <button class="btn btn-ghost btn-sm" onclick="histChangeMonth(1)">下月 →</button>
+      <button class="btn btn-sm" style="background:var(--c-checkin);color:#fff;margin-left:.5rem" onclick="openAddRecord()">＋ 补录</button>
     </div>
   </div>
   <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
@@ -1867,6 +1868,29 @@ function toast(msg) {
   setTimeout(()=>t.classList.remove('show'),2600);
 }
 </script>
+<!-- 补录历史记录弹窗 -->
+<div id="addRecordModal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.45);align-items:center;justify-content:center">
+  <div style="background:var(--surface);border-radius:20px;padding:1.8rem;width:min(420px,92vw);max-height:85vh;overflow-y:auto">
+    <div style="font-size:1rem;font-weight:600;margin-bottom:1.2rem;color:var(--text)">📝 补录历史记录</div>
+    <div class="form-group">
+      <label class="form-label">日期</label>
+      <input type="date" id="add_date" class="form-input">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+      <div class="form-group"><label class="form-label">起床时间</label><input type="time" id="add_wake" class="form-input"></div>
+      <div class="form-group"><label class="form-label">睡觉时间</label><input type="time" id="add_sleep" class="form-input"></div>
+      <div class="form-group"><label class="form-label">睡眠时长(h)</label><input type="number" id="add_sleep_hours" class="form-input" step="0.1" min="0" max="24"></div>
+      <div class="form-group"><label class="form-label">跑步(km)</label><input type="number" id="add_running" class="form-input" step="0.01" min="0"></div>
+      <div class="form-group"><label class="form-label">骑行(km)</label><input type="number" id="add_cycling" class="form-input" step="0.01" min="0"></div>
+    </div>
+    <div class="form-group"><label class="form-label">备注</label><textarea id="add_note" class="form-input" rows="2"></textarea></div>
+    <div style="display:flex;gap:.8rem;justify-content:flex-end;margin-top:1rem">
+      <button class="btn btn-ghost btn-sm" onclick="closeAddRecord()">取消</button>
+      <button class="btn btn-sm" style="background:var(--c-checkin);color:#fff" onclick="submitAddRecord()">保存补录</button>
+    </div>
+  </div>
+</div>
+
 <!-- 编辑历史记录弹窗 -->
 <div id="editHistModal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.45);align-items:center;justify-content:center">
   <div style="background:var(--surface);border-radius:16px;padding:1.8rem;width:90%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
@@ -1895,6 +1919,44 @@ function toast(msg) {
 </div>
 
 <script>
+// 补录功能
+function openAddRecord() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('add_date').value = today;
+  document.getElementById('add_wake').value = '';
+  document.getElementById('add_sleep').value = '';
+  document.getElementById('add_sleep_hours').value = '';
+  document.getElementById('add_running').value = '';
+  document.getElementById('add_cycling').value = '';
+  document.getElementById('add_note').value = '';
+  document.getElementById('addRecordModal').style.display = 'flex';
+}
+function closeAddRecord() {
+  document.getElementById('addRecordModal').style.display = 'none';
+}
+async function submitAddRecord() {
+  const date = document.getElementById('add_date').value;
+  if (!date) { alert('请选择日期'); return; }
+  const payload = {
+    user_id: currentUser.id,
+    date,
+    wake_time: document.getElementById('add_wake').value || null,
+    sleep_time: document.getElementById('add_sleep').value || null,
+    sleep_hours: parseFloat(document.getElementById('add_sleep_hours').value) || null,
+    running: parseFloat(document.getElementById('add_running').value) || 0,
+    cycling: parseFloat(document.getElementById('add_cycling').value) || 0,
+    note: document.getElementById('add_note').value || null,
+  };
+  const { error } = await db.from('daily_records').upsert(payload, { onConflict: 'user_id,date' });
+  if (error) { alert('保存失败：' + error.message); return; }
+  closeAddRecord();
+  loadAndRenderHistory();
+  alert('✅ 补录成功！');
+}
+document.getElementById('addRecordModal').addEventListener('click', function(e) {
+  if (e.target === this) closeAddRecord();
+});
+
 let _editHistRecord = null;
 
 function editHistRecord(r) {
