@@ -1602,11 +1602,10 @@ async function renderDash() {
   // ── 核心指标 ──
   const withSleep = records.filter(r=>r.sleep_hours>0);
   const avgSleep = withSleep.length ? (withSleep.reduce((a,r)=>a+(+r.sleep_hours),0)/withSleep.length) : 0;
-  const totalRun  = records.reduce((a,r)=>a+(+r.running||0),0);
-  const totalCycling = records.reduce((a,r)=>a+(+r.cycling||0),0);
-  const earlyDays = records.filter(r=>r.wake_time&&parseInt(r.wake_time)<8).length;
-  // 累计跑步天数（从2026-02-17起，有跑步记录的天数）
   const RUN_START = '2026-02-17';
+  const totalRun  = records.filter(r=>r.date>=RUN_START).reduce((a,r)=>a+(+r.running||0),0);
+  const totalCycling = records.filter(r=>r.date>=RUN_START).reduce((a,r)=>a+(+r.cycling||0),0);
+  const earlyDays = records.filter(r=>r.date>=RUN_START&&r.wake_time&&parseInt(r.wake_time)<8).length;
   const runDays = records.filter(r=>r.date>=RUN_START&&(+r.running||0)>0).length;
 
   const statsData = [
