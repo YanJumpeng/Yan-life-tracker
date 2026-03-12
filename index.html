@@ -1291,7 +1291,7 @@ function renderHistStats(records) {
     if (sh !== null && (sh >= 2 && sh <= 11)) lateNight++;
     if (dur >= 8) greenSleep++;
     else if (dur > 0 && dur <= 6) alertSleep++;
-    else if (dur > 0) warnSleep++;
+    else if (dur > 0 && r.date >= '2026-02-17') warnSleep++;
     if (wh !== null && wh < 8) earlyRise++;
     totalRun     += parseFloat(r.running)  || 0;
     totalCycling += parseFloat(r.cycling) || 0;
