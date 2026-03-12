@@ -1282,7 +1282,7 @@ function renderHistStats(records) {
   el.style.display = 'grid';
 
   let lateNight=0, greenSleep=0, warnSleep=0, alertSleep=0, earlyRise=0;
-  let totalRun=0, totalPushup=0, totalPullup=0;
+  let totalRun=0, totalCycling=0, runDays=0;
 
   records.forEach(r => {
     const dur = parseFloat(r.sleep_hours) || 0;
@@ -1293,9 +1293,9 @@ function renderHistStats(records) {
     else if (dur > 0 && dur <= 6) alertSleep++;
     else if (dur > 0) warnSleep++;
     if (wh !== null && wh < 8) earlyRise++;
-    totalRun    += parseFloat(r.running) || 0;
-    totalPushup += parseInt(r.pushup)    || 0;
-    totalPullup += parseInt(r.pullup)    || 0;
+    totalRun     += parseFloat(r.running)  || 0;
+    totalCycling += parseFloat(r.cycling) || 0;
+    if (r.date >= '2026-02-17' && (parseFloat(r.running)||0) > 0) runDays++;
   });
 
   el.innerHTML = `
