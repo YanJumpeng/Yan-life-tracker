@@ -1281,7 +1281,7 @@ function renderHistStats(records) {
   if (!el || !records.length) { if(el) el.style.display='none'; return; }
   el.style.display = 'grid';
 
-  let lateNight=0, greenSleep=0, warnSleep=0, alertSleep=0, earlyRise=0;
+  let lateNight=0, greenSleep=0, alertSleep=0, earlyRise=0, newYearDays=0;
   let totalRun=0, totalCycling=0, runDays=0;
 
   records.forEach(r => {
@@ -1291,12 +1291,16 @@ function renderHistStats(records) {
     if (sh !== null && (sh >= 2 && sh <= 11)) lateNight++;
     if (dur >= 8) greenSleep++;
     else if (dur > 0 && dur <= 6) alertSleep++;
-    else if (dur > 6 && dur < 8 && r.date >= '2026-02-17') warnSleep++;
     if (wh !== null && wh < 8) earlyRise++;
     totalRun     += parseFloat(r.running)  || 0;
     totalCycling += parseFloat(r.cycling) || 0;
     if ((parseFloat(r.running)||0) > 0) runDays++;
   });
+
+  // 计算新年天数（从2026-02-17到今天）
+  const newYearStart = new Date('2026-02-17');
+  const today = new Date();
+  newYearDays = Math.floor((today - newYearStart) / (1000*60*60*24)) + 1;
 
   el.innerHTML = `
     <div class="hstat-card" style="border-top:3px solid var(--bad)">
@@ -1315,9 +1319,9 @@ function renderHistStats(records) {
       <div class="hstat-val" style="color:var(--ok)">${earlyRise}</div>
       <div class="hstat-lbl">早起天数<small>本月累计</small></div>
     </div>
-    <div class="hstat-card" style="border-top:3px solid var(--warn)">
-      <div class="hstat-val" style="color:var(--warn)">${warnSleep}</div>
-      <div class="hstat-lbl">平和睡眠<small>6-8小时</small></div>
+    <div class="hstat-card" style="border-top:3px solid #10b981">
+      <div class="hstat-val" style="color:#10b981">${newYearDays}</div>
+      <div class="hstat-lbl">新年天数<small>2/17起</small></div>
     </div>
     <div class="hstat-card" style="border-top:3px solid var(--c-journal)">
       <div class="hstat-val" style="color:var(--c-journal)">${totalRun.toFixed(1)}<span style="font-size:.75rem">km</span></div>
