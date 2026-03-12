@@ -1323,13 +1323,13 @@ function renderHistStats(records) {
       <div class="hstat-val" style="color:var(--c-journal)">${totalRun.toFixed(1)}<span style="font-size:.75rem">km</span></div>
       <div class="hstat-lbl">跑步里程<small>本月累计</small></div>
     </div>
-    <div class="hstat-card" style="border-top:3px solid var(--c-checkin)">
-      <div class="hstat-val" style="color:var(--c-checkin)">${totalPushup}</div>
-      <div class="hstat-lbl">俯卧撑<small>本月累计</small></div>
+    <div class="hstat-card" style="border-top:3px solid #f59e0b">
+      <div class="hstat-val" style="color:#f59e0b">${totalCycling.toFixed(1)}<span style="font-size:.75rem">km</span></div>
+      <div class="hstat-lbl">骑车里程<small>本月累计</small></div>
     </div>
-    <div class="hstat-card" style="border-top:3px solid var(--c-todo)">
-      <div class="hstat-val" style="color:var(--c-todo)">${totalPullup}</div>
-      <div class="hstat-lbl">引体向上<small>本月累计</small></div>
+    <div class="hstat-card" style="border-top:3px solid #10b981">
+      <div class="hstat-val" style="color:#10b981">${runDays}</div>
+      <div class="hstat-lbl">跑步天数<small>2/17起累计</small></div>
     </div>
   `;
 }
@@ -1603,8 +1603,11 @@ async function renderDash() {
   const withSleep = records.filter(r=>r.sleep_hours>0);
   const avgSleep = withSleep.length ? (withSleep.reduce((a,r)=>a+(+r.sleep_hours),0)/withSleep.length) : 0;
   const totalRun  = records.reduce((a,r)=>a+(+r.running||0),0);
-  const totalPu   = records.reduce((a,r)=>a+(+r.pushup||0),0);
+  const totalCycling = records.reduce((a,r)=>a+(+r.cycling||0),0);
   const earlyDays = records.filter(r=>r.wake_time&&parseInt(r.wake_time)<8).length;
+  // 累计跑步天数（从2026-02-17起，有跑步记录的天数）
+  const RUN_START = '2026-02-17';
+  const runDays = records.filter(r=>r.date>=RUN_START&&(+r.running||0)>0).length;
 
   const statsData = [
     {l:'平均睡眠',v:avgSleep.toFixed(1),u:'h',
