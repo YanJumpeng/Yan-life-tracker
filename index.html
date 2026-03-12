@@ -1292,10 +1292,12 @@ function renderHistStats(records) {
     if (dur >= 8) greenSleep++;
     else if (dur > 0 && dur <= 6) alertSleep++;
     else if (dur > 0) warnSleep++;
-    if (wh !== null && wh < 8) earlyRise++;
-    totalRun     += parseFloat(r.running)  || 0;
-    totalCycling += parseFloat(r.cycling) || 0;
-    if (r.date >= '2026-02-17' && (parseFloat(r.running)||0) > 0) runDays++;
+    if (r.date >= '2026-02-17') {
+      if (wh !== null && wh < 8) earlyRise++;
+      totalRun     += parseFloat(r.running)  || 0;
+      totalCycling += parseFloat(r.cycling) || 0;
+      if ((parseFloat(r.running)||0) > 0) runDays++;
+    }
   });
 
   el.innerHTML = `
