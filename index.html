@@ -703,8 +703,8 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
     <div class="card">
       <div class="card-head">睡眠记录</div>
       <div class="time-row">
-        <div class="form-group"><label class="form-label">入睡</label><input type="time" class="form-input" id="sleepT" value="23:30" style="width:110px"></div>
-        <div class="form-group"><label class="form-label">起床</label><input type="time" class="form-input" id="wakeT" value="06:00" oninput="calcDur()" style="width:110px"></div>
+        <div class="form-group"><label class="form-label">入睡</label><input type="text" class="form-input" id="sleepT" placeholder="23:30" style="width:72px;text-align:center"></div>
+        <div class="form-group"><label class="form-label">起床</label><input type="text" class="form-input" id="wakeT" placeholder="06:00" style="width:72px;text-align:center" oninput="calcDur()"></div>
         <div class="form-group"><label class="form-label">睡眠时长</label>
           <div style="display:flex;gap:.3rem;align-items:center">
             <input type="number" class="form-input" id="durH" min="0" max="24" placeholder="0" style="width:46px;text-align:center" oninput="updateDurVal()">
