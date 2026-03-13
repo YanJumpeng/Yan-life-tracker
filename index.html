@@ -2063,11 +2063,8 @@ async function submitAddRecord() {
     pullup: parseInt(document.getElementById('add_pullup').value) || 0,
     dips: parseInt(document.getElementById('add_dips').value) || 0,
     running: parseFloat(document.getElementById('add_running').value) || 0,
-    run_pace: document.getElementById('add_ru_pace').value || null,
     cycling: parseFloat(document.getElementById('add_cycling').value) || 0,
-    cy_pace: parseFloat(document.getElementById('add_cy_pace').value) || 0,
     habits,
-    mood: _addMood || null,
     note: document.getElementById('add_note').value || null,
   };
   const { error } = await db.from('daily_records').upsert(payload, { onConflict: 'user_id,date' });
