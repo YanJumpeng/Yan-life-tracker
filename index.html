@@ -1192,6 +1192,7 @@ async function saveCheckin() {
     sleep_time: document.getElementById('sleepT').value || null,
     wake_time:  document.getElementById('wakeT').value  || null,
     sleep_hours: durVal,
+    nap_hours: parseFloat(document.getElementById('napT').value) || 0,
     pushup:  +document.getElementById('pu').value  || 0,
     squat:   +document.getElementById('sq').value  || 0,
     pullup:  +document.getElementById('pu2').value || 0,
