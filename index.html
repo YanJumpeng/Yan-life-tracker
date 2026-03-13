@@ -776,10 +776,10 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
   <div class="card mb">
     <div class="card-head">健身数据</div>
     <div class="ex-grid">
-      <div class="ex-item"><label>俯卧撑（个）</label><div class="stepper"><button class="s-btn" onclick="adj('pu',-10)">−</button><input class="s-input" id="pu" value="100"><button class="s-btn" onclick="adj('pu',10)">+</button></div></div>
-      <div class="ex-item"><label>深蹲（个）</label><div class="stepper"><button class="s-btn" onclick="adj('sq',-5)">−</button><input class="s-input" id="sq" value="10"><button class="s-btn" onclick="adj('sq',5)">+</button></div></div>
-      <div class="ex-item"><label>引体向上（个）</label><div class="stepper"><button class="s-btn" onclick="adj('pu2',-5)">−</button><input class="s-input" id="pu2" value="10"><button class="s-btn" onclick="adj('pu2',5)">+</button></div></div>
-      <div class="ex-item"><label>臂屈伸（个）</label><div class="stepper"><button class="s-btn" onclick="adj('di',-5)">−</button><input class="s-input" id="di" value="20"><button class="s-btn" onclick="adj('di',5)">+</button></div></div>
+      <div class="ex-item"><label>俯卧撑</label><div class="ex-reps"><input type="number" id="pu_each" value="10" min="0" oninput="calcEx('pu')"><span>个 ×</span><input type="number" id="pu_sets" value="3" min="0" oninput="calcEx('pu')"><span>组</span></div><div class="ex-total" id="pu_total">= 30 个</div><input type="hidden" id="pu" value="30"></div>
+      <div class="ex-item"><label>深蹲</label><div class="ex-reps"><input type="number" id="sq_each" value="10" min="0" oninput="calcEx('sq')"><span>个 ×</span><input type="number" id="sq_sets" value="3" min="0" oninput="calcEx('sq')"><span>组</span></div><div class="ex-total" id="sq_total">= 30 个</div><input type="hidden" id="sq" value="30"></div>
+      <div class="ex-item"><label>引体向上</label><div class="ex-reps"><input type="number" id="pu2_each" value="5" min="0" oninput="calcEx('pu2')"><span>个 ×</span><input type="number" id="pu2_sets" value="3" min="0" oninput="calcEx('pu2')"><span>组</span></div><div class="ex-total" id="pu2_total">= 15 个</div><input type="hidden" id="pu2" value="15"></div>
+      <div class="ex-item"><label>臂屈伸</label><div class="ex-reps"><input type="number" id="di_each" value="10" min="0" oninput="calcEx('di')"><span>个 ×</span><input type="number" id="di_sets" value="3" min="0" oninput="calcEx('di')"><span>组</span></div><div class="ex-total" id="di_total">= 30 个</div><input type="hidden" id="di" value="30"></div>
       <div class="ex-item"><label>骑行（km）</label><div class="stepper"><button class="s-btn" onclick="adj('cy',-1)">−</button><input class="s-input" id="cy" value="0"><button class="s-btn" onclick="adj('cy',1)">+</button></div></div>
       <div class="ex-item"><label>骑行配速（km/h）</label><input type="number" class="s-input" id="cy_pace" value="0" min="0" step="0.5" style="width:80px"></div>
       <div class="ex-item"><label>跑步（km）</label><div class="stepper"><button class="s-btn" onclick="adj('ru',-1)">−</button><input class="s-input" id="ru" value="0"><button class="s-btn" onclick="adj('ru',1)">+</button></div></div>
@@ -1163,6 +1163,14 @@ function setMood(v) {
   document.querySelectorAll('.mood-btn').forEach(b => {
     b.classList.toggle('active', +b.dataset.mood === v);
   });
+}
+
+function calcEx(id) {
+  const each = parseInt(document.getElementById(id+'_each').value) || 0;
+  const sets = parseInt(document.getElementById(id+'_sets').value) || 0;
+  const total = each * sets;
+  document.getElementById(id+'_total').textContent = '= ' + total + ' 个';
+  document.getElementById(id).value = total;
 }
 
 async function saveCheckin() {
