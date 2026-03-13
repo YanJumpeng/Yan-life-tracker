@@ -704,7 +704,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
       <div class="card-head">睡眠记录</div>
       <div class="time-row">
         <div class="form-group"><label class="form-label">入睡</label><input type="time" class="form-input" id="sleepT" value="23:30"></div>
-        <div class="form-group"><label class="form-label">起床</label><input type="time" class="form-input" id="wakeT" value="06:00"></div>
+        <div class="form-group"><label class="form-label">起床</label><input type="time" class="form-input" id="wakeT" value="06:00" oninput="calcDur()"></div>
         <div class="form-group"><label class="form-label">睡眠时长</label>
           <div style="display:flex;gap:.3rem;align-items:center">
             <input type="number" class="form-input" id="durH" min="0" max="24" placeholder="0" style="width:46px;text-align:center" oninput="updateDurVal()">
@@ -1194,7 +1194,35 @@ function calcEx(id) {
   document.getElementById(id).value = total;
 }
 
-async function saveCheckin() {
+async function calcDur(){
+  var s=document.getElementById('sleepT').value, w=document.getElementById('wakeT').value;
+  if(!s||!w) return;
+  var sm=parseInt(s.split(':')[0])*60+parseInt(s.split(':')[1]);
+  var wm=parseInt(w.split(':')[0])*60+parseInt(w.split(':')[1]);
+  var diff=wm-sm; if(diff<0) diff+=1440;
+  var h=Math.floor(diff/60), m=diff%60;
+  document.getElementById('durH').value=h;
+  document.getElementById('durM').value=m;
+  document.getElementById('durT').value=(diff/60).toFixed(2);
+}
+function updateDurVal(){
+  var h=parseInt(document.getElementById('durH').value)||0;
+  var m=parseInt(document.getElementById('durM').value)||0;
+  document.getElementById('durT').value=(h+m/60).toFixed(2);
+}
+function updateNapVal(){
+  var h=parseInt(document.getElementById('napH').value)||0;
+  var m=parseInt(document.getElementById('napM').value)||0;
+  document.getElementById('napT').value=(h+m/60).toFixed(2);
+}
+function calcEx(id){
+  var each=parseInt(document.getElementById(id+'_each').value)||0;
+  var sets=parseInt(document.getElementById(id+'_sets').value)||0;
+  var total=each*sets;
+  document.getElementById(id+'_total').textContent='= '+total+' 个';
+  document.getElementById(id).value=total;
+}
+function saveCheckin() {
   if (!currentUser) return;
   const btn = document.getElementById('saveCheckinBtn');
   btn.disabled = true; btn.textContent = '保存中…';
