@@ -2035,7 +2035,7 @@ function openAddRecord() {
   document.getElementById('add_date').value = today;
   ['add_sleep_time','add_wake','add_sleep_hours','add_nap_hours','add_pushup','add_squat',
    'add_pullup','add_dips','add_running','add_ru_pace','add_cycling','add_cy_pace',
-   'add_book','add_book_pages','add_book_note','add_note'].forEach(id => {
+   'add_note'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = ['add_pushup','add_squat','add_pullup','add_dips','add_running','add_cycling','add_cy_pace','add_book_pages'].includes(id) ? '0' : '';
   });
@@ -2068,9 +2068,6 @@ async function submitAddRecord() {
     cy_pace: parseFloat(document.getElementById('add_cy_pace').value) || 0,
     habits,
     mood: _addMood || null,
-    book_title: document.getElementById('add_book').value || null,
-    book_pages: parseInt(document.getElementById('add_book_pages').value) || 0,
-    book_note: document.getElementById('add_book_note').value || null,
     note: document.getElementById('add_note').value || null,
   };
   const { error } = await db.from('daily_records').upsert(payload, { onConflict: 'user_id,date' });
