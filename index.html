@@ -1222,7 +1222,7 @@ function calcEx(id){
   document.getElementById(id+'_total').textContent='= '+total+' 个';
   document.getElementById(id).value=total;
 }
-function saveCheckin() {
+async function saveCheckin() {
   if (!currentUser) return;
   const btn = document.getElementById('saveCheckinBtn');
   btn.disabled = true; btn.textContent = '保存中…';
