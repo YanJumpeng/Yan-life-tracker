@@ -703,25 +703,13 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
     <div class="card">
       <div class="card-head">睡眠记录</div>
       <div class="time-row">
-        <div class="form-group"><label class="form-label">入睡</label><input type="text" class="form-input" id="sleepT" placeholder="23:30" style="width:72px;text-align:center"></div>
-        <div class="form-group"><label class="form-label">起床</label><input type="text" class="form-input" id="wakeT" placeholder="06:00" style="width:72px;text-align:center" oninput="calcDur()"></div>
+        <div class="form-group"><label class="form-label">入睡</label><input type="text" class="form-input" id="sleepT" placeholder="23:30" style="width:90px;text-align:center"></div>
+        <div class="form-group"><label class="form-label">起床</label><input type="text" class="form-input" id="wakeT" placeholder="06:00" style="width:90px;text-align:center" oninput="calcDur()"></div>
         <div class="form-group"><label class="form-label">睡眠时长</label>
-          <div style="display:flex;gap:.3rem;align-items:center">
-            <input type="number" class="form-input" id="durH" min="0" max="24" placeholder="0" style="width:46px;text-align:center" oninput="updateDurVal()">
-            <span style="font-size:.7rem;color:var(--text3)">h</span>
-            <input type="number" class="form-input" id="durM" min="0" max="59" placeholder="0" style="width:46px;text-align:center" oninput="updateDurVal()">
-            <span style="font-size:.7rem;color:var(--text3)">min</span>
-          </div>
-          <input type="hidden" id="durT">
+          <input type="text" class="form-input" id="durT" placeholder="6h30'" style="width:90px;text-align:center" readonly>
         </div>
         <div class="form-group"><label class="form-label">午休时长</label>
-          <div style="display:flex;gap:.3rem;align-items:center">
-            <input type="number" class="form-input" id="napH" min="0" max="5" placeholder="0" style="width:46px;text-align:center" oninput="updateNapVal()">
-            <span style="font-size:.7rem;color:var(--text3)">h</span>
-            <input type="number" class="form-input" id="napM" min="0" max="59" placeholder="0" style="width:46px;text-align:center" oninput="updateNapVal()">
-            <span style="font-size:.7rem;color:var(--text3)">min</span>
-          </div>
-          <input type="hidden" id="napT" value="0">
+          <input type="text" class="form-input" id="napT" placeholder="1h30'" style="width:90px;text-align:center">
         </div>
       </div>
     </div>
@@ -1197,13 +1185,13 @@ function calcEx(id) {
 async function calcDur(){
   var s=document.getElementById('sleepT').value, w=document.getElementById('wakeT').value;
   if(!s||!w) return;
-  var sm=parseInt(s.split(':')[0])*60+parseInt(s.split(':')[1]);
-  var wm=parseInt(w.split(':')[0])*60+parseInt(w.split(':')[1]);
+  var sp=s.split(':'), wp=w.split(':');
+  if(sp.length<2||wp.length<2) return;
+  var sm=parseInt(sp[0])*60+parseInt(sp[1]);
+  var wm=parseInt(wp[0])*60+parseInt(wp[1]);
   var diff=wm-sm; if(diff<0) diff+=1440;
   var h=Math.floor(diff/60), m=diff%60;
-  document.getElementById('durH').value=h;
-  document.getElementById('durM').value=m;
-  document.getElementById('durT').value=(diff/60).toFixed(2);
+  document.getElementById('durT').value = m>0 ? h+"h"+m+"'" : h+"h";
 }
 function updateDurVal(){
   var h=parseInt(document.getElementById('durH').value)||0;
@@ -1243,13 +1231,21 @@ async function saveCheckin() {
   const bookNote  = document.getElementById('bookNote')?.value?.trim();
   if (todayBook) { habits['今日书名'] = todayBook; habits['读了页数'] = bookPages; habits['读到第几页'] = bookAt; }
   if (bookNote)  habits['读书摘记'] = bookNote;
-  const durVal = parseFloat(document.getElementById('durT').value) || null;
+  
   const payload = {
     user_id: currentUser.id, date: today,
     sleep_time: document.getElementById('sleepT').value || null,
     wake_time:  document.getElementById('wakeT').value  || null,
-    sleep_hours: durVal,
-    nap_hours: parseFloat(document.getElementById('napT').value) || 0,
+    sleep_hours: (function(){
+      var v=document.getElementById('durT').value||'';
+      var hm=v.match(/(\d+)h(?:(\d+)')?/);
+      return hm ? parseFloat(hm[1])+(parseInt(hm[2]||0)/60) : null;
+    })(),
+    nap_hours: (function(){
+      var v=document.getElementById('napT').value||'';
+      var hm=v.match(/(\d+)h(?:(\d+)')?/);
+      return hm ? parseFloat(hm[1])+(parseInt(hm[2]||0)/60) : 0;
+    })(),
     crunch: +document.getElementById('cr').value || 0,
     pushup:  +document.getElementById('pu').value  || 0,
     squat:   +document.getElementById('sq').value  || 0,
