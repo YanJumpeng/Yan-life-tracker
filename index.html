@@ -1870,23 +1870,73 @@ function toast(msg) {
 </script>
 <!-- 补录历史记录弹窗 -->
 <div id="addRecordModal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.45);align-items:center;justify-content:center">
-  <div style="background:var(--surface);border-radius:20px;padding:1.8rem;width:min(420px,92vw);max-height:85vh;overflow-y:auto">
+  <div style="background:var(--surface);border-radius:20px;padding:1.8rem;width:min(560px,95vw);max-height:90vh;overflow-y:auto">
     <div style="font-size:1rem;font-weight:600;margin-bottom:1.2rem;color:var(--text)">📝 补录历史记录</div>
-    <div class="form-group">
-      <label class="form-label">日期</label>
-      <input type="date" id="add_date" class="form-input">
+
+    <!-- 日期 -->
+    <div class="form-group"><label class="form-label">日期</label><input type="date" id="add_date" class="form-input"></div>
+
+    <!-- 睡眠 -->
+    <div class="card-head" style="margin:.8rem 0 .5rem">睡眠记录</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.6rem">
+      <div class="form-group"><label class="form-label">入睡</label><input type="time" id="add_sleep_time" class="form-input"></div>
+      <div class="form-group"><label class="form-label">起床</label><input type="time" id="add_wake" class="form-input"></div>
+      <div class="form-group"><label class="form-label">夜间时长(h)</label><input type="number" id="add_sleep_hours" class="form-input" step="0.1" min="0" max="24"></div>
+      <div class="form-group"><label class="form-label">午休时长(h)</label><input type="number" id="add_nap_hours" class="form-input" step="0.1" min="0" max="5"></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
-      <div class="form-group"><label class="form-label">起床时间</label><input type="time" id="add_wake" class="form-input"></div>
-      <div class="form-group"><label class="form-label">睡觉时间</label><input type="time" id="add_sleep" class="form-input"></div>
-      <div class="form-group"><label class="form-label">睡眠时长(h)</label><input type="number" id="add_sleep_hours" class="form-input" step="0.1" min="0" max="24"></div>
-      <div class="form-group"><label class="form-label">跑步(km)</label><input type="number" id="add_running" class="form-input" step="0.01" min="0"></div>
-      <div class="form-group"><label class="form-label">骑行(km)</label><input type="number" id="add_cycling" class="form-input" step="0.01" min="0"></div>
+
+    <!-- 健身数据 -->
+    <div class="card-head" style="margin:.8rem 0 .5rem">健身数据</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
+      <div class="form-group"><label class="form-label">俯卧撑（个）</label><input type="number" id="add_pushup" class="form-input" min="0" value="0"></div>
+      <div class="form-group"><label class="form-label">深蹲（个）</label><input type="number" id="add_squat" class="form-input" min="0" value="0"></div>
+      <div class="form-group"><label class="form-label">引体向上（个）</label><input type="number" id="add_pullup" class="form-input" min="0" value="0"></div>
+      <div class="form-group"><label class="form-label">臂屈伸（个）</label><input type="number" id="add_dips" class="form-input" min="0" value="0"></div>
+      <div class="form-group"><label class="form-label">跑步（km）</label><input type="number" id="add_running" class="form-input" step="0.01" min="0" value="0"></div>
+      <div class="form-group"><label class="form-label">跑步配速（min/km）</label><input type="text" id="add_ru_pace" class="form-input" placeholder="5'30&quot;"></div>
+      <div class="form-group"><label class="form-label">骑行（km）</label><input type="number" id="add_cycling" class="form-input" step="0.01" min="0" value="0"></div>
+      <div class="form-group"><label class="form-label">骑行配速（km/h）</label><input type="number" id="add_cy_pace" class="form-input" step="0.1" min="0" value="0"></div>
     </div>
-    <div class="form-group"><label class="form-label">备注</label><textarea id="add_note" class="form-input" rows="2"></textarea></div>
-    <div style="display:flex;gap:.8rem;justify-content:flex-end;margin-top:1rem">
+
+    <!-- 习惯打卡 -->
+    <div class="card-head" style="margin:.8rem 0 .5rem">习惯打卡</div>
+    <div class="habits-wrap" id="addHabitsWrap">
+      <div class="h-chip" data-habit="深度阅读" onclick="this.classList.toggle('on')"><span class="hd"></span>深度阅读</div>
+      <div class="h-chip" data-habit="锻炼身体" onclick="this.classList.toggle('on')"><span class="hd"></span>锻炼身体</div>
+      <div class="h-chip" data-habit="写作" onclick="this.classList.toggle('on')"><span class="hd"></span>写作</div>
+      <div class="h-chip" data-habit="学习技能" onclick="this.classList.toggle('on')"><span class="hd"></span>学一门技能</div>
+      <div class="h-chip" data-habit="整理房间" onclick="this.classList.toggle('on')"><span class="hd"></span>整理房间</div>
+      <div class="h-chip" data-habit="独处思考" onclick="this.classList.toggle('on')"><span class="hd"></span>独处思考</div>
+      <div class="h-chip" data-habit="主动社交" onclick="this.classList.toggle('on')"><span class="hd"></span>主动社交</div>
+      <div class="h-chip" data-habit="复盘" onclick="this.classList.toggle('on')"><span class="hd"></span>复盘总结</div>
+      <div class="h-chip" data-habit="早起" onclick="this.classList.toggle('on')"><span class="hd"></span>早起</div>
+    </div>
+
+    <!-- 今日读书 -->
+    <div class="card-head" style="margin:.8rem 0 .5rem">今日读书</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem">
+      <div class="form-group" style="grid-column:1/-1"><label class="form-label">书名</label><input type="text" id="add_book" class="form-input" placeholder="在读的书…"></div>
+      <div class="form-group"><label class="form-label">读了多少页</label><input type="number" id="add_book_pages" class="form-input" min="0" value="0"></div>
+      <div class="form-group"><label class="form-label">读到第几页</label><input type="number" id="add_book_at" class="form-input" min="0"></div>
+      <div class="form-group" style="grid-column:1/-1"><label class="form-label">今日摘记</label><textarea id="add_book_note" rows="2" class="form-input" placeholder="一句话感悟…"></textarea></div>
+    </div>
+
+    <!-- 心情 -->
+    <div class="card-head" style="margin:.8rem 0 .5rem">今日心情</div>
+    <div style="display:flex;gap:.6rem;padding:.3rem 0" id="addMoodWrap">
+      <div class="mood-btn" data-mood="1" onclick="setAddMood(1)">😫<span>很差</span></div>
+      <div class="mood-btn" data-mood="2" onclick="setAddMood(2)">😕<span>较差</span></div>
+      <div class="mood-btn" data-mood="3" onclick="setAddMood(3)">😐<span>一般</span></div>
+      <div class="mood-btn" data-mood="4" onclick="setAddMood(4)">😊<span>不错</span></div>
+      <div class="mood-btn" data-mood="5" onclick="setAddMood(5)">🤩<span>很棒</span></div>
+    </div>
+
+    <!-- 备注 -->
+    <div class="form-group" style="margin-top:.8rem"><label class="form-label">今日备注</label><textarea id="add_note" rows="2" class="form-input" placeholder="今天发生了什么…"></textarea></div>
+
+    <div style="display:flex;gap:.8rem;justify-content:flex-end;margin-top:1.2rem">
       <button class="btn btn-ghost btn-sm" onclick="closeAddRecord()">取消</button>
-      <button class="btn btn-sm" style="background:var(--c-checkin);color:#fff" onclick="submitAddRecord()">保存补录</button>
+      <button class="btn btn-sm" style="background:var(--c-checkin);color:#fff" onclick="submitAddRecord()">✓ 保存补录</button>
     </div>
   </div>
 </div>
@@ -1920,15 +1970,22 @@ function toast(msg) {
 
 <script>
 // 补录功能
+let _addMood = 0;
+function setAddMood(v) {
+  _addMood = v;
+  document.querySelectorAll('#addMoodWrap .mood-btn').forEach(b => b.classList.toggle('active', +b.dataset.mood === v));
+}
 function openAddRecord() {
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('add_date').value = today;
-  document.getElementById('add_wake').value = '';
-  document.getElementById('add_sleep').value = '';
-  document.getElementById('add_sleep_hours').value = '';
-  document.getElementById('add_running').value = '';
-  document.getElementById('add_cycling').value = '';
-  document.getElementById('add_note').value = '';
+  ['add_sleep_time','add_wake','add_sleep_hours','add_nap_hours','add_pushup','add_squat',
+   'add_pullup','add_dips','add_running','add_ru_pace','add_cycling','add_cy_pace',
+   'add_book','add_book_pages','add_book_at','add_book_note','add_note'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = ['add_pushup','add_squat','add_pullup','add_dips','add_running','add_cycling','add_cy_pace','add_book_pages'].includes(id) ? '0' : '';
+  });
+  document.querySelectorAll('#addHabitsWrap .h-chip').forEach(c => c.classList.remove('on'));
+  setAddMood(0);
   document.getElementById('addRecordModal').style.display = 'flex';
 }
 function closeAddRecord() {
@@ -1937,14 +1994,29 @@ function closeAddRecord() {
 async function submitAddRecord() {
   const date = document.getElementById('add_date').value;
   if (!date) { alert('请选择日期'); return; }
+  const habits = {};
+  document.querySelectorAll('#addHabitsWrap .h-chip.on').forEach(c => { habits[c.dataset.habit] = true; });
   const payload = {
     user_id: currentUser.id,
     date,
+    sleep_time: document.getElementById('add_sleep_time').value || null,
     wake_time: document.getElementById('add_wake').value || null,
-    sleep_time: document.getElementById('add_sleep').value || null,
     sleep_hours: parseFloat(document.getElementById('add_sleep_hours').value) || null,
+    nap_hours: parseFloat(document.getElementById('add_nap_hours').value) || null,
+    pushup: parseInt(document.getElementById('add_pushup').value) || 0,
+    squat: parseInt(document.getElementById('add_squat').value) || 0,
+    pullup: parseInt(document.getElementById('add_pullup').value) || 0,
+    dips: parseInt(document.getElementById('add_dips').value) || 0,
     running: parseFloat(document.getElementById('add_running').value) || 0,
+    run_pace: document.getElementById('add_ru_pace').value || null,
     cycling: parseFloat(document.getElementById('add_cycling').value) || 0,
+    cy_pace: parseFloat(document.getElementById('add_cy_pace').value) || 0,
+    habits,
+    mood: _addMood || null,
+    book_title: document.getElementById('add_book').value || null,
+    book_pages: parseInt(document.getElementById('add_book_pages').value) || 0,
+    book_at: parseInt(document.getElementById('add_book_at').value) || null,
+    book_note: document.getElementById('add_book_note').value || null,
     note: document.getElementById('add_note').value || null,
   };
   const { error } = await db.from('daily_records').upsert(payload, { onConflict: 'user_id,date' });
