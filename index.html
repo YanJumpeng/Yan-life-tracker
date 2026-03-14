@@ -2093,6 +2093,7 @@ function editHistRecord(r) {
   document.getElementById('eh_squat').value = r.squat || 0;
   document.getElementById('eh_pullup').value = r.pullup || 0;
   document.getElementById('eh_dips').value = r.dips || 0;
+  document.getElementById('eh_crunch').value = r.crunch || 0;
   document.getElementById('eh_running').value = r.running || 0;
   document.getElementById('eh_pace').value = h['跑步配速'] || '';
   document.getElementById('eh_cycling').value = r.cycling || 0;
@@ -2141,6 +2142,7 @@ async function saveEditHist() {
     squat:   +document.getElementById('eh_squat').value   || 0,
     pullup:  +document.getElementById('eh_pullup').value  || 0,
     dips:    +document.getElementById('eh_dips').value    || 0,
+    crunch:  +document.getElementById('eh_crunch').value  || 0,
     running: +document.getElementById('eh_running').value || 0,
     cycling: +document.getElementById('eh_cycling').value || 0,
     note:    document.getElementById('eh_note').value,
