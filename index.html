@@ -1321,8 +1321,8 @@ async function loadAndRenderHistory() {
       <td class="c-txt" style="font-weight:600;color:var(--c-checkin)">${r.pushup||0}</td>
       <td>${r.squat||'/'}</td>
       <td style="color:var(--c-todo);font-weight:500">${r.pullup||'/'}</td>
-      <td class="${h['复盘']?'c-ok':'c-bad'}" style="font-size:.9rem">${h['复盘']?'✓':'✗'}</td>
-      <td class="${h['锻炼身体']?'c-ok':'c-bad'}" style="font-size:.9rem">${h['锻炼身体']?'✓':'✗'}</td>
+      <td style="color:var(--c-checkin);font-weight:500">${r.dips||'/'}</td>
+      <td style="color:var(--c-checkin);font-weight:500">${r.crunch||'/'}</td>
       <td style="color:var(--c-journal);font-weight:600">${r.running||'/'}</td>
       <td style="color:var(--text2)">${h['跑步配速']||'/'}</td>
       <td style="color:var(--c-history)">${r.cycling||'/'}</td>
