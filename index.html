@@ -1948,6 +1948,7 @@ function toast(msg) {
       <div class="form-group"><label class="form-label">深蹲（个）</label><input type="number" id="add_squat" class="form-input" min="0" value="0"></div>
       <div class="form-group"><label class="form-label">引体向上（个）</label><input type="number" id="add_pullup" class="form-input" min="0" value="0"></div>
       <div class="form-group"><label class="form-label">臂屈伸（个）</label><input type="number" id="add_dips" class="form-input" min="0" value="0"></div>
+      <div class="form-group"><label class="form-label">卷腹（个）</label><input type="number" id="add_crunch" class="form-input" min="0" value="0"></div>
       <div class="form-group"><label class="form-label">跑步（km）</label><input type="number" id="add_running" class="form-input" step="0.01" min="0" value="0"></div>
       <div class="form-group"><label class="form-label">跑步配速（min/km）</label><input type="text" id="add_ru_pace" class="form-input" placeholder="5'30&quot;"></div>
       <div class="form-group"><label class="form-label">骑行（km）</label><input type="number" id="add_cycling" class="form-input" step="0.01" min="0" value="0"></div>
@@ -2006,6 +2007,8 @@ function toast(msg) {
       <div><label style="font-size:.7rem;color:var(--text3)">俯卧撑</label><input id="eh_pushup" type="number" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
       <div><label style="font-size:.7rem;color:var(--text3)">深蹲</label><input id="eh_squat" type="number" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
       <div><label style="font-size:.7rem;color:var(--text3)">引体向上</label><input id="eh_pullup" type="number" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">臂屈伸</label><input id="eh_dips" type="number" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">卷腹</label><input id="eh_crunch" type="number" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
       <div><label style="font-size:.7rem;color:var(--text3)">曲臂伸</label><input id="eh_dips" type="number" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
       <div><label style="font-size:.7rem;color:var(--text3)">跑步(km)</label><input id="eh_running" type="number" step="0.01" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
       <div><label style="font-size:.7rem;color:var(--text3)">配速(min/km)</label><input id="eh_pace" type="text" placeholder="5'30&quot;" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
@@ -2062,6 +2065,7 @@ async function submitAddRecord() {
     squat: parseInt(document.getElementById('add_squat').value) || 0,
     pullup: parseInt(document.getElementById('add_pullup').value) || 0,
     dips: parseInt(document.getElementById('add_dips').value) || 0,
+    crunch: parseInt(document.getElementById('add_crunch').value) || 0,
     running: parseFloat(document.getElementById('add_running').value) || 0,
     cycling: parseFloat(document.getElementById('add_cycling').value) || 0,
     habits,
