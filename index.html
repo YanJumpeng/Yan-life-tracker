@@ -1232,6 +1232,10 @@ async function saveCheckin() {
   if (todayBook) { habits['今日书名'] = todayBook; habits['读了页数'] = bookPages; habits['读到第几页'] = bookAt; }
   if (bookNote)  habits['读书摘记'] = bookNote;
   
+  const cyPaceEh = +document.getElementById('eh_cy_pace').value || 0;
+  if (cyPaceEh > 0) habits['骑行配速'] = cyPaceEh;
+  else delete habits['骑行配速'];
+
   const payload = {
     user_id: currentUser.id, date: today,
     sleep_time: document.getElementById('sleepT').value || null,
@@ -1481,6 +1485,10 @@ async function addTodoItem(cat, label, dateStr) {
   const title = prompt('添加任务：'); if (!title) return;
   const [m, d] = dateStr.split('/');
   const date = `2026-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  const cyPaceEh = +document.getElementById('eh_cy_pace').value || 0;
+  if (cyPaceEh > 0) habits['骑行配速'] = cyPaceEh;
+  else delete habits['骑行配速'];
+
   const payload = { user_id: currentUser.id, date, category: cat, label, title, done: false };
   const { data } = await db.from('todos').insert(payload).select().single();
   if (data) cachedTodos.push(data);
@@ -1583,7 +1591,11 @@ async function saveJ() {
       if (j) { j.title = title; j.body = body; j.type = type; }
     }
   } else {
-    const payload = { user_id: currentUser.id, type, title, body, entry_date: today };
+    const cyPaceEh = +document.getElementById('eh_cy_pace').value || 0;
+  if (cyPaceEh > 0) habits['骑行配速'] = cyPaceEh;
+  else delete habits['骑行配速'];
+
+  const payload = { user_id: currentUser.id, type, title, body, entry_date: today };
     const { data, error: e } = await db.from('journal_entries').insert(payload);
     error = e;
     if (data) {
@@ -1629,6 +1641,10 @@ function renderBookGrid() {
 async function addBook() {
   const title = prompt('书名：'); if (!title) return;
   const author = prompt('作者：') || '';
+  const cyPaceEh = +document.getElementById('eh_cy_pace').value || 0;
+  if (cyPaceEh > 0) habits['骑行配速'] = cyPaceEh;
+  else delete habits['骑行配速'];
+
   const payload = { user_id: currentUser.id, title, author, status:'want', progress:0, rating:0 };
   const { data } = await db.from('books').insert(payload).select().single();
   if (data) { cachedBooks.unshift(data); renderBookGrid(); toast('✓ 已添加书籍'); }
@@ -2012,6 +2028,7 @@ function toast(msg) {
       <div><label style="font-size:.7rem;color:var(--text3)">跑步(km)</label><input id="eh_running" type="number" step="0.01" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
       <div><label style="font-size:.7rem;color:var(--text3)">配速(min/km)</label><input id="eh_pace" type="text" placeholder="5'30&quot;" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
       <div><label style="font-size:.7rem;color:var(--text3)">骑行(km)</label><input id="eh_cycling" type="number" step="0.1" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">骑行配速(km/h)</label><input id="eh_cy_pace" type="number" step="0.1" min="0" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
       <div><label style="font-size:.7rem;color:var(--text3)">备注</label><input id="eh_note" type="text" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
     </div>
     <div style="margin-top:.9rem">
@@ -2053,6 +2070,10 @@ async function submitAddRecord() {
   if (!date) { alert('请选择日期'); return; }
   const habits = {};
   document.querySelectorAll('#addHabitsWrap .h-chip.on').forEach(c => { habits[c.dataset.habit] = true; });
+  const cyPaceEh = +document.getElementById('eh_cy_pace').value || 0;
+  if (cyPaceEh > 0) habits['骑行配速'] = cyPaceEh;
+  else delete habits['骑行配速'];
+
   const payload = {
     user_id: currentUser.id,
     date,
@@ -2077,7 +2098,6 @@ async function submitAddRecord() {
   alert('✅ 补录成功！');
 }
 document.getElementById('addRecordModal').addEventListener('click', function(e) {
-  if (e.target === this) closeAddRecord();
 });
 
 let _editHistRecord = null;
@@ -2095,7 +2115,9 @@ function editHistRecord(r) {
   document.getElementById('eh_crunch').value = r.crunch || 0;
   document.getElementById('eh_running').value = r.running || 0;
   document.getElementById('eh_pace').value = h['跑步配速'] || '';
+  document.getElementById('eh_cy_pace').value = h['骑行配速'] || 0;
   document.getElementById('eh_cycling').value = r.cycling || 0;
+  document.getElementById('eh_cy_pace').value = h['骑行配速'] || 0;
   document.getElementById('eh_note').value = r.note || '';
   // 渲染习惯芯片
   const habitKeys = ['深度阅读','锻炼身体','写作','学习技能','整理房间','独处思考','主动社交','复盘','早起'];
@@ -2132,6 +2154,10 @@ async function saveEditHist() {
     if (chip.classList.contains('on')) habits[k] = true;
     else delete habits[k];
   });
+
+  const cyPaceEh = +document.getElementById('eh_cy_pace').value || 0;
+  if (cyPaceEh > 0) habits['骑行配速'] = cyPaceEh;
+  else delete habits['骑行配速'];
 
   const payload = {
     sleep_time:  sleepT || null,
