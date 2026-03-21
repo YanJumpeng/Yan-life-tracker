@@ -1517,7 +1517,7 @@ function addTodoRow() {
 // ══════════════════════════
 async function loadAndRenderJournals() {
   showLoading('加载笔记…');
-  const { data } = await db.from('journal_entries').select('*').eq('user_id', currentUser.id).order('created_at', {ascending:false}).limit(50);
+  const { data } = await db.from('journal_entries').select('*').eq('user_id', currentUser.id).order('entry_date', {ascending:false}).limit(50);
   hideLoading();
   cachedJournals = data || [];
   renderJournalList();
@@ -1525,10 +1525,12 @@ async function loadAndRenderJournals() {
 
 function renderJournalList() {
   const sorted = [...cachedJournals].sort((a, b) => {
-    // 优先用 created_at 排序（格式稳定），entry_date 格式可能不一致
-    const ta = a.created_at || a.entry_date || '';
-    const tb = b.created_at || b.entry_date || '';
-    return tb.localeCompare(ta);
+    // entry_date 是 YYYY-MM-DD 格式，字符串比较即可正确排序
+    const da = (a.entry_date || '').substring(0, 10);
+    const db2 = (b.entry_date || '').substring(0, 10);
+    if (da !== db2) return db2.localeCompare(da);
+    // 日期相同再按 created_at
+    return (b.created_at||'').localeCompare(a.created_at||'');
   });
   const filtered = jTabCur === 'all' ? sorted : sorted.filter(j => j.type === jTabCur);
   const tl = {daily:'日记', weekly:'周记', monthly:'月记'};
