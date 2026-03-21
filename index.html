@@ -614,6 +614,11 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 .time-star{cursor:pointer;transition:transform .15s;line-height:0}
 .time-star:hover{transform:scale(1.2)}
 .time-star.on svg polygon{fill:var(--c-dash);stroke:var(--c-dash)}
+
+.j-drag-handle { cursor: grab; margin-right: .4rem; color: var(--text3); font-size: 1rem; user-select: none; }
+.j-drag-handle:active { cursor: grabbing; }
+.j-card[draggable] { transition: opacity .2s; }
+.j-card.j-drag-over { border: 2px dashed var(--c-checkin); background: var(--sf2); }
 </style>
 </head>
 <body>
@@ -1519,7 +1524,13 @@ async function loadAndRenderJournals() {
 }
 
 function renderJournalList() {
-  const sorted = [...cachedJournals].sort((a, b) => (b.entry_date||'').localeCompare(a.entry_date||''));
+  const sorted = [...cachedJournals].sort((a, b) => {
+    const da = a.entry_date || '';
+    const db2 = b.entry_date || '';
+    if (da !== db2) return db2.localeCompare(da);
+    // 日期相同按 created_at 降序
+    return (b.created_at||'').localeCompare(a.created_at||'');
+  });
   const filtered = jTabCur === 'all' ? sorted : sorted.filter(j => j.type === jTabCur);
   const tl = {daily:'日记', weekly:'周记', monthly:'月记'};
   const bc = {daily:'jb-d', weekly:'jb-w', monthly:'jb-m'};
@@ -1528,13 +1539,51 @@ function renderJournalList() {
     return;
   }
   document.getElementById('jList').innerHTML = filtered.map(j => `
-    <div class="j-card" data-type="${j.type}" onclick="openJ('${j.id}')">
+    <div class="j-card" data-id="${j.id}" data-type="${j.type}" draggable="true"
+      onclick="openJ('${j.id}')"
+      ondragstart="jDragStart(event)" ondragover="jDragOver(event)" ondrop="jDrop(event)" ondragend="jDragEnd(event)">
       <div class="j-top">
-        <div class="j-title"><span class="j-badge ${bc[j.type]}">${tl[j.type]}</span>${j.title}</div>
+        <div class="j-title"><span class="j-drag-handle" title="拖动排序">⠿</span><span class="j-badge ${bc[j.type]}">${tl[j.type]}</span>${j.title}</div>
         <div class="j-meta">${j.entry_date}</div>
       </div>
       <div class="j-prev">${j.body||''}</div>
     </div>`).join('');
+  // 绑定拖拽事件后防止 click 冲突
+  document.querySelectorAll('.j-drag-handle').forEach(h => {
+    h.addEventListener('click', e => e.stopPropagation());
+  });
+}
+
+
+// ── 日记拖拽排序 ──
+let _jDragSrcId = null;
+
+function jDragStart(e) {
+  _jDragSrcId = e.currentTarget.dataset.id;
+  e.currentTarget.style.opacity = '0.4';
+  e.dataTransfer.effectAllowed = 'move';
+}
+function jDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.j-card').forEach(c => c.classList.remove('j-drag-over'));
+  e.currentTarget.classList.add('j-drag-over');
+}
+function jDrop(e) {
+  e.preventDefault();
+  const targetId = e.currentTarget.dataset.id;
+  if (!_jDragSrcId || _jDragSrcId === targetId) return;
+  const srcIdx = cachedJournals.findIndex(j => j.id === _jDragSrcId);
+  const tgtIdx = cachedJournals.findIndex(j => j.id === targetId);
+  if (srcIdx < 0 || tgtIdx < 0) return;
+  const [moved] = cachedJournals.splice(srcIdx, 1);
+  cachedJournals.splice(tgtIdx, 0, moved);
+  renderJournalList();
+}
+function jDragEnd(e) {
+  e.currentTarget.style.opacity = '';
+  document.querySelectorAll('.j-card').forEach(c => c.classList.remove('j-drag-over'));
+  _jDragSrcId = null;
 }
 
 function jTab(el, t) {
