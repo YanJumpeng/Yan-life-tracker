@@ -1232,10 +1232,6 @@ async function saveCheckin() {
   if (todayBook) { habits['今日书名'] = todayBook; habits['读了页数'] = bookPages; habits['读到第几页'] = bookAt; }
   if (bookNote)  habits['读书摘记'] = bookNote;
   
-  const cyPaceEh = +document.getElementById('eh_cy_pace').value || 0;
-  if (cyPaceEh > 0) habits['骑行配速'] = cyPaceEh;
-  else delete habits['骑行配速'];
-
   const payload = {
     user_id: currentUser.id, date: today,
     sleep_time: document.getElementById('sleepT').value || null,
@@ -1591,11 +1587,7 @@ async function saveJ() {
       if (j) { j.title = title; j.body = body; j.type = type; }
     }
   } else {
-    const cyPaceEh = +document.getElementById('eh_cy_pace').value || 0;
-  if (cyPaceEh > 0) habits['骑行配速'] = cyPaceEh;
-  else delete habits['骑行配速'];
-
-  const payload = { user_id: currentUser.id, type, title, body, entry_date: today };
+    const payload = { user_id: currentUser.id, type, title, body, entry_date: today };
     const { data, error: e } = await db.from('journal_entries').insert(payload);
     error = e;
     if (data) {
