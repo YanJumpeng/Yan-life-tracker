@@ -1517,7 +1517,7 @@ function addTodoRow() {
 // ══════════════════════════
 async function loadAndRenderJournals() {
   showLoading('加载笔记…');
-  const { data } = await db.from('journal_entries').select('*').eq('user_id', currentUser.id).order('entry_date', {ascending:false}).limit(50);
+  const { data } = await db.from('journal_entries').select('*').eq('user_id', currentUser.id).order('created_at', {ascending:false}).limit(50);
   hideLoading();
   cachedJournals = data || [];
   renderJournalList();
@@ -1525,11 +1525,10 @@ async function loadAndRenderJournals() {
 
 function renderJournalList() {
   const sorted = [...cachedJournals].sort((a, b) => {
-    const da = a.entry_date || '';
-    const db2 = b.entry_date || '';
-    if (da !== db2) return db2.localeCompare(da);
-    // 日期相同按 created_at 降序
-    return (b.created_at||'').localeCompare(a.created_at||'');
+    // 优先用 created_at 排序（格式稳定），entry_date 格式可能不一致
+    const ta = a.created_at || a.entry_date || '';
+    const tb = b.created_at || b.entry_date || '';
+    return tb.localeCompare(ta);
   });
   const filtered = jTabCur === 'all' ? sorted : sorted.filter(j => j.type === jTabCur);
   const tl = {daily:'日记', weekly:'周记', monthly:'月记'};
@@ -1539,28 +1538,31 @@ function renderJournalList() {
     return;
   }
   document.getElementById('jList').innerHTML = filtered.map(j => `
-    <div class="j-card" data-id="${j.id}" data-type="${j.type}" draggable="true"
-      onclick="openJ('${j.id}')"
-      ondragstart="jDragStart(event)" ondragover="jDragOver(event)" ondrop="jDrop(event)" ondragend="jDragEnd(event)">
-      <div class="j-top">
-        <div class="j-title"><span class="j-drag-handle" title="拖动排序">⠿</span><span class="j-badge ${bc[j.type]}">${tl[j.type]}</span>${j.title}</div>
-        <div class="j-meta">${j.entry_date}</div>
+    <div class="j-card" data-id="${j.id}" data-type="${j.type}"
+      ondragover="jDragOver(event)" ondrop="jDrop(event)">
+      <div class="j-top" onclick="openJ('${j.id}')">
+        <div class="j-title">
+          <span class="j-drag-handle" draggable="true"
+            ondragstart="jDragStart(event,this.closest('.j-card'))"
+            ondragend="jDragEnd(event,this.closest('.j-card'))"
+            onclick="event.stopPropagation()" title="拖动排序">⠿</span>
+          <span class="j-badge ${bc[j.type]}">${tl[j.type]}</span>${j.title}
+        </div>
+        <div class="j-meta">${j.entry_date || (j.created_at ? j.created_at.slice(0,10) : '')}</div>
       </div>
-      <div class="j-prev">${j.body||''}</div>
+      <div class="j-prev" onclick="openJ('${j.id}')">${j.body||''}</div>
     </div>`).join('');
-  // 绑定拖拽事件后防止 click 冲突
-  document.querySelectorAll('.j-drag-handle').forEach(h => {
-    h.addEventListener('click', e => e.stopPropagation());
-  });
+
 }
 
 
 // ── 日记拖拽排序 ──
 let _jDragSrcId = null;
 
-function jDragStart(e) {
-  _jDragSrcId = e.currentTarget.dataset.id;
-  e.currentTarget.style.opacity = '0.4';
+function jDragStart(e, card) {
+  card = card || e.currentTarget;
+  _jDragSrcId = card.dataset.id;
+  card.style.opacity = '0.4';
   e.dataTransfer.effectAllowed = 'move';
 }
 function jDragOver(e) {
@@ -1580,8 +1582,9 @@ function jDrop(e) {
   cachedJournals.splice(tgtIdx, 0, moved);
   renderJournalList();
 }
-function jDragEnd(e) {
-  e.currentTarget.style.opacity = '';
+function jDragEnd(e, card) {
+  card = card || e.currentTarget;
+  card.style.opacity = '';
   document.querySelectorAll('.j-card').forEach(c => c.classList.remove('j-drag-over'));
   _jDragSrcId = null;
 }
