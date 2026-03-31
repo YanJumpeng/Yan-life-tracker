@@ -977,6 +977,25 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
   </div>
   </div>
 
+  <!-- 季度 + 年度并排 -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+    <div class="card mb" id="quarterCard">
+      <div class="card-head">新年季度报告
+        <span style="font-size:.65rem;color:var(--text3);font-weight:400">2026-02-17 起</span>
+      </div>
+      <div id="quarterStats" style="display:grid;grid-template-columns:repeat(2,1fr);gap:.8rem;margin-bottom:1rem"></div>
+      <div id="quarterHighlight" style="font-size:.8rem;color:var(--text2);line-height:1.7;padding:.6rem .8rem;background:var(--sf);border-radius:8px"></div>
+    </div>
+    <div class="card mb" id="yearCard">
+      <div class="card-head">新年年度报告
+        <span style="font-size:.65rem;color:var(--text3);font-weight:400">2026-02-17 起</span>
+      </div>
+      <div id="yearStats" style="display:grid;grid-template-columns:repeat(2,1fr);gap:.8rem;margin-bottom:1rem"></div>
+      <div id="yearHighlight" style="font-size:.8rem;color:var(--text2);line-height:1.7;padding:.6rem .8rem;background:var(--sf);border-radius:8px"></div>
+    </div>
+  </div>
+
+
   </div>
 </div>
 
@@ -1124,7 +1143,7 @@ function go(id, el) {
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(el) el.classList.add('active');
-  if(id==='dashboard') { renderDash(); renderWeeklySummary(); renderMonthlySummary(); }
+  if(id==='dashboard') { renderDash(); renderWeeklySummary(); renderMonthlySummary(); renderQuarterAndYear(); }
   if(id==='history')   loadAndRenderHistory();
   if(id==='journal')   loadAndRenderJournals();
   if(id==='reading')   loadAndRenderBooks();
@@ -1863,6 +1882,83 @@ async function renderMonthlySummary() {
   if (totalDips > 0) highlights.push(`🤸 双臂撑 ${totalDips} 个 · 引体向上 ${totalPullup} 个`);
 
   document.getElementById('monthlyHighlight').innerHTML = highlights.join('<br>');
+}
+
+
+// ══════════════════════════
+//  季度 / 年度报告（农历新年起算 2026-02-17）
+// ══════════════════════════
+async function renderPeriodReport(startDate, endDate, statsElId, highlightElId, labelElId) {
+  if (!currentUser) return;
+  const { data } = await db.from('daily_records').select('*')
+    .eq('user_id', currentUser.id).gte('date', startDate).lte('date', endDate).order('date', {ascending:true});
+  const records = data || [];
+
+  if (labelElId) {
+    const el = document.getElementById(labelElId);
+    if (el) el.textContent = `${startDate} ~ ${endDate}`;
+  }
+
+  if (!records.length) {
+    document.getElementById(statsElId).innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:1.5rem;color:var(--text3);font-size:.85rem">暂无数据</div>`;
+    return;
+  }
+
+  const now = new Date();
+  const start = new Date(startDate);
+  const totalDays = Math.ceil((now - start) / 86400000) + 1;
+
+  const earlyDays = records.filter(r => r.wake_time && parseInt(r.wake_time) < 8).length;
+  const runDays = records.filter(r => (parseFloat(r.running)||0) > 0).length;
+  const totalRun = records.reduce((a,r) => a+(parseFloat(r.running)||0), 0);
+  const totalCycle = records.reduce((a,r) => a+(parseFloat(r.cycling)||0), 0);
+  const totalPushup = records.reduce((a,r) => a+(parseInt(r.pushup)||0), 0);
+  const totalDips = records.reduce((a,r) => a+(parseInt(r.dips)||0), 0);
+  const totalPullup = records.reduce((a,r) => a+(parseInt(r.pullup)||0), 0);
+  const checkinDays = records.length;
+
+  const paceToSec = p => { const m=p.match(/(\d+)'(\d+)/); return m ? parseInt(m[1])*60+parseInt(m[2]) : 9999; };
+  const paces = records.map(r=>r.habits?.跑步配速).filter(Boolean);
+  const bestPace = paces.length ? paces.sort((a,b)=>paceToSec(a)-paceToSec(b))[0] : null;
+
+  const statsData = [
+    { icon:'📅', label:'打卡天数', value:`${checkinDays}/${totalDays}天`, color:'var(--c-todo)' },
+    { icon:'🌅', label:'早起天数', value:`${earlyDays}天`, color:'var(--c-dash)' },
+    { icon:'🏃', label:'跑步总量', value:`${totalRun.toFixed(1)}km/${runDays}天`, color:'var(--c-journal)' },
+    { icon:'🚴', label:'骑行总量', value:`${totalCycle.toFixed(1)}km`, color:'var(--c-todo)' },
+    { icon:'💪', label:'俯卧撑', value:`${totalPushup}个`, color:'var(--c-checkin)' },
+    { icon:'🤸', label:'引体/双臂', value:`${totalPullup}/${totalDips}个`, color:'var(--ok)' },
+  ];
+
+  document.getElementById(statsElId).innerHTML = statsData.map(s => `
+    <div style="background:var(--sf);border-radius:10px;padding:.7rem .8rem;text-align:center">
+      <div style="font-size:1.1rem">${s.icon}</div>
+      <div style="font-size:.85rem;font-weight:600;color:${s.color};margin:.2rem 0">${s.value}</div>
+      <div style="font-size:.6rem;color:var(--text3)">${s.label}</div>
+    </div>`).join('');
+
+  const highlights = [];
+  highlights.push(`📅 打卡率 ${Math.round(checkinDays/totalDays*100)}% · 早起率 ${Math.round(earlyDays/totalDays*100)}%`);
+  highlights.push(`🏃 跑步率 ${Math.round(runDays/totalDays*100)}% · 均日跑量 ${(totalRun/totalDays).toFixed(2)}km`);
+  if (totalRun >= 100) highlights.push(`🏅 累计跑量已破 ${Math.floor(totalRun/100)*100}km`);
+  if (totalPushup >= 5000) highlights.push(`💪 俯卧撑累计 ${totalPushup} 个`);
+  if (bestPace) highlights.push(`⚡ 最快配速 ${bestPace}`);
+
+  document.getElementById(highlightElId).innerHTML = highlights.join('<br>');
+}
+
+async function renderQuarterAndYear() {
+  const LUNAR_NEW_YEAR = '2026-02-17';
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const today = fmt(new Date());
+
+  // 季度：新年起 ~90天（到5月18日）
+  const quarterEnd = fmt(new Date(2026, 4, 18)); // 5月18日
+  const qEnd = today < quarterEnd ? today : quarterEnd;
+
+  // 年度：新年起到今天
+  await renderPeriodReport(LUNAR_NEW_YEAR, qEnd, 'quarterStats', 'quarterHighlight', null);
+  await renderPeriodReport(LUNAR_NEW_YEAR, today, 'yearStats', 'yearHighlight', null);
 }
 
 async function renderDash() {
