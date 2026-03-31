@@ -1292,8 +1292,8 @@ async function updateStreak() {
 // ══════════════════════════
 async function loadAndRenderHistory() {
   showLoading('加载历史数据…');
-  const start = new Date(histYear, histMonth, 1).toISOString().split('T')[0];
-  const end   = new Date(histYear, histMonth+1, 0).toISOString().split('T')[0];
+  const start = (d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)(new Date(histYear, histMonth, 1));
+  const end   = (d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)(new Date(histYear, histMonth+1, 0));
   document.getElementById('histMonthLabel').textContent = `${histYear}年${histMonth+1}月`;
   document.getElementById('histSub').textContent = `${histYear}年${histMonth+1}月`;
   const { data, error } = await db.from('daily_records').select('*')
@@ -1708,8 +1708,8 @@ function dashChangeMonth(delta) {
 
 async function renderDash() {
   if (!currentUser) return;
-  const start = new Date(dashYear, dashMonth, 1).toISOString().split('T')[0];
-  const end   = new Date(dashYear, dashMonth+1, 0).toISOString().split('T')[0];
+  const start = (d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)(new Date(dashYear, dashMonth, 1));
+  const end   = (d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)(new Date(dashYear, dashMonth+1, 0));
   document.getElementById('dashMonthLabel').textContent = `${dashYear}年${dashMonth+1}月`;
   document.getElementById('dashSub').textContent = `${dashYear}年${dashMonth+1}月数据`;
   const { data } = await db.from('daily_records').select('*')
