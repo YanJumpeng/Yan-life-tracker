@@ -958,6 +958,15 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
         <div class="sq-legend" id="sqLegend" style="flex:1"></div>
       </div>
     </div>
+
+  <!-- 本周总结 -->
+  <div class="card mb" id="weeklyCard">
+    <div class="card-head">本周总结
+      <span style="font-size:.65rem;color:var(--text3);font-weight:400" id="weeklyRange"></span>
+    </div>
+    <div id="weeklyStats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin-bottom:1rem"></div>
+    <div id="weeklyHighlight" style="font-size:.8rem;color:var(--text2);line-height:1.7;padding:.6rem .8rem;background:var(--sf);border-radius:8px"></div>
+  </div>
   </div>
 </div>
 
@@ -1105,7 +1114,7 @@ function go(id, el) {
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   if(el) el.classList.add('active');
-  if(id==='dashboard') renderDash();
+  if(id==='dashboard') { renderDash(); renderWeeklySummary(); }
   if(id==='history')   loadAndRenderHistory();
   if(id==='journal')   loadAndRenderJournals();
   if(id==='reading')   loadAndRenderBooks();
@@ -1704,6 +1713,79 @@ function dashChangeMonth(delta) {
   if (dashMonth < 0)  { dashMonth = 11; dashYear--; }
   if (dashMonth > 11) { dashMonth = 0;  dashYear++; }
   renderDash();
+}
+
+
+// ══════════════════════════
+//  本周总结
+// ══════════════════════════
+async function renderWeeklySummary() {
+  const now = new Date();
+  // 本周一
+  const day = now.getDay();
+  const diff = (day === 0 ? -6 : 1 - day);
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diff);
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const start = fmt(monday);
+  const end = fmt(now);
+
+  document.getElementById('weeklyRange').textContent = `${start} ~ ${end}`;
+
+  if (!currentUser) return;
+  const { data } = await db.from('daily_records').select('*')
+    .eq('user_id', currentUser.id).gte('date', start).lte('date', end).order('date', {ascending:true});
+  const records = data || [];
+  if (!records.length) {
+    document.getElementById('weeklyStats').innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:1.5rem;color:var(--text3);font-size:.85rem">本周暂无数据</div>`;
+    return;
+  }
+
+  // 早起：wake_time < 08:00
+  const earlyDays = records.filter(r => {
+    if (!r.wake_time) return false;
+    return parseInt(r.wake_time) < 8;
+  }).length;
+  const runDays = records.filter(r => (parseFloat(r.running)||0) > 0).length;
+  const totalRun = records.reduce((a,r) => a+(parseFloat(r.running)||0), 0);
+  const totalCycle = records.reduce((a,r) => a+(parseFloat(r.cycling)||0), 0);
+  const totalPushup = records.reduce((a,r) => a+(parseInt(r.pushup)||0), 0);
+  const totalDips = records.reduce((a,r) => a+(parseInt(r.dips)||0), 0);
+  const totalPullup = records.reduce((a,r) => a+(parseInt(r.pullup)||0), 0);
+  const sleepList = records.filter(r => r.sleep_hours > 0);
+  const avgSleep = sleepList.length ? (sleepList.reduce((a,r)=>a+(+r.sleep_hours),0)/sleepList.length) : 0;
+  const paces = records.map(r=>r.habits?.跑步配速).filter(Boolean);
+
+  // 最快配速
+  const paceToSec = p => { const m=p.match(/(\d+)'(\d+)/); return m ? parseInt(m[1])*60+parseInt(m[2]) : 9999; };
+  const bestPace = paces.length ? paces.sort((a,b)=>paceToSec(a)-paceToSec(b))[0] : null;
+
+  const statsData = [
+    { icon:'🌅', label:'早起', value:`${earlyDays}/7天`, color:'var(--c-dash)' },
+    { icon:'🏃', label:'跑步', value:`${totalRun.toFixed(1)}km / ${runDays}天`, color:'var(--c-journal)' },
+    { icon:'💪', label:'俯卧撑', value:`${totalPushup}个`, color:'var(--c-checkin)' },
+    { icon:'🚴', label:'骑行', value:`${totalCycle.toFixed(1)}km`, color:'var(--c-todo)' },
+    { icon:'😴', label:'均睡眠', value:`${avgSleep.toFixed(1)}h`, color:'var(--ok)' },
+    { icon:'⚡', label:'最快配速', value: bestPace || '—', color:'var(--c-dash)' },
+  ];
+
+  document.getElementById('weeklyStats').innerHTML = statsData.map(s => `
+    <div style="background:var(--sf);border-radius:10px;padding:.7rem .8rem;text-align:center">
+      <div style="font-size:1.2rem">${s.icon}</div>
+      <div style="font-size:.95rem;font-weight:600;color:${s.color};margin:.2rem 0">${s.value}</div>
+      <div style="font-size:.65rem;color:var(--text3)">${s.label}</div>
+    </div>`).join('');
+
+  // 亮点
+  const highlights = [];
+  if (earlyDays === records.length) highlights.push(`🏆 本周早起全勤 ${earlyDays}/${records.length} 天`);
+  if (runDays === records.length) highlights.push(`🔥 跑步全勤 ${runDays} 天不间断`);
+  if (totalRun >= 30) highlights.push(`📈 本周跑量超过30km`);
+  if (bestPace && paceToSec(bestPace) < 330) highlights.push(`⚡ 配速突破5'30"`);
+  if (totalPushup >= 1000) highlights.push(`💪 俯卧撑破千`);
+  if (!highlights.length) highlights.push(`✅ 本周完成 ${records.length} 天打卡，继续保持`);
+
+  document.getElementById('weeklyHighlight').innerHTML = highlights.join('<br>');
 }
 
 async function renderDash() {
