@@ -806,6 +806,10 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
       </div>
     </div>
   </div>
+  <div class="card mb">
+    <div class="card-head">🏋️ 健身房训练记录</div>
+    <textarea class="form-textarea" id="gymRecord" placeholder="部位:胸+三头 | 消耗:353卡 | 总重:6180kg | 时长:48min&#10;杠铃卧推 50kg×8×3&#10;上斜卧推 30kg×10×4&#10;..." style="min-height:100px;font-size:.8rem"></textarea>
+  </div>
   <div class="card mb"><div class="card-head">今日备注</div><textarea class="form-textarea" id="dailyNote" placeholder="今天发生了什么？有什么感受……"></textarea></div>
   <div style="display:flex;gap:.7rem">
     <button class="btn btn-primary" id="saveCheckinBtn" onclick="saveCheckin()">✓ 保存打卡</button>
@@ -840,7 +844,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
     <table class="htable">
       <thead><tr>
         <th>日期</th><th>入睡</th><th>起床</th><th>睡眠</th>
-        <th>俯卧撑</th><th>深蹲</th><th>引体</th><th>臂曲伸</th><th>卷腹</th><th>跑步</th><th>配速</th><th>骑行</th>
+        <th>俯卧撑</th><th>深蹲</th><th>引体</th><th>臂曲伸</th><th>卷腹</th><th>跑步</th><th>配速</th><th>骑行</th><th style="color:var(--c-checkin)">健身房</th>
       </tr></thead>
       <tbody id="histBody"></tbody>
     </table>
@@ -1178,6 +1182,7 @@ async function loadTodayCheckin() {
     document.getElementById('cy_pace').value = hp['骑行配速'] || 0;
     document.getElementById('ru_pace').value = hp['跑步配速'] || '';
     document.getElementById('dailyNote').value = data.note || '';
+    document.getElementById('gymRecord').value = data.gym || '';
     const habits = data.habits || {};
     document.querySelectorAll('.h-chip').forEach(chip => {
       const h = chip.dataset.habit;
@@ -1297,6 +1302,7 @@ async function saveCheckin() {
     cycling: +document.getElementById('cy').value  || 0,
     running: +document.getElementById('ru').value  || 0,
     note:    document.getElementById('dailyNote').value,
+    gym:     document.getElementById('gymRecord').value || null,
     habits,
   };
   const { data: upsertData, error } = await db.from('daily_records').upsert(payload, { onConflict: 'user_id,date' });
@@ -1369,7 +1375,8 @@ async function loadAndRenderHistory() {
       <td style="color:var(--c-journal);font-weight:600">${r.running||'/'}</td>
       <td style="color:var(--text2)">${h['跑步配速']||'/'}</td>
       <td style="color:var(--c-history)">${r.cycling||'/'}</td>
-    </tr>`;
+      <td style="color:var(--c-checkin);font-size:.75rem">${r.gym ? '🏋️' : '/'}</td>
+    </tr>` + (r.gym ? `<tr><td colspan="14" style="padding:.25rem .6rem .5rem 1.2rem;font-size:.72rem;color:var(--text3);white-space:pre-wrap;line-height:1.7;background:var(--sf2);border-bottom:1px solid var(--border)">${r.gym.replace(/\n/g,'<br>')}</td></tr>` : '');
   }).join('');
 
   // 渲染月度统计
