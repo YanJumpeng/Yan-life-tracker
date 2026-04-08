@@ -1019,6 +1019,8 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
     <button class="btn btn-ghost btn-sm fy-tab" id="fyt-monthly" onclick="fyTab('monthly')">每月对照</button>
     <button class="btn btn-ghost btn-sm fy-tab" id="fyt-milestones" onclick="fyTab('milestones')">三年里程碑</button>
     <button class="btn btn-ghost btn-sm fy-tab" id="fyt-warnings" onclick="fyTab('warnings')">漂移预警</button>
+    <button class="btn btn-ghost btn-sm fy-tab" id="fyt-health" onclick="fyTab('health')">健康身体</button>
+    <button class="btn btn-ghost btn-sm fy-tab" id="fyt-reading" onclick="fyTab('reading')">读书</button>
   </div>
 
   <div id="fy-panel-weekly">
@@ -1057,12 +1059,44 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
         <span style="font-size:.72rem;color:var(--bad)" id="fy-biz-warn" style="display:none">⚠️ 潜在客户看不见你</span>
       </div>
     </div>
-    <div class="card mb"><div class="card-head">C · AI学习 + 副业进展</div>
+    <div class="card mb"><div class="card-head">C · AI学习进展</div>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem">
-        <div><label style="font-size:.72rem;color:var(--text3)">AI学习完成任务</label><textarea id="fy-ai-done" class="form-textarea" rows="3" placeholder="做了什么，具体任务"></textarea></div>
-        <div><label style="font-size:.72rem;color:var(--text3)">AI学习卡点</label><textarea id="fy-ai-block" class="form-textarea" rows="3" placeholder="卡在哪了，原因是什么"></textarea></div>
-        <div><label style="font-size:.72rem;color:var(--text3)">副业本周动作</label><textarea id="fy-side-done" class="form-textarea" rows="3" placeholder="做了什么具体的副业动作"></textarea></div>
-        <div><label style="font-size:.72rem;color:var(--text3)">副业下周计划</label><textarea id="fy-side-next" class="form-textarea" rows="3" placeholder="下周要做什么"></textarea></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">本周完成任务</label><textarea id="fy-ai-done" class="form-textarea" rows="3" placeholder="做了什么，具体任务"></textarea></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">卡点/问题</label><textarea id="fy-ai-block" class="form-textarea" rows="3" placeholder="卡在哪了，原因是什么"></textarea></div>
+      </div>
+    </div>
+    <div class="card mb"><div class="card-head">E · 大树财经</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem">
+        <div>
+          <label style="font-size:.72rem;color:var(--text3)">本周工作完成质量</label>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <button class="btn btn-ghost btn-sm" id="fy-work-qa" onclick="fySetWork('quality','A')">A 优秀</button>
+            <button class="btn btn-ghost btn-sm" id="fy-work-qb" onclick="fySetWork('quality','B')">B 正常</button>
+            <button class="btn btn-ghost btn-sm" id="fy-work-qc" onclick="fySetWork('quality','C')">C 凑合</button>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:.72rem;color:var(--text3)">有没有主动出活（工作外）</label>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <button class="btn btn-ghost btn-sm" id="fy-work-proactive-y" onclick="fySetWork('proactive','yes')">✅ 有</button>
+            <button class="btn btn-ghost btn-sm" id="fy-work-proactive-n" onclick="fySetWork('proactive','no')">❌ 没有</button>
+          </div>
+        </div>
+        <div><label style="font-size:.72rem;color:var(--text3)">主动出活内容（提案/资源/创意等）</label><textarea id="fy-work-proactive-note" class="form-textarea" rows="2" placeholder="做了什么额外的事"></textarea></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">收到的反馈/评价</label><textarea id="fy-work-feedback" class="form-textarea" rows="2" placeholder="来自Elma/同事/合作方的反馈"></textarea></div>
+      </div>
+    </div>
+    <div class="card mb"><div class="card-head">F · 副业/变现进展</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem">
+        <div><label style="font-size:.72rem;color:var(--text3)">本周副业动作</label><textarea id="fy-side-done" class="form-textarea" rows="3" placeholder="做了什么具体动作（内容/客户接触/技能展示等）"></textarea></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">下周计划</label><textarea id="fy-side-next" class="form-textarea" rows="3" placeholder="下周要做什么"></textarea></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">本周副业收入(¥)</label><input type="number" id="fy-side-income" class="form-input" min="0" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">有没有潜在客户接触</label>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <button class="btn btn-ghost btn-sm" id="fy-side-lead-y" onclick="fySetSideLead('yes')">✅ 有</button>
+            <button class="btn btn-ghost btn-sm" id="fy-side-lead-n" onclick="fySetSideLead('no')">❌ 没有</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="card mb"><div class="card-head">D · 交易周复盘</div>
@@ -1162,6 +1196,62 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
           <tr style="background:var(--ok-l)"><td style="padding:7px 10px;border:1px solid var(--border);font-weight:600">合计</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border);font-weight:600">32万</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border);font-weight:600">~2.7万</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border)"><span style="background:#E8DAEF;color:#3C3489;font-size:.72rem;padding:2px 8px;border-radius:10px">2028目标</span></td></tr>
         </tbody>
       </table>
+    </div>
+  </div>
+
+  <div id="fy-panel-health" style="display:none">
+    <div class="card mb"><div class="card-head">本周身体数据</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem">
+        <div><label style="font-size:.72rem;color:var(--text3)">7:30前起床天数</label><input type="number" id="fy-h-rise" class="form-input" min="0" max="7" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">跑步次数</label><input type="number" id="fy-h-run-cnt" class="form-input" min="0" max="7" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">跑步总距离(km)</label><input type="number" id="fy-h-run-km" class="form-input" min="0" step="0.1" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">健身房次数</label><input type="number" id="fy-h-gym-cnt" class="form-input" min="0" max="7" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">平均睡眠时长(h)</label><input type="number" id="fy-h-sleep" class="form-input" min="0" max="12" step="0.5" placeholder="7"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">12点前入睡天数</label><input type="number" id="fy-h-sleep-cnt" class="form-input" min="0" max="7" placeholder="0"></div>
+      </div>
+    </div>
+    <div class="card mb"><div class="card-head">本周身体状态</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem">
+        <div>
+          <label style="font-size:.72rem;color:var(--text3)">整体精力状态</label>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <button class="btn btn-ghost btn-sm" id="fy-h-energy-good" onclick="fySetHealth('energy','good')">🔥 充沛</button>
+            <button class="btn btn-ghost btn-sm" id="fy-h-energy-ok" onclick="fySetHealth('energy','ok')">😐 一般</button>
+            <button class="btn btn-ghost btn-sm" id="fy-h-energy-bad" onclick="fySetHealth('energy','bad')">😴 疲惫</button>
+          </div>
+        </div>
+        <div><label style="font-size:.72rem;color:var(--text3)">本周身体备注</label><textarea id="fy-h-note" class="form-textarea" rows="2" placeholder="受伤/生病/特别好的状态……"></textarea></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:.8rem">
+      <button class="btn btn-primary" onclick="fySaveHealth()">保存本周健康</button>
+      <span id="fy-health-saved" style="display:none;font-size:.75rem;color:var(--ok)">已保存 ✓</span>
+    </div>
+  </div>
+
+  <div id="fy-panel-reading" style="display:none">
+    <div class="card mb"><div class="card-head">本周读书情况</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem">
+        <div><label style="font-size:.72rem;color:var(--text3)">在读书目</label><input type="text" id="fy-r-book" class="form-input" placeholder="书名"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">本周读了多少</label><input type="text" id="fy-r-progress" class="form-input" placeholder="例：第3章 / 50页 / 全书30%"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">本周阅读天数</label><input type="number" id="fy-r-days" class="form-input" min="0" max="7" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">有没有读满30分钟/天</label>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <button class="btn btn-ghost btn-sm" id="fy-r-30min-y" onclick="fySetReading('min30','yes')">✅ 大多数天有</button>
+            <button class="btn btn-ghost btn-sm" id="fy-r-30min-n" onclick="fySetReading('min30','no')">❌ 没有</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card mb"><div class="card-head">本周读书收获</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem">
+        <div><label style="font-size:.72rem;color:var(--text3)">最触动的一句话或一个观点</label><textarea id="fy-r-insight" class="form-textarea" rows="3" placeholder="不一定要深刻，有触动就值得记"></textarea></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">能用上的地方（连接现实）</label><textarea id="fy-r-apply" class="form-textarea" rows="3" placeholder="这个观点能用在哪？工作/推文/交易/生活？"></textarea></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:.8rem">
+      <button class="btn btn-primary" onclick="fySaveReading()">保存本周读书</button>
+      <span id="fy-reading-saved" style="display:none;font-size:.75rem;color:var(--ok)">已保存 ✓</span>
     </div>
   </div>
 
@@ -2740,7 +2830,7 @@ async function fySave() {
 
 // ── Tab 切换 ──
 function fyTab(name) {
-  ['weekly','monthly','milestones','warnings'].forEach(n => {
+  ['weekly','monthly','milestones','warnings','health','reading'].forEach(n => {
     const p = document.getElementById('fy-panel-' + n);
     const b = document.getElementById('fyt-' + n);
     if (p) p.style.display = n === name ? '' : 'none';
@@ -2779,6 +2869,83 @@ function fyRefreshDir(prefix, dir) {
       el.style.color       = active ? (s==='ok'?'var(--ok)':s==='warn'?'var(--warn)':'var(--bad)') : '';
     });
   });
+}
+
+async function fySetWork(field, val) {
+  const k = document.getElementById('fy-week-sel').value;
+  if (!fyData.weeks[k]) fyData.weeks[k] = {};
+  if (!fyData.weeks[k].work) fyData.weeks[k].work = {};
+  fyData.weeks[k].work[field] = val;
+  if (field === 'quality') {
+    ['A','B','C'].forEach(s => {
+      const el = document.getElementById('fy-work-q'+s);
+      if(el) el.style.background = s===val ? (s==='A'?'var(--ok-l)':s==='B'?'var(--warn-l)':'var(--bad-l)') : '';
+      if(el) el.style.color = s===val ? (s==='A'?'var(--ok)':s==='B'?'var(--warn)':'var(--bad)') : '';
+    });
+  } else if (field === 'proactive') {
+    document.getElementById('fy-work-proactive-y').style.background = val==='yes' ? 'var(--ok-l)' : '';
+    document.getElementById('fy-work-proactive-n').style.background = val==='no' ? 'var(--bad-l)' : '';
+  }
+  await fySave();
+}
+
+async function fySetSideLead(val) {
+  const k = document.getElementById('fy-week-sel').value;
+  if (!fyData.weeks[k]) fyData.weeks[k] = {};
+  if (!fyData.weeks[k].side) fyData.weeks[k].side = {};
+  fyData.weeks[k].side.lead = val;
+  document.getElementById('fy-side-lead-y').style.background = val==='yes' ? 'var(--ok-l)' : '';
+  document.getElementById('fy-side-lead-n').style.background = val==='no' ? 'var(--bad-l)' : '';
+  await fySave();
+}
+
+async function fySetHealth(field, val) {
+  const k = document.getElementById('fy-week-sel').value;
+  if (!fyData.weeks[k]) fyData.weeks[k] = {};
+  if (!fyData.weeks[k].health) fyData.weeks[k].health = {};
+  fyData.weeks[k].health[field] = val;
+  if (field === 'energy') {
+    ['good','ok','bad'].forEach(s => {
+      const el = document.getElementById('fy-h-energy-'+s);
+      if(el) el.style.background = s===val ? (s==='good'?'var(--ok-l)':s==='ok'?'var(--warn-l)':'var(--bad-l)') : '';
+    });
+  }
+  await fySave();
+}
+
+async function fySetReading(field, val) {
+  const k = document.getElementById('fy-week-sel').value;
+  if (!fyData.weeks[k]) fyData.weeks[k] = {};
+  if (!fyData.weeks[k].reading) fyData.weeks[k].reading = {};
+  fyData.weeks[k].reading[field] = val;
+  if (field === 'min30') {
+    document.getElementById('fy-r-30min-y').style.background = val==='yes' ? 'var(--ok-l)' : '';
+    document.getElementById('fy-r-30min-n').style.background = val==='no' ? 'var(--bad-l)' : '';
+  }
+  await fySave();
+}
+
+async function fySaveHealth() {
+  const k = document.getElementById('fy-week-sel').value;
+  if (!fyData.weeks[k]) fyData.weeks[k] = {};
+  if (!fyData.weeks[k].health) fyData.weeks[k].health = {};
+  const h = fyData.weeks[k].health;
+  ['rise','run-cnt','run-km','gym-cnt','sleep','sleep-cnt'].forEach(f => {
+    const el = document.getElementById('fy-h-'+f); if(el) h[f] = el.value;
+  });
+  const note = document.getElementById('fy-h-note'); if(note) h.note = note.value;
+  await fySave(); fyFlash('fy-health-saved');
+}
+
+async function fySaveReading() {
+  const k = document.getElementById('fy-week-sel').value;
+  if (!fyData.weeks[k]) fyData.weeks[k] = {};
+  if (!fyData.weeks[k].reading) fyData.weeks[k].reading = {};
+  const r = fyData.weeks[k].reading;
+  ['book','progress','days'].forEach(f => { const el=document.getElementById('fy-r-'+f); if(el) r[f]=el.value; });
+  const ins=document.getElementById('fy-r-insight'); if(ins) r.insight=ins.value;
+  const app=document.getElementById('fy-r-apply');   if(app) r.apply=app.value;
+  await fySave(); fyFlash('fy-reading-saved');
 }
 
 async function fySetBizContent(val) {
@@ -2874,6 +3041,30 @@ function fyLoadWeek() {
     if(el) el.style.background = tr.score===s ? (s==='A'?'var(--ok-l)':s==='B'?'var(--warn-l)':'var(--bad-l)') : '';
   });
   const gd=document.getElementById('fy-golden-days'); if(gd) gd.value=w.goldenDays||'';
+  // 大树财经
+  const wk=w.work||{};
+  ['A','B','C'].forEach(s=>{ const el=document.getElementById('fy-work-q'+s); if(el){ el.style.background=wk.quality===s?(s==='A'?'var(--ok-l)':s==='B'?'var(--warn-l)':'var(--bad-l)'):''; el.style.color=wk.quality===s?(s==='A'?'var(--ok)':s==='B'?'var(--warn)':'var(--bad)'):''; }});
+  const wpyn=document.getElementById('fy-work-proactive-y'); if(wpyn) wpyn.style.background=wk.proactive==='yes'?'var(--ok-l)':'';
+  const wpnn=document.getElementById('fy-work-proactive-n'); if(wpnn) wpnn.style.background=wk.proactive==='no'?'var(--bad-l)':'';
+  const wpnote=document.getElementById('fy-work-proactive-note'); if(wpnote) wpnote.value=wk.proactiveNote||'';
+  const wfb=document.getElementById('fy-work-feedback'); if(wfb) wfb.value=wk.feedback||'';
+  // 副业
+  const sdd2=w.side||{};
+  const slincome=document.getElementById('fy-side-income'); if(slincome) slincome.value=sdd2.income||'';
+  const slly=document.getElementById('fy-side-lead-y'); if(slly) slly.style.background=sdd2.lead==='yes'?'var(--ok-l)':'';
+  const slln=document.getElementById('fy-side-lead-n'); if(slln) slln.style.background=sdd2.lead==='no'?'var(--bad-l)':'';
+  // 健康
+  const hh=w.health||{};
+  ['rise','run-cnt','run-km','gym-cnt','sleep','sleep-cnt'].forEach(f=>{ const el=document.getElementById('fy-h-'+f); if(el) el.value=hh[f]||''; });
+  const hhnote=document.getElementById('fy-h-note'); if(hhnote) hhnote.value=hh.note||'';
+  ['good','ok','bad'].forEach(s=>{ const el=document.getElementById('fy-h-energy-'+s); if(el) el.style.background=hh.energy===s?(s==='good'?'var(--ok-l)':s==='ok'?'var(--warn-l)':'var(--bad-l)'):''; });
+  // 读书
+  const rr=w.reading||{};
+  ['book','progress','days'].forEach(f=>{ const el=document.getElementById('fy-r-'+f); if(el) el.value=rr[f]||''; });
+  const rins=document.getElementById('fy-r-insight'); if(rins) rins.value=rr.insight||'';
+  const rapp=document.getElementById('fy-r-apply');   if(rapp) rapp.value=rr.apply||'';
+  const r30y=document.getElementById('fy-r-30min-y'); if(r30y) r30y.style.background=rr.min30==='yes'?'var(--ok-l)':'';
+  const r30n=document.getElementById('fy-r-30min-n'); if(r30n) r30n.style.background=rr.min30==='no'?'var(--bad-l)':'';
   const tw_biz_content = (w.tweet||{}).bizContent||'';
   const biy=document.getElementById('fy-tw-biz-y'); const bin=document.getElementById('fy-tw-biz-n');
   if(biy){ biy.style.background=tw_biz_content==='yes'?'var(--ok-l)':''; biy.style.color=tw_biz_content==='yes'?'var(--ok)':''; }
@@ -2894,7 +3085,11 @@ async function fySaveWeek() {
     best:document.getElementById('fy-tw-best').value
   };
   w.ai   = {done:document.getElementById('fy-ai-done').value,   block:document.getElementById('fy-ai-block').value};
-  w.side = {done:document.getElementById('fy-side-done').value, next:document.getElementById('fy-side-next').value};
+  w.side = {done:document.getElementById('fy-side-done').value, next:document.getElementById('fy-side-next').value,
+    income:(document.getElementById('fy-side-income')||{}).value||'', lead:(w.side||{}).lead||''};
+  w.work = {quality:(w.work||{}).quality||'', proactive:(w.work||{}).proactive||'',
+    proactiveNote:(document.getElementById('fy-work-proactive-note')||{}).value||'',
+    feedback:(document.getElementById('fy-work-feedback')||{}).value||''};
   w.trade = {...(w.trade||{}), spot:document.getElementById('fy-tr-spot').value, note:document.getElementById('fy-tr-note').value};
   const gdEl=document.getElementById('fy-golden-days'); if(gdEl) w.goldenDays=gdEl.value;
   w.summary = document.getElementById('fy-week-summary').value;
