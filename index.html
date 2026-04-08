@@ -391,6 +391,8 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 [data-page="journal"] .page-header{border-color:var(--c-journal)}
 [data-page="reading"] .page-header{border-color:var(--c-reading)}
 [data-page="dashboard"] .page-header{border-color:var(--c-dash)}
+[data-page="fiveyear"] .page-header{border-color:#3C3489}
+.nav-item[data-mod="fiveyear"].active{background:#3C3489}
 [data-page="checkin"] .ph-title{color:var(--c-checkin)}
 [data-page="todo"] .ph-title{color:var(--c-todo)}
 [data-page="history"] .ph-title{color:var(--c-history)}
@@ -683,6 +685,10 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
     <div class="nav-sec">
       <div class="nav-sec-lbl">统计</div>
       <div class="nav-item" data-mod="dashboard" onclick="go('dashboard',this)"><span class="nav-icon">◈</span>数据看板</div>
+    </div>
+    <div class="nav-sec">
+      <div class="nav-sec-lbl">规划</div>
+      <div class="nav-item" data-mod="fiveyear" onclick="go('fiveyear',this)"><span class="nav-icon">◎</span>五年计划</div>
     </div>
   </div>
   <div class="sidebar-foot">
@@ -2359,6 +2365,165 @@ function toast(msg) {
   </div>
 </div>
 
+<!-- 五年计划 -->
+<div class="page" id="page-fiveyear" data-page="fiveyear">
+  <div class="page-header">
+    <div><div class="ph-title">五年计划打卡</div><div class="ph-sub">方向检验 · 里程碑 · 漂移预警</div></div>
+  </div>
+  <div style="display:flex;gap:6px;margin-bottom:1.2rem;flex-wrap:wrap">
+    <button class="btn btn-blue btn-sm fy-tab" id="fyt-weekly" onclick="fyTab('weekly')">每周复盘</button>
+    <button class="btn btn-ghost btn-sm fy-tab" id="fyt-monthly" onclick="fyTab('monthly')">每月对照</button>
+    <button class="btn btn-ghost btn-sm fy-tab" id="fyt-milestones" onclick="fyTab('milestones')">三年里程碑</button>
+    <button class="btn btn-ghost btn-sm fy-tab" id="fyt-warnings" onclick="fyTab('warnings')">漂移预警</button>
+  </div>
+
+  <div id="fy-panel-weekly">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
+      <span style="font-size:.8rem;color:var(--text3)">复盘周次</span>
+      <select id="fy-week-sel" onchange="fyLoadWeek()" style="padding:4px 10px;font-size:.8rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></select>
+      <button class="btn btn-ghost btn-sm" onclick="fyAddWeek()">＋ 新增一周</button>
+    </div>
+    <div class="card mb"><div class="card-head">A · 方向检验</div>
+      <p style="font-size:.72rem;color:var(--text3);margin-bottom:.8rem">每条线选 ✅投资 / ⚠️原地踏步 / ❌消耗</p>
+      <div id="fy-dir-fields"></div>
+    </div>
+    <div class="card mb"><div class="card-head">B · 推特周数据</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:.6rem">
+        <div><label style="font-size:.72rem;color:var(--text3)">原创推文（条）</label><input type="number" id="fy-tw-total" class="form-input" min="0" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">感触类</label><input type="number" id="fy-tw-feel" class="form-input" min="0" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">日志类</label><input type="number" id="fy-tw-log" class="form-input" min="0" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">潜在客户向</label><input type="number" id="fy-tw-biz" class="form-input" min="0" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">新增粉丝</label><input type="number" id="fy-tw-new" class="form-input" min="0" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">总粉丝</label><input type="number" id="fy-tw-fans" class="form-input" min="0" placeholder="0"></div>
+      </div>
+      <div><label style="font-size:.72rem;color:var(--text3)">最佳推文主题</label><textarea id="fy-tw-best" class="form-textarea" rows="2" placeholder="本周哪条互动最好，主题是什么"></textarea></div>
+    </div>
+    <div class="card mb"><div class="card-head">C · AI学习 + 副业进展</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem">
+        <div><label style="font-size:.72rem;color:var(--text3)">AI学习完成任务</label><textarea id="fy-ai-done" class="form-textarea" rows="3" placeholder="做了什么，具体任务"></textarea></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">AI学习卡点</label><textarea id="fy-ai-block" class="form-textarea" rows="3" placeholder="卡在哪了，原因是什么"></textarea></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">副业本周动作</label><textarea id="fy-side-done" class="form-textarea" rows="3" placeholder="做了什么具体的副业动作"></textarea></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">副业下周计划</label><textarea id="fy-side-next" class="form-textarea" rows="3" placeholder="下周要做什么"></textarea></div>
+      </div>
+    </div>
+    <div class="card mb"><div class="card-head">D · 交易周复盘</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:.6rem">
+        <div><label style="font-size:.72rem;color:var(--text3)">BTC现货当前价</label><input type="text" id="fy-tr-spot" class="form-input" placeholder="$68,000"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">有无违纪操作</label>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <button class="btn btn-ghost btn-sm" id="fy-tr-vio-n" onclick="fySetTrade('vio','no')">无违纪</button>
+            <button class="btn btn-ghost btn-sm" id="fy-tr-vio-y" onclick="fySetTrade('vio','yes')">有违纪</button>
+          </div>
+        </div>
+        <div><label style="font-size:.72rem;color:var(--text3)">纪律执行评分</label>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <button class="btn btn-ghost btn-sm" id="fy-tr-sc-A" onclick="fySetTrade('score','A')">A严格</button>
+            <button class="btn btn-ghost btn-sm" id="fy-tr-sc-B" onclick="fySetTrade('score','B')">B基本</button>
+            <button class="btn btn-ghost btn-sm" id="fy-tr-sc-C" onclick="fySetTrade('score','C')">C偏差</button>
+          </div>
+        </div>
+      </div>
+      <div><label style="font-size:.72rem;color:var(--text3)">交易备注/复盘</label><textarea id="fy-tr-note" class="form-textarea" rows="2" placeholder="本周交易情况简述"></textarea></div>
+    </div>
+    <div class="card mb"><div class="card-head">本周总结</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem">
+        <div><label style="font-size:.72rem;color:var(--text3)">本周状态（一句话）</label><textarea id="fy-week-summary" class="form-textarea" rows="2" placeholder="用一句话描述这周的状态"></textarea></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">下周最重要一件事</label><textarea id="fy-week-next" class="form-textarea" rows="2" placeholder="只选一件事"></textarea></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:.8rem">
+      <button class="btn btn-primary" onclick="fySaveWeek()">保存本周复盘</button>
+      <span id="fy-week-saved" style="display:none;font-size:.75rem;color:var(--ok)">已保存 ✓</span>
+    </div>
+  </div>
+
+  <div id="fy-panel-monthly" style="display:none">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
+      <span style="font-size:.8rem;color:var(--text3)">月份</span>
+      <select id="fy-month-sel" onchange="fyLoadMonth()" style="padding:4px 10px;font-size:.8rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></select>
+      <button class="btn btn-ghost btn-sm" onclick="fyAddMonth()">＋ 新增月份</button>
+    </div>
+    <div class="card mb"><div class="card-head">五条线方向检验</div>
+      <p style="font-size:.72rem;color:var(--text3);margin-bottom:.8rem">✅投资 / ⚠️原地踏步 / ❌消耗 — 连续2月❌同一项必须专项复盘</p>
+      <div id="fy-mdir-fields"></div>
+    </div>
+    <div class="card mb"><div class="card-head">这个月我是谁</div>
+      <textarea id="fy-m-who" class="form-textarea" rows="3" placeholder="不是成绩，是状态。例：这个月是一个被出差打乱节奏、早起还在坚持、但读书彻底放弃的人。"></textarea>
+    </div>
+    <div class="card mb"><div class="card-head">成长证据（强制写具体能力，不能写感受）</div>
+      <p style="font-size:.72rem;color:var(--bad);margin-bottom:.6rem">不能写"有进步"，要写"我现在能做X，上月不能"。</p>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem">
+        <div><label style="font-size:.72rem;color:var(--text3)">AI能力成长证据</label><textarea id="fy-m-ai-grow" class="form-textarea" rows="3" placeholder="现在能做X，上月不能……"></textarea></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">推文能力成长证据</label><textarea id="fy-m-tw-grow" class="form-textarea" rows="3" placeholder="有没有进步的具体证据……"></textarea></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">副业能力新增</label><textarea id="fy-m-side-grow" class="form-textarea" rows="3" placeholder="具体新增了什么能力或资源……"></textarea></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">本月底仓</label><textarea id="fy-m-deposit" class="form-textarea" rows="3" placeholder="做了但没结果的事，这是建仓，不是失败……"></textarea></div>
+      </div>
+    </div>
+    <div class="card mb"><div class="card-head">月度数据快照</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem">
+        <div><label style="font-size:.72rem;color:var(--text3)">早起天数/30</label><input type="number" id="fy-m-rise" class="form-input" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">跑量(km)</label><input type="number" id="fy-m-run" class="form-input" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">X原创推文</label><input type="number" id="fy-m-tweet" class="form-input" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">X总粉丝</label><input type="number" id="fy-m-fans" class="form-input" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">阿璃日均费用(¥)</label><input type="number" id="fy-m-cost" class="form-input" step="0.1" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">AI学习时长(h)</label><input type="number" id="fy-m-ai-h" class="form-input" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">副业收入(¥)</label><input type="number" id="fy-m-income" class="form-input" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">阅读（本）</label><input type="number" id="fy-m-book" class="form-input" placeholder="0"></div>
+      </div>
+    </div>
+    <div class="card mb"><div class="card-head">下月唯一押注</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem">
+        <div><label style="font-size:.72rem;color:var(--text3)">押注的一件事</label><textarea id="fy-m-bet" class="form-textarea" rows="2" placeholder="只能选一件事"></textarea></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">为什么是它而不是别的</label><textarea id="fy-m-bet-why" class="form-textarea" rows="2"></textarea></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">和三年目标的关系</label><textarea id="fy-m-bet-link" class="form-textarea" rows="2"></textarea></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">月底结果（下月填）</label><textarea id="fy-m-bet-result" class="form-textarea" rows="2"></textarea></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:.8rem">
+      <button class="btn btn-primary" onclick="fySaveMonth()">保存本月对照</button>
+      <span id="fy-month-saved" style="display:none;font-size:.75rem;color:var(--ok)">已保存 ✓</span>
+    </div>
+  </div>
+
+  <div id="fy-panel-milestones" style="display:none">
+    <p style="font-size:.8rem;color:var(--text3);margin-bottom:1rem">每月1号打开读一遍，对照自己现在的位置。</p>
+    <div class="card mb" style="border-left:3px solid #3C3489"><div style="font-size:.72rem;font-weight:500;color:var(--text3);margin-bottom:.3rem">2026 年底 · 打基础·打标签</div><div style="font-size:.85rem;line-height:1.6;margin-bottom:.5rem">推特粉丝稳步增长；Web3×AI标签建立；交易守纪律不犯大错；AI工作流能展示给潜在客户看</div><div style="font-size:.75rem;color:var(--text3);font-style:italic">检验：有没有潜在客户主动找过我？交易账户比年初更接近回本？</div></div>
+    <div class="card mb" style="border-left:3px solid #3C3489"><div style="font-size:.72rem;font-weight:500;color:var(--text3);margin-bottom:.3rem">2027 年底 · 开始变现</div><div style="font-size:.85rem;line-height:1.6;margin-bottom:.5rem">粉丝2000-3000；接到第一个咨询单；副业月收入>5000元；交易账户回本</div><div style="font-size:.75rem;color:var(--text3);font-style:italic">检验：副业月收入超过5000了吗？交易账户回本了吗？</div></div>
+    <div class="card mb" style="border-left:3px solid #3C3489"><div style="font-size:.72rem;font-weight:500;color:var(--text3);margin-bottom:.3rem">2028 年底 · 收入结构成型</div><div style="font-size:.85rem;line-height:1.6;margin-bottom:.5rem">大树12万 + 副业咨询10万 + 交易10万 = 32万/年；三条腿稳定运转</div><div style="font-size:.75rem;color:var(--text3);font-style:italic">检验：收入结构从一份工资变成三条腿了吗？</div></div>
+    <div class="card mb" style="border-left:3px solid var(--bad)"><div class="card-head">反愿景</div><div style="font-size:.82rem;color:var(--text3);line-height:1.7">依然在出租屋醒来，节奏是被动的，被工作推着走。晚上10点，感受是麻木的。只是某个深夜，突然想起之前的生活，觉得无趣，想要改变，但什么都没有改变。</div></div>
+    <div class="card mb"><div class="card-head">收入目标（三年终态）</div>
+      <table style="width:100%;font-size:.8rem;border-collapse:collapse">
+        <thead><tr style="background:var(--sf2)"><th style="padding:7px 10px;text-align:left;border:1px solid var(--border);font-weight:500">来源</th><th style="padding:7px 10px;text-align:center;border:1px solid var(--border);font-weight:500">年收入</th><th style="padding:7px 10px;text-align:center;border:1px solid var(--border);font-weight:500">月均</th><th style="padding:7px 10px;text-align:center;border:1px solid var(--border);font-weight:500">状态</th></tr></thead>
+        <tbody>
+          <tr><td style="padding:7px 10px;border:1px solid var(--border)">大树财经（底盘）</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border)">12万</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border)">1万</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border)"><span style="background:var(--ok-l);color:var(--ok);font-size:.72rem;padding:2px 8px;border-radius:10px">已有</span></td></tr>
+          <tr style="background:var(--sf2)"><td style="padding:7px 10px;border:1px solid var(--border)">交易（修复期）</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border)">10万</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border)">~8000</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border)"><span style="background:var(--info-l);color:var(--info);font-size:.72rem;padding:2px 8px;border-radius:10px">修复中</span></td></tr>
+          <tr><td style="padding:7px 10px;border:1px solid var(--border)">副业咨询</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border)">10万</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border)">~8000</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border)"><span style="background:var(--warn-l);color:var(--warn);font-size:.72rem;padding:2px 8px;border-radius:10px">待建立</span></td></tr>
+          <tr style="background:var(--ok-l)"><td style="padding:7px 10px;border:1px solid var(--border);font-weight:600">合计</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border);font-weight:600">32万</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border);font-weight:600">~2.7万</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border)"><span style="background:#E8DAEF;color:#3C3489;font-size:.72rem;padding:2px 8px;border-radius:10px">2028目标</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="fy-panel-warnings" style="display:none">
+    <p style="font-size:.8rem;color:var(--text3);margin-bottom:1rem">每月1号对照检查，有❌立刻行动。</p>
+    <div class="card mb" style="padding:0;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;font-size:.8rem">
+        <thead><tr style="background:var(--sf2)">
+          <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);font-weight:500;width:70px">板块</th>
+          <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);font-weight:500">预警信号</th>
+          <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);font-weight:500;width:150px">本月状态</th>
+          <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);font-weight:500">立刻行动</th>
+        </tr></thead>
+        <tbody id="fy-warn-body"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;align-items:center;gap:.8rem;margin-top:.8rem">
+      <button class="btn btn-primary" onclick="fySaveWarnings()">保存预警状态</button>
+      <span id="fy-warn-saved" style="display:none;font-size:.75rem;color:var(--ok)">已保存 ✓</span>
+    </div>
+  </div>
+</div>
+
 <script>
 // 补录功能
 let _addMood = 0;
@@ -2502,7 +2667,257 @@ async function saveEditHist() {
 document.getElementById('editHistModal').addEventListener('click', function(e) {
   if (e.target === this) closeEditHist();
 });
-</script>
 
-</body>
-</html>
+// ════════════════════════════════════════
+// 五年计划打卡 JS
+// ════════════════════════════════════════
+const FY_SK = 'jump_fiveyear_v1';
+let fyData = JSON.parse(localStorage.getItem(FY_SK) || '{}');
+if (!fyData.weeks) fyData.weeks = {};
+if (!fyData.months) fyData.months = {};
+if (!fyData.warnings) fyData.warnings = {};
+
+const FY_DIR = [
+  {id:'dashu', label:'大树财经 稳定吗'},
+  {id:'ai',    label:'AI学习 在推进吗'},
+  {id:'tweet', label:'推特内容 在投资吗'},
+  {id:'trade', label:'交易 有没有违纪'},
+  {id:'side',  label:'副业 往前推了吗'},
+];
+const FY_WARNS = [
+  {plate:'推特', signal:'连续3天没发推', action:'立刻发一条，哪怕很简单'},
+  {plate:'推特', signal:'连续7天没有潜在客户向内容', action:'这周补一条展示能力的推文'},
+  {plate:'推特', signal:'本月原创推文<15条', action:'找出是哪周断了，原因是什么'},
+  {plate:'AI学习', signal:'连续5天未提到OpenClaw学习', action:'今天做学习计划里的一个任务'},
+  {plate:'AI学习', signal:'当前阶段结束标志未达到却想跳阶段', action:'重读AI学习计划，逐条确认结束标志'},
+  {plate:'副业', signal:'连续2个月副业方向填⚠️或❌', action:'本月至少做一件具体的副业动作'},
+  {plate:'交易', signal:'本月有违纪操作（做短线/追涨）', action:'复盘这次违纪的触发原因'},
+  {plate:'交易', signal:'账户持续浮亏且没有复盘记录', action:'写一段复盘，不要逃避'},
+  {plate:'方向', signal:'连续2月同一条线填❌消耗', action:'月报时专项讨论这条线'},
+  {plate:'方向', signal:'成长证据连续2月写不出来', action:'问自己：这个月我学到了什么具体能力？'},
+  {plate:'费用', signal:'阿璃日均费用>¥15', action:'排查是否有脚本异常或模型配置问题'},
+];
+
+function fySave() { localStorage.setItem(FY_SK, JSON.stringify(fyData)); }
+
+function fyTab(name) {
+  ['weekly','monthly','milestones','warnings'].forEach(n => {
+    const p = document.getElementById('fy-panel-' + n);
+    const b = document.getElementById('fyt-' + n);
+    if (p) p.style.display = n === name ? '' : 'none';
+    if (b) { b.className = n === name ? 'btn btn-blue btn-sm fy-tab' : 'btn btn-ghost btn-sm fy-tab'; }
+  });
+  if (name === 'warnings') fyBuildWarnings();
+}
+
+function fyBuildDirFields(containerId, prefix) {
+  const el = document.getElementById(containerId); if (!el) return;
+  el.innerHTML = '';
+  FY_DIR.forEach(line => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap';
+    row.innerHTML = `<span style="font-size:.82rem;min-width:170px">${line.label}</span>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" id="${prefix}-${line.id}-ok" onclick="fySetDir('${prefix}','${line.id}','ok')">✅ 投资</button>
+        <button class="btn btn-ghost btn-sm" id="${prefix}-${line.id}-warn" onclick="fySetDir('${prefix}','${line.id}','warn')">⚠️ 原地</button>
+        <button class="btn btn-ghost btn-sm" id="${prefix}-${line.id}-bad" onclick="fySetDir('${prefix}','${line.id}','bad')">❌ 消耗</button>
+      </div>`;
+    el.appendChild(row);
+  });
+}
+
+function fySetDir(prefix, lineId, status) {
+  const isMonth = prefix === 'md';
+  const selId = isMonth ? 'fy-month-sel' : 'fy-week-sel';
+  const k = document.getElementById(selId).value;
+  const store = isMonth ? fyData.months : fyData.weeks;
+  if (!store[k]) store[k] = {};
+  if (!store[k].dir) store[k].dir = {};
+  store[k].dir[lineId] = status; fySave();
+  fyRefreshDir(prefix, store[k].dir);
+}
+
+function fyRefreshDir(prefix, dir) {
+  FY_DIR.forEach(line => {
+    ['ok','warn','bad'].forEach(s => {
+      const el = document.getElementById(`${prefix}-${line.id}-${s}`);
+      if (!el) return;
+      const active = dir && dir[line.id] === s;
+      const activeClass = s==='ok' ? ' btn-ok-active' : s==='warn' ? ' btn-warn-active' : ' btn-bad-active';
+      el.style.fontWeight = active ? '600' : '';
+      el.style.background = active ? (s==='ok'?'var(--ok-l)':s==='warn'?'var(--warn-l)':'var(--bad-l)') : '';
+      el.style.borderColor = active ? (s==='ok'?'var(--ok)':s==='warn'?'var(--warn)':'var(--bad)') : '';
+      el.style.color = active ? (s==='ok'?'var(--ok)':s==='warn'?'var(--warn)':'var(--bad)') : '';
+    });
+  });
+}
+
+function fySetTrade(field, val) {
+  const k = document.getElementById('fy-week-sel').value;
+  if (!fyData.weeks[k]) fyData.weeks[k] = {};
+  if (!fyData.weeks[k].trade) fyData.weeks[k].trade = {};
+  fyData.weeks[k].trade[field] = val; fySave();
+  if (field === 'vio') {
+    document.getElementById('fy-tr-vio-n').style.background = val==='no' ? 'var(--ok-l)' : '';
+    document.getElementById('fy-tr-vio-y').style.background = val==='yes' ? 'var(--bad-l)' : '';
+  } else {
+    ['A','B','C'].forEach(s => {
+      const el = document.getElementById('fy-tr-sc-'+s);
+      el.style.background = s===val ? (s==='A'?'var(--ok-l)':s==='B'?'var(--warn-l)':'var(--bad-l)') : '';
+    });
+  }
+}
+
+function fyInitWeekSel() {
+  const sel = document.getElementById('fy-week-sel'); if (!sel) return;
+  sel.innerHTML = '';
+  let keys = Object.keys(fyData.weeks).map(Number).sort((a,b)=>a-b);
+  if (!keys.length) { fyData.weeks['14'] = {}; fySave(); keys = [14]; }
+  keys.forEach(k => {
+    const o = document.createElement('option');
+    o.value = k; o.textContent = '第' + k + '周';
+    sel.appendChild(o);
+  });
+  sel.value = String(keys[keys.length-1]);
+}
+
+function fyInitMonthSel() {
+  const sel = document.getElementById('fy-month-sel'); if (!sel) return;
+  sel.innerHTML = '';
+  let keys = Object.keys(fyData.months).map(Number).sort((a,b)=>a-b);
+  if (!keys.length) { fyData.months['4'] = {}; fySave(); keys = [4]; }
+  const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  keys.forEach(k => {
+    const o = document.createElement('option');
+    o.value = k; o.textContent = '2026年' + months[k-1];
+    sel.appendChild(o);
+  });
+  sel.value = String(keys[keys.length-1]);
+}
+
+function fyLoadWeek() {
+  const k = document.getElementById('fy-week-sel').value;
+  const w = fyData.weeks[k] || {};
+  fyRefreshDir('wd', w.dir || {});
+  const tw = w.tweet || {};
+  ['total','feel','log','biz','new','fans'].forEach(f => { const el = document.getElementById('fy-tw-'+f); if(el) el.value = tw[f]||''; });
+  const best = document.getElementById('fy-tw-best'); if(best) best.value = tw.best||'';
+  const ai = w.ai || {};
+  const sid = document.getElementById('fy-ai-done'); if(sid) sid.value = ai.done||'';
+  const sib = document.getElementById('fy-ai-block'); if(sib) sib.value = ai.block||'';
+  const sd = w.side || {};
+  const sdd = document.getElementById('fy-side-done'); if(sdd) sdd.value = sd.done||'';
+  const sdn = document.getElementById('fy-side-next'); if(sdn) sdn.value = sd.next||'';
+  const tr = w.trade || {};
+  const trspot = document.getElementById('fy-tr-spot'); if(trspot) trspot.value = tr.spot||'';
+  const trnote = document.getElementById('fy-tr-note'); if(trnote) trnote.value = tr.note||'';
+  document.getElementById('fy-tr-vio-n').style.background = tr.vio==='no' ? 'var(--ok-l)' : '';
+  document.getElementById('fy-tr-vio-y').style.background = tr.vio==='yes' ? 'var(--bad-l)' : '';
+  ['A','B','C'].forEach(s => {
+    const el = document.getElementById('fy-tr-sc-'+s);
+    if(el) el.style.background = tr.score===s ? (s==='A'?'var(--ok-l)':s==='B'?'var(--warn-l)':'var(--bad-l)') : '';
+  });
+  const ws = document.getElementById('fy-week-summary'); if(ws) ws.value = w.summary||'';
+  const wn = document.getElementById('fy-week-next'); if(wn) wn.value = w.next||'';
+}
+
+function fySaveWeek() {
+  const k = document.getElementById('fy-week-sel').value;
+  if (!fyData.weeks[k]) fyData.weeks[k] = {};
+  const w = fyData.weeks[k];
+  w.tweet = {total:document.getElementById('fy-tw-total').value, feel:document.getElementById('fy-tw-feel').value,
+    log:document.getElementById('fy-tw-log').value, biz:document.getElementById('fy-tw-biz').value,
+    new:document.getElementById('fy-tw-new').value, fans:document.getElementById('fy-tw-fans').value,
+    best:document.getElementById('fy-tw-best').value};
+  w.ai = {done:document.getElementById('fy-ai-done').value, block:document.getElementById('fy-ai-block').value};
+  w.side = {done:document.getElementById('fy-side-done').value, next:document.getElementById('fy-side-next').value};
+  w.trade = {...(w.trade||{}), spot:document.getElementById('fy-tr-spot').value, note:document.getElementById('fy-tr-note').value};
+  w.summary = document.getElementById('fy-week-summary').value;
+  w.next = document.getElementById('fy-week-next').value;
+  fySave(); fyFlash('fy-week-saved');
+}
+
+function fyAddWeek() {
+  const keys = Object.keys(fyData.weeks).map(Number).sort((a,b)=>a-b);
+  const next = String(keys.length ? keys[keys.length-1]+1 : 1);
+  fyData.weeks[next] = {}; fySave(); fyInitWeekSel();
+  document.getElementById('fy-week-sel').value = next; fyLoadWeek();
+}
+
+function fyLoadMonth() {
+  const k = document.getElementById('fy-month-sel').value;
+  const m = fyData.months[k] || {};
+  fyRefreshDir('md', m.dir || {});
+  const who = document.getElementById('fy-m-who'); if(who) who.value = m.who||'';
+  const g = m.grow || {};
+  ['ai-grow','tw-grow','side-grow','deposit'].forEach(f => { const el=document.getElementById('fy-m-'+f); if(el) el.value=g[f.replace('-','_')]||g[f]||''; });
+  const snap = m.snap || {};
+  ['rise','run','tweet','fans','cost','ai-h','income','book'].forEach(f => { const el=document.getElementById('fy-m-'+f); if(el) el.value=snap[f]||''; });
+  const bet = m.bet || {};
+  ['bet','bet-why','bet-link','bet-result'].forEach(f => { const el=document.getElementById('fy-m-'+f); if(el) el.value=bet[f.replace('bet-','').replace('bet','main')]||bet[f]||''; });
+}
+
+function fySaveMonth() {
+  const k = document.getElementById('fy-month-sel').value;
+  if (!fyData.months[k]) fyData.months[k] = {};
+  const m = fyData.months[k];
+  m.who = document.getElementById('fy-m-who').value;
+  m.grow = {};
+  ['ai-grow','tw-grow','side-grow','deposit'].forEach(f => { const el=document.getElementById('fy-m-'+f); if(el) m.grow[f]=el.value; });
+  m.snap = {};
+  ['rise','run','tweet','fans','cost','ai-h','income','book'].forEach(f => { const el=document.getElementById('fy-m-'+f); if(el) m.snap[f]=el.value; });
+  m.bet = {main:document.getElementById('fy-m-bet').value, why:document.getElementById('fy-m-bet-why').value,
+    link:document.getElementById('fy-m-bet-link').value, result:document.getElementById('fy-m-bet-result').value};
+  fySave(); fyFlash('fy-month-saved');
+}
+
+function fyAddMonth() {
+  const keys = Object.keys(fyData.months).map(Number).sort((a,b)=>a-b);
+  const next = String(Math.min(12, keys.length ? keys[keys.length-1]+1 : 4));
+  fyData.months[next] = {}; fySave(); fyInitMonthSel();
+  document.getElementById('fy-month-sel').value = next; fyLoadMonth();
+}
+
+function fyBuildWarnings() {
+  const tbody = document.getElementById('fy-warn-body'); if (!tbody) return;
+  tbody.innerHTML = '';
+  FY_WARNS.forEach((w, i) => {
+    const cur = fyData.warnings[i] || '';
+    const plateColors = {推特:'background:#D6EAF8;color:#0C447C', AI学习:'background:#D8F3DC;color:#085041', 副业:'background:#FFF3CD;color:#633806', 交易:'background:#FDEBD0;color:#712B13', 方向:'background:#E8DAEF;color:#3C3489', 费用:'background:#FCE4D6;color:#712B13'};
+    const pc = plateColors[w.plate] || '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td style="padding:8px 10px;border-bottom:1px solid var(--border)"><span style="font-size:.72rem;padding:2px 8px;border-radius:10px;font-weight:500;${pc}">${w.plate}</span></td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:.8rem">${w.signal}</td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <button class="btn btn-ghost btn-sm" style="font-size:.72rem;${cur==='ok'?'background:var(--ok-l);color:var(--ok)':''}" onclick="fySetWarn(${i},'ok')">✅ 正常</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:.72rem;${cur==='warn'?'background:var(--warn-l);color:var(--warn)':''}" onclick="fySetWarn(${i},'warn')">⚠️ 需关注</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:.72rem;${cur==='bad'?'background:var(--bad-l);color:var(--bad)':''}" onclick="fySetWarn(${i},'bad')">❌ 已触发</button>
+        </div>
+      </td>
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:.78rem;color:var(--text3)">${w.action}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function fySetWarn(i, val) { fyData.warnings[i] = val; fySave(); fyBuildWarnings(); }
+function fySaveWarnings() { fySave(); fyFlash('fy-warn-saved'); }
+function fyFlash(id) { const el=document.getElementById(id); if(!el) return; el.style.display='inline'; setTimeout(()=>el.style.display='none', 2000); }
+
+// 初始化五年计划
+function fyInit() {
+  fyBuildDirFields('fy-dir-fields', 'wd');
+  fyBuildDirFields('fy-mdir-fields', 'md');
+  fyInitWeekSel();
+  fyInitMonthSel();
+  fyLoadWeek();
+  fyLoadMonth();
+}
+// 延迟初始化，等 DOM ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', fyInit);
+} else {
+  fyInit();
+}
+
+</script>
