@@ -1096,6 +1096,7 @@ db.auth.onAuthStateChange(async (event, session) => {
     calcSleep();
     await loadTodayCheckin();
     renderDash();
+    await fyInit();
   } else {
     document.getElementById('appWrap').style.display = 'none';
     document.getElementById('authScreen').classList.add('show');
@@ -2669,14 +2670,9 @@ document.getElementById('editHistModal').addEventListener('click', function(e) {
 });
 
 // ════════════════════════════════════════
-// 五年计划打卡 JS
+// 五年计划打卡 JS — Supabase 存储版
 // ════════════════════════════════════════
-const FY_SK = 'jump_fiveyear_v1';
-let fyData = JSON.parse(localStorage.getItem(FY_SK) || '{}');
-if (!fyData.weeks) fyData.weeks = {};
-if (!fyData.months) fyData.months = {};
-if (!fyData.warnings) fyData.warnings = {};
-
+let fyData = { weeks:{}, months:{}, warnings:{} };
 const FY_DIR = [
   {id:'dashu', label:'大树财经 稳定吗'},
   {id:'ai',    label:'AI学习 在推进吗'},
@@ -2685,31 +2681,59 @@ const FY_DIR = [
   {id:'side',  label:'副业 往前推了吗'},
 ];
 const FY_WARNS = [
-  {plate:'推特', signal:'连续3天没发推', action:'立刻发一条，哪怕很简单'},
-  {plate:'推特', signal:'连续7天没有潜在客户向内容', action:'这周补一条展示能力的推文'},
-  {plate:'推特', signal:'本月原创推文<15条', action:'找出是哪周断了，原因是什么'},
-  {plate:'AI学习', signal:'连续5天未提到OpenClaw学习', action:'今天做学习计划里的一个任务'},
-  {plate:'AI学习', signal:'当前阶段结束标志未达到却想跳阶段', action:'重读AI学习计划，逐条确认结束标志'},
-  {plate:'副业', signal:'连续2个月副业方向填⚠️或❌', action:'本月至少做一件具体的副业动作'},
-  {plate:'交易', signal:'本月有违纪操作（做短线/追涨）', action:'复盘这次违纪的触发原因'},
-  {plate:'交易', signal:'账户持续浮亏且没有复盘记录', action:'写一段复盘，不要逃避'},
-  {plate:'方向', signal:'连续2月同一条线填❌消耗', action:'月报时专项讨论这条线'},
-  {plate:'方向', signal:'成长证据连续2月写不出来', action:'问自己：这个月我学到了什么具体能力？'},
-  {plate:'费用', signal:'阿璃日均费用>¥15', action:'排查是否有脚本异常或模型配置问题'},
+  {plate:'推特',  signal:'连续3天没发推',             action:'立刻发一条，哪怕很简单'},
+  {plate:'推特',  signal:'连续7天没有潜在客户向内容',   action:'这周补一条展示能力的推文'},
+  {plate:'推特',  signal:'本月原创推文<15条',           action:'找出是哪周断了，原因是什么'},
+  {plate:'AI学习',signal:'连续5天未提到OpenClaw学习',  action:'今天做学习计划里的一个任务'},
+  {plate:'AI学习',signal:'当前阶段结束标志未达到却想跳阶段', action:'重读AI学习计划，逐条确认结束标志'},
+  {plate:'副业',  signal:'连续2个月副业方向填⚠️或❌',  action:'本月至少做一件具体的副业动作'},
+  {plate:'交易',  signal:'本月有违纪操作（做短线/追涨）', action:'复盘这次违纪的触发原因'},
+  {plate:'交易',  signal:'账户持续浮亏且没有复盘记录',  action:'写一段复盘，不要逃避'},
+  {plate:'方向',  signal:'连续2月同一条线填❌消耗',     action:'月报时专项讨论这条线'},
+  {plate:'方向',  signal:'成长证据连续2月写不出来',     action:'问自己：这个月我学到了什么具体能力？'},
+  {plate:'费用',  signal:'阿璃日均费用>¥15',           action:'排查是否有脚本异常或模型配置问题'},
 ];
 
-function fySave() { localStorage.setItem(FY_SK, JSON.stringify(fyData)); }
+// ── Supabase 读写 ──
+async function fySaveRemote() {
+  if (!currentUser) return;
+  await db.from('five_year_plan').upsert({
+    user_id: currentUser.id,
+    data: fyData,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'user_id' });
+}
 
+async function fyLoadRemote() {
+  if (!currentUser) return;
+  const { data } = await db.from('five_year_plan')
+    .select('data').eq('user_id', currentUser.id).maybeSingle();
+  if (data && data.data) {
+    fyData = data.data;
+    if (!fyData.weeks) fyData.weeks = {};
+    if (!fyData.months) fyData.months = {};
+    if (!fyData.warnings) fyData.warnings = {};
+  }
+}
+
+async function fySave() {
+  await fySaveRemote();
+}
+
+// ── Tab 切换 ──
 function fyTab(name) {
   ['weekly','monthly','milestones','warnings'].forEach(n => {
     const p = document.getElementById('fy-panel-' + n);
     const b = document.getElementById('fyt-' + n);
     if (p) p.style.display = n === name ? '' : 'none';
-    if (b) { b.className = n === name ? 'btn btn-blue btn-sm fy-tab' : 'btn btn-ghost btn-sm fy-tab'; }
+    if (b) {
+      b.className = n === name ? 'btn btn-blue btn-sm' : 'btn btn-ghost btn-sm';
+    }
   });
   if (name === 'warnings') fyBuildWarnings();
 }
 
+// ── 方向检验 ──
 function fyBuildDirFields(containerId, prefix) {
   const el = document.getElementById(containerId); if (!el) return;
   el.innerHTML = '';
@@ -2718,65 +2742,65 @@ function fyBuildDirFields(containerId, prefix) {
     row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap';
     row.innerHTML = `<span style="font-size:.82rem;min-width:170px">${line.label}</span>
       <div style="display:flex;gap:6px">
-        <button class="btn btn-ghost btn-sm" id="${prefix}-${line.id}-ok" onclick="fySetDir('${prefix}','${line.id}','ok')">✅ 投资</button>
+        <button class="btn btn-ghost btn-sm" id="${prefix}-${line.id}-ok"   onclick="fySetDir('${prefix}','${line.id}','ok')">✅ 投资</button>
         <button class="btn btn-ghost btn-sm" id="${prefix}-${line.id}-warn" onclick="fySetDir('${prefix}','${line.id}','warn')">⚠️ 原地</button>
-        <button class="btn btn-ghost btn-sm" id="${prefix}-${line.id}-bad" onclick="fySetDir('${prefix}','${line.id}','bad')">❌ 消耗</button>
+        <button class="btn btn-ghost btn-sm" id="${prefix}-${line.id}-bad"  onclick="fySetDir('${prefix}','${line.id}','bad')">❌ 消耗</button>
       </div>`;
     el.appendChild(row);
   });
 }
 
-function fySetDir(prefix, lineId, status) {
-  const isMonth = prefix === 'md';
-  const selId = isMonth ? 'fy-month-sel' : 'fy-week-sel';
-  const k = document.getElementById(selId).value;
-  const store = isMonth ? fyData.months : fyData.weeks;
-  if (!store[k]) store[k] = {};
-  if (!store[k].dir) store[k].dir = {};
-  store[k].dir[lineId] = status; fySave();
-  fyRefreshDir(prefix, store[k].dir);
-}
-
 function fyRefreshDir(prefix, dir) {
   FY_DIR.forEach(line => {
     ['ok','warn','bad'].forEach(s => {
-      const el = document.getElementById(`${prefix}-${line.id}-${s}`);
-      if (!el) return;
+      const el = document.getElementById(`${prefix}-${line.id}-${s}`); if (!el) return;
       const active = dir && dir[line.id] === s;
-      const activeClass = s==='ok' ? ' btn-ok-active' : s==='warn' ? ' btn-warn-active' : ' btn-bad-active';
-      el.style.fontWeight = active ? '600' : '';
-      el.style.background = active ? (s==='ok'?'var(--ok-l)':s==='warn'?'var(--warn-l)':'var(--bad-l)') : '';
+      el.style.fontWeight  = active ? '600' : '';
+      el.style.background  = active ? (s==='ok'?'var(--ok-l)':s==='warn'?'var(--warn-l)':'var(--bad-l)') : '';
       el.style.borderColor = active ? (s==='ok'?'var(--ok)':s==='warn'?'var(--warn)':'var(--bad)') : '';
-      el.style.color = active ? (s==='ok'?'var(--ok)':s==='warn'?'var(--warn)':'var(--bad)') : '';
+      el.style.color       = active ? (s==='ok'?'var(--ok)':s==='warn'?'var(--warn)':'var(--bad)') : '';
     });
   });
 }
 
-function fySetTrade(field, val) {
+async function fySetDir(prefix, lineId, status) {
+  const isMonth = prefix === 'md';
+  const k = document.getElementById(isMonth ? 'fy-month-sel' : 'fy-week-sel').value;
+  const store = isMonth ? fyData.months : fyData.weeks;
+  if (!store[k]) store[k] = {};
+  if (!store[k].dir) store[k].dir = {};
+  store[k].dir[lineId] = status;
+  fyRefreshDir(prefix, store[k].dir);
+  await fySave();
+}
+
+// ── 交易按钮 ──
+async function fySetTrade(field, val) {
   const k = document.getElementById('fy-week-sel').value;
   if (!fyData.weeks[k]) fyData.weeks[k] = {};
   if (!fyData.weeks[k].trade) fyData.weeks[k].trade = {};
-  fyData.weeks[k].trade[field] = val; fySave();
+  fyData.weeks[k].trade[field] = val;
   if (field === 'vio') {
-    document.getElementById('fy-tr-vio-n').style.background = val==='no' ? 'var(--ok-l)' : '';
+    document.getElementById('fy-tr-vio-n').style.background = val==='no'  ? 'var(--ok-l)'  : '';
     document.getElementById('fy-tr-vio-y').style.background = val==='yes' ? 'var(--bad-l)' : '';
   } else {
     ['A','B','C'].forEach(s => {
-      const el = document.getElementById('fy-tr-sc-'+s);
-      el.style.background = s===val ? (s==='A'?'var(--ok-l)':s==='B'?'var(--warn-l)':'var(--bad-l)') : '';
+      document.getElementById('fy-tr-sc-'+s).style.background =
+        s===val ? (s==='A'?'var(--ok-l)':s==='B'?'var(--warn-l)':'var(--bad-l)') : '';
     });
   }
+  await fySave();
 }
 
+// ── 周选择器 ──
 function fyInitWeekSel() {
   const sel = document.getElementById('fy-week-sel'); if (!sel) return;
   sel.innerHTML = '';
   let keys = Object.keys(fyData.weeks).map(Number).sort((a,b)=>a-b);
-  if (!keys.length) { fyData.weeks['14'] = {}; fySave(); keys = [14]; }
+  if (!keys.length) { fyData.weeks['14'] = {}; keys = [14]; }
   keys.forEach(k => {
     const o = document.createElement('option');
-    o.value = k; o.textContent = '第' + k + '周';
-    sel.appendChild(o);
+    o.value = k; o.textContent = '第' + k + '周'; sel.appendChild(o);
   });
   sel.value = String(keys[keys.length-1]);
 }
@@ -2785,79 +2809,84 @@ function fyInitMonthSel() {
   const sel = document.getElementById('fy-month-sel'); if (!sel) return;
   sel.innerHTML = '';
   let keys = Object.keys(fyData.months).map(Number).sort((a,b)=>a-b);
-  if (!keys.length) { fyData.months['4'] = {}; fySave(); keys = [4]; }
+  if (!keys.length) { fyData.months['4'] = {}; keys = [4]; }
   const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
   keys.forEach(k => {
     const o = document.createElement('option');
-    o.value = k; o.textContent = '2026年' + months[k-1];
-    sel.appendChild(o);
+    o.value = k; o.textContent = '2026年' + months[k-1]; sel.appendChild(o);
   });
   sel.value = String(keys[keys.length-1]);
 }
 
+// ── 周数据读写 ──
 function fyLoadWeek() {
   const k = document.getElementById('fy-week-sel').value;
   const w = fyData.weeks[k] || {};
   fyRefreshDir('wd', w.dir || {});
   const tw = w.tweet || {};
-  ['total','feel','log','biz','new','fans'].forEach(f => { const el = document.getElementById('fy-tw-'+f); if(el) el.value = tw[f]||''; });
-  const best = document.getElementById('fy-tw-best'); if(best) best.value = tw.best||'';
-  const ai = w.ai || {};
-  const sid = document.getElementById('fy-ai-done'); if(sid) sid.value = ai.done||'';
-  const sib = document.getElementById('fy-ai-block'); if(sib) sib.value = ai.block||'';
-  const sd = w.side || {};
-  const sdd = document.getElementById('fy-side-done'); if(sdd) sdd.value = sd.done||'';
-  const sdn = document.getElementById('fy-side-next'); if(sdn) sdn.value = sd.next||'';
-  const tr = w.trade || {};
-  const trspot = document.getElementById('fy-tr-spot'); if(trspot) trspot.value = tr.spot||'';
-  const trnote = document.getElementById('fy-tr-note'); if(trnote) trnote.value = tr.note||'';
-  document.getElementById('fy-tr-vio-n').style.background = tr.vio==='no' ? 'var(--ok-l)' : '';
+  ['total','feel','log','biz','new','fans'].forEach(f => { const el=document.getElementById('fy-tw-'+f); if(el) el.value=tw[f]||''; });
+  const best=document.getElementById('fy-tw-best'); if(best) best.value=tw.best||'';
+  const ai=w.ai||{};
+  const aid=document.getElementById('fy-ai-done');   if(aid) aid.value=ai.done||'';
+  const aib=document.getElementById('fy-ai-block');  if(aib) aib.value=ai.block||'';
+  const sd=w.side||{};
+  const sdd=document.getElementById('fy-side-done'); if(sdd) sdd.value=sd.done||'';
+  const sdn=document.getElementById('fy-side-next'); if(sdn) sdn.value=sd.next||'';
+  const tr=w.trade||{};
+  const trspot=document.getElementById('fy-tr-spot'); if(trspot) trspot.value=tr.spot||'';
+  const trnote=document.getElementById('fy-tr-note'); if(trnote) trnote.value=tr.note||'';
+  document.getElementById('fy-tr-vio-n').style.background = tr.vio==='no'  ? 'var(--ok-l)'  : '';
   document.getElementById('fy-tr-vio-y').style.background = tr.vio==='yes' ? 'var(--bad-l)' : '';
   ['A','B','C'].forEach(s => {
-    const el = document.getElementById('fy-tr-sc-'+s);
+    const el=document.getElementById('fy-tr-sc-'+s);
     if(el) el.style.background = tr.score===s ? (s==='A'?'var(--ok-l)':s==='B'?'var(--warn-l)':'var(--bad-l)') : '';
   });
-  const ws = document.getElementById('fy-week-summary'); if(ws) ws.value = w.summary||'';
-  const wn = document.getElementById('fy-week-next'); if(wn) wn.value = w.next||'';
+  const ws=document.getElementById('fy-week-summary'); if(ws) ws.value=w.summary||'';
+  const wn=document.getElementById('fy-week-next');    if(wn) wn.value=w.next||'';
 }
 
-function fySaveWeek() {
+async function fySaveWeek() {
   const k = document.getElementById('fy-week-sel').value;
   if (!fyData.weeks[k]) fyData.weeks[k] = {};
   const w = fyData.weeks[k];
-  w.tweet = {total:document.getElementById('fy-tw-total').value, feel:document.getElementById('fy-tw-feel').value,
-    log:document.getElementById('fy-tw-log').value, biz:document.getElementById('fy-tw-biz').value,
-    new:document.getElementById('fy-tw-new').value, fans:document.getElementById('fy-tw-fans').value,
-    best:document.getElementById('fy-tw-best').value};
-  w.ai = {done:document.getElementById('fy-ai-done').value, block:document.getElementById('fy-ai-block').value};
+  w.tweet = {
+    total:document.getElementById('fy-tw-total').value, feel:document.getElementById('fy-tw-feel').value,
+    log:document.getElementById('fy-tw-log').value,     biz:document.getElementById('fy-tw-biz').value,
+    new:document.getElementById('fy-tw-new').value,     fans:document.getElementById('fy-tw-fans').value,
+    best:document.getElementById('fy-tw-best').value
+  };
+  w.ai   = {done:document.getElementById('fy-ai-done').value,   block:document.getElementById('fy-ai-block').value};
   w.side = {done:document.getElementById('fy-side-done').value, next:document.getElementById('fy-side-next').value};
   w.trade = {...(w.trade||{}), spot:document.getElementById('fy-tr-spot').value, note:document.getElementById('fy-tr-note').value};
   w.summary = document.getElementById('fy-week-summary').value;
-  w.next = document.getElementById('fy-week-next').value;
-  fySave(); fyFlash('fy-week-saved');
+  w.next    = document.getElementById('fy-week-next').value;
+  await fySave(); fyFlash('fy-week-saved');
 }
 
-function fyAddWeek() {
+async function fyAddWeek() {
   const keys = Object.keys(fyData.weeks).map(Number).sort((a,b)=>a-b);
   const next = String(keys.length ? keys[keys.length-1]+1 : 1);
-  fyData.weeks[next] = {}; fySave(); fyInitWeekSel();
+  fyData.weeks[next] = {}; fyInitWeekSel();
   document.getElementById('fy-week-sel').value = next; fyLoadWeek();
 }
 
+// ── 月数据读写 ──
 function fyLoadMonth() {
   const k = document.getElementById('fy-month-sel').value;
   const m = fyData.months[k] || {};
   fyRefreshDir('md', m.dir || {});
-  const who = document.getElementById('fy-m-who'); if(who) who.value = m.who||'';
-  const g = m.grow || {};
-  ['ai-grow','tw-grow','side-grow','deposit'].forEach(f => { const el=document.getElementById('fy-m-'+f); if(el) el.value=g[f.replace('-','_')]||g[f]||''; });
-  const snap = m.snap || {};
+  const who=document.getElementById('fy-m-who'); if(who) who.value=m.who||'';
+  const g=m.grow||{};
+  const flds=['ai-grow','tw-grow','side-grow','deposit'];
+  flds.forEach(f => { const el=document.getElementById('fy-m-'+f); if(el) el.value=g[f]||''; });
+  const snap=m.snap||{};
   ['rise','run','tweet','fans','cost','ai-h','income','book'].forEach(f => { const el=document.getElementById('fy-m-'+f); if(el) el.value=snap[f]||''; });
-  const bet = m.bet || {};
-  ['bet','bet-why','bet-link','bet-result'].forEach(f => { const el=document.getElementById('fy-m-'+f); if(el) el.value=bet[f.replace('bet-','').replace('bet','main')]||bet[f]||''; });
+  const bet=m.bet||{};
+  const betmap={bet:'main','bet-why':'why','bet-link':'link','bet-result':'result'};
+  Object.entries(betmap).forEach(([id,key]) => { const el=document.getElementById('fy-m-'+id); if(el) el.value=bet[key]||''; });
 }
 
-function fySaveMonth() {
+async function fySaveMonth() {
   const k = document.getElementById('fy-month-sel').value;
   if (!fyData.months[k]) fyData.months[k] = {};
   const m = fyData.months[k];
@@ -2866,33 +2895,41 @@ function fySaveMonth() {
   ['ai-grow','tw-grow','side-grow','deposit'].forEach(f => { const el=document.getElementById('fy-m-'+f); if(el) m.grow[f]=el.value; });
   m.snap = {};
   ['rise','run','tweet','fans','cost','ai-h','income','book'].forEach(f => { const el=document.getElementById('fy-m-'+f); if(el) m.snap[f]=el.value; });
-  m.bet = {main:document.getElementById('fy-m-bet').value, why:document.getElementById('fy-m-bet-why').value,
-    link:document.getElementById('fy-m-bet-link').value, result:document.getElementById('fy-m-bet-result').value};
-  fySave(); fyFlash('fy-month-saved');
+  m.bet = {
+    main:document.getElementById('fy-m-bet').value,        why:document.getElementById('fy-m-bet-why').value,
+    link:document.getElementById('fy-m-bet-link').value,   result:document.getElementById('fy-m-bet-result').value
+  };
+  await fySave(); fyFlash('fy-month-saved');
 }
 
-function fyAddMonth() {
+async function fyAddMonth() {
   const keys = Object.keys(fyData.months).map(Number).sort((a,b)=>a-b);
   const next = String(Math.min(12, keys.length ? keys[keys.length-1]+1 : 4));
-  fyData.months[next] = {}; fySave(); fyInitMonthSel();
+  fyData.months[next] = {}; fyInitMonthSel();
   document.getElementById('fy-month-sel').value = next; fyLoadMonth();
 }
 
+// ── 漂移预警 ──
 function fyBuildWarnings() {
   const tbody = document.getElementById('fy-warn-body'); if (!tbody) return;
   tbody.innerHTML = '';
+  const plateColors = {
+    推特:'background:#D6EAF8;color:#0C447C', AI学习:'background:#D8F3DC;color:#085041',
+    副业:'background:#FFF3CD;color:#633806',  交易:'background:#FDEBD0;color:#712B13',
+    方向:'background:#E8DAEF;color:#3C3489',  费用:'background:#FCE4D6;color:#712B13'
+  };
   FY_WARNS.forEach((w, i) => {
     const cur = fyData.warnings[i] || '';
-    const plateColors = {推特:'background:#D6EAF8;color:#0C447C', AI学习:'background:#D8F3DC;color:#085041', 副业:'background:#FFF3CD;color:#633806', 交易:'background:#FDEBD0;color:#712B13', 方向:'background:#E8DAEF;color:#3C3489', 费用:'background:#FCE4D6;color:#712B13'};
     const pc = plateColors[w.plate] || '';
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td style="padding:8px 10px;border-bottom:1px solid var(--border)"><span style="font-size:.72rem;padding:2px 8px;border-radius:10px;font-weight:500;${pc}">${w.plate}</span></td>
+    tr.innerHTML = `
+      <td style="padding:8px 10px;border-bottom:1px solid var(--border)"><span style="font-size:.72rem;padding:2px 8px;border-radius:10px;font-weight:500;${pc}">${w.plate}</span></td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:.8rem">${w.signal}</td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border)">
         <div style="display:flex;flex-direction:column;gap:4px">
-          <button class="btn btn-ghost btn-sm" style="font-size:.72rem;${cur==='ok'?'background:var(--ok-l);color:var(--ok)':''}" onclick="fySetWarn(${i},'ok')">✅ 正常</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:.72rem;${cur==='ok'  ?'background:var(--ok-l);color:var(--ok)':''}"   onclick="fySetWarn(${i},'ok')">✅ 正常</button>
           <button class="btn btn-ghost btn-sm" style="font-size:.72rem;${cur==='warn'?'background:var(--warn-l);color:var(--warn)':''}" onclick="fySetWarn(${i},'warn')">⚠️ 需关注</button>
-          <button class="btn btn-ghost btn-sm" style="font-size:.72rem;${cur==='bad'?'background:var(--bad-l);color:var(--bad)':''}" onclick="fySetWarn(${i},'bad')">❌ 已触发</button>
+          <button class="btn btn-ghost btn-sm" style="font-size:.72rem;${cur==='bad' ?'background:var(--bad-l);color:var(--bad)':''}"   onclick="fySetWarn(${i},'bad')">❌ 已触发</button>
         </div>
       </td>
       <td style="padding:8px 10px;border-bottom:1px solid var(--border);font-size:.78rem;color:var(--text3)">${w.action}</td>`;
@@ -2900,24 +2937,25 @@ function fyBuildWarnings() {
   });
 }
 
-function fySetWarn(i, val) { fyData.warnings[i] = val; fySave(); fyBuildWarnings(); }
-function fySaveWarnings() { fySave(); fyFlash('fy-warn-saved'); }
-function fyFlash(id) { const el=document.getElementById(id); if(!el) return; el.style.display='inline'; setTimeout(()=>el.style.display='none', 2000); }
+async function fySetWarn(i, val) {
+  fyData.warnings[i] = val;
+  fyBuildWarnings();
+  await fySave();
+}
 
-// 初始化五年计划
-function fyInit() {
+async function fySaveWarnings() { await fySave(); fyFlash('fy-warn-saved'); }
+function fyFlash(id) { const el=document.getElementById(id); if(!el) return; el.style.display='inline'; setTimeout(()=>el.style.display='none',2000); }
+
+// ── 初始化（登录后调用）──
+async function fyInit() {
+  await fyLoadRemote();
   fyBuildDirFields('fy-dir-fields', 'wd');
   fyBuildDirFields('fy-mdir-fields', 'md');
   fyInitWeekSel();
   fyInitMonthSel();
   fyLoadWeek();
   fyLoadMonth();
-}
-// 延迟初始化，等 DOM ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', fyInit);
-} else {
-  fyInit();
+  fyTab('weekly');
 }
 
 </script>
