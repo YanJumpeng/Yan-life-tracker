@@ -1019,8 +1019,6 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
     <button class="btn btn-ghost btn-sm fy-tab" id="fyt-monthly" onclick="fyTab('monthly')">每月对照</button>
     <button class="btn btn-ghost btn-sm fy-tab" id="fyt-milestones" onclick="fyTab('milestones')">三年里程碑</button>
     <button class="btn btn-ghost btn-sm fy-tab" id="fyt-warnings" onclick="fyTab('warnings')">漂移预警</button>
-    <button class="btn btn-ghost btn-sm fy-tab" id="fyt-health" onclick="fyTab('health')">健康身体</button>
-    <button class="btn btn-ghost btn-sm fy-tab" id="fyt-reading" onclick="fyTab('reading')">读书</button>
   </div>
 
   <div id="fy-panel-weekly">
@@ -1118,6 +1116,47 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
       </div>
       <div><label style="font-size:.72rem;color:var(--text3)">交易备注/复盘</label><textarea id="fy-tr-note" class="form-textarea" rows="2" placeholder="本周交易情况简述"></textarea></div>
     </div>
+    <div class="card mb"><div class="card-head">G · 健康身体</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:.6rem">
+        <div><label style="font-size:.72rem;color:var(--text3)">7:30前起床天数</label><input type="number" id="fy-h-rise" class="form-input" min="0" max="7" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">跑步次数</label><input type="number" id="fy-h-run-cnt" class="form-input" min="0" max="7" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">跑步总距离(km)</label><input type="number" id="fy-h-run-km" class="form-input" min="0" step="0.1" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">健身房次数</label><input type="number" id="fy-h-gym-cnt" class="form-input" min="0" max="7" placeholder="0"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">平均睡眠时长(h)</label><input type="number" id="fy-h-sleep" class="form-input" min="0" max="12" step="0.5" placeholder="7"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">12点前入睡天数</label><input type="number" id="fy-h-sleep-cnt" class="form-input" min="0" max="7" placeholder="0"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem">
+        <div>
+          <label style="font-size:.72rem;color:var(--text3)">整体精力状态</label>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <button class="btn btn-ghost btn-sm" id="fy-h-energy-good" onclick="fySetHealth('energy','good')">🔥 充沛</button>
+            <button class="btn btn-ghost btn-sm" id="fy-h-energy-ok"   onclick="fySetHealth('energy','ok')">😐 一般</button>
+            <button class="btn btn-ghost btn-sm" id="fy-h-energy-bad"  onclick="fySetHealth('energy','bad')">😴 疲惫</button>
+          </div>
+        </div>
+        <div><label style="font-size:.72rem;color:var(--text3)">身体备注</label><textarea id="fy-h-note" class="form-textarea" rows="2" placeholder="受伤/生病/特别好的状态……"></textarea></div>
+      </div>
+    </div>
+
+    <div class="card mb"><div class="card-head">H · 读书</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem;margin-bottom:.6rem">
+        <div><label style="font-size:.72rem;color:var(--text3)">在读书目</label><input type="text" id="fy-r-book" class="form-input" placeholder="书名"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">本周读了多少</label><input type="text" id="fy-r-progress" class="form-input" placeholder="例：第3章 / 50页 / 全书30%"></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">阅读天数</label><input type="number" id="fy-r-days" class="form-input" min="0" max="7" placeholder="0"></div>
+        <div>
+          <label style="font-size:.72rem;color:var(--text3)">读满30分钟/天？</label>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <button class="btn btn-ghost btn-sm" id="fy-r-30min-y" onclick="fySetReading('min30','yes')">✅ 大多数天有</button>
+            <button class="btn btn-ghost btn-sm" id="fy-r-30min-n" onclick="fySetReading('min30','no')">❌ 没有</button>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem">
+        <div><label style="font-size:.72rem;color:var(--text3)">最触动的一句话或观点</label><textarea id="fy-r-insight" class="form-textarea" rows="3" placeholder="不一定要深刻，有触动就值得记"></textarea></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">能用上的地方（连接现实）</label><textarea id="fy-r-apply" class="form-textarea" rows="3" placeholder="这个观点能用在哪？工作/推文/交易/生活？"></textarea></div>
+      </div>
+    </div>
+
     <div class="card mb"><div class="card-head">本周总结</div>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem">
         <div><label style="font-size:.72rem;color:var(--text3)">本周状态（一句话）</label><textarea id="fy-week-summary" class="form-textarea" rows="2" placeholder="用一句话描述这周的状态"></textarea></div>
@@ -1196,62 +1235,6 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
           <tr style="background:var(--ok-l)"><td style="padding:7px 10px;border:1px solid var(--border);font-weight:600">合计</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border);font-weight:600">32万</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border);font-weight:600">~2.7万</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border)"><span style="background:#E8DAEF;color:#3C3489;font-size:.72rem;padding:2px 8px;border-radius:10px">2028目标</span></td></tr>
         </tbody>
       </table>
-    </div>
-  </div>
-
-  <div id="fy-panel-health" style="display:none">
-    <div class="card mb"><div class="card-head">本周身体数据</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem">
-        <div><label style="font-size:.72rem;color:var(--text3)">7:30前起床天数</label><input type="number" id="fy-h-rise" class="form-input" min="0" max="7" placeholder="0"></div>
-        <div><label style="font-size:.72rem;color:var(--text3)">跑步次数</label><input type="number" id="fy-h-run-cnt" class="form-input" min="0" max="7" placeholder="0"></div>
-        <div><label style="font-size:.72rem;color:var(--text3)">跑步总距离(km)</label><input type="number" id="fy-h-run-km" class="form-input" min="0" step="0.1" placeholder="0"></div>
-        <div><label style="font-size:.72rem;color:var(--text3)">健身房次数</label><input type="number" id="fy-h-gym-cnt" class="form-input" min="0" max="7" placeholder="0"></div>
-        <div><label style="font-size:.72rem;color:var(--text3)">平均睡眠时长(h)</label><input type="number" id="fy-h-sleep" class="form-input" min="0" max="12" step="0.5" placeholder="7"></div>
-        <div><label style="font-size:.72rem;color:var(--text3)">12点前入睡天数</label><input type="number" id="fy-h-sleep-cnt" class="form-input" min="0" max="7" placeholder="0"></div>
-      </div>
-    </div>
-    <div class="card mb"><div class="card-head">本周身体状态</div>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem">
-        <div>
-          <label style="font-size:.72rem;color:var(--text3)">整体精力状态</label>
-          <div style="display:flex;gap:6px;margin-top:4px">
-            <button class="btn btn-ghost btn-sm" id="fy-h-energy-good" onclick="fySetHealth('energy','good')">🔥 充沛</button>
-            <button class="btn btn-ghost btn-sm" id="fy-h-energy-ok" onclick="fySetHealth('energy','ok')">😐 一般</button>
-            <button class="btn btn-ghost btn-sm" id="fy-h-energy-bad" onclick="fySetHealth('energy','bad')">😴 疲惫</button>
-          </div>
-        </div>
-        <div><label style="font-size:.72rem;color:var(--text3)">本周身体备注</label><textarea id="fy-h-note" class="form-textarea" rows="2" placeholder="受伤/生病/特别好的状态……"></textarea></div>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:.8rem">
-      <button class="btn btn-primary" onclick="fySaveHealth()">保存本周健康</button>
-      <span id="fy-health-saved" style="display:none;font-size:.75rem;color:var(--ok)">已保存 ✓</span>
-    </div>
-  </div>
-
-  <div id="fy-panel-reading" style="display:none">
-    <div class="card mb"><div class="card-head">本周读书情况</div>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem">
-        <div><label style="font-size:.72rem;color:var(--text3)">在读书目</label><input type="text" id="fy-r-book" class="form-input" placeholder="书名"></div>
-        <div><label style="font-size:.72rem;color:var(--text3)">本周读了多少</label><input type="text" id="fy-r-progress" class="form-input" placeholder="例：第3章 / 50页 / 全书30%"></div>
-        <div><label style="font-size:.72rem;color:var(--text3)">本周阅读天数</label><input type="number" id="fy-r-days" class="form-input" min="0" max="7" placeholder="0"></div>
-        <div><label style="font-size:.72rem;color:var(--text3)">有没有读满30分钟/天</label>
-          <div style="display:flex;gap:6px;margin-top:4px">
-            <button class="btn btn-ghost btn-sm" id="fy-r-30min-y" onclick="fySetReading('min30','yes')">✅ 大多数天有</button>
-            <button class="btn btn-ghost btn-sm" id="fy-r-30min-n" onclick="fySetReading('min30','no')">❌ 没有</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="card mb"><div class="card-head">本周读书收获</div>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem">
-        <div><label style="font-size:.72rem;color:var(--text3)">最触动的一句话或一个观点</label><textarea id="fy-r-insight" class="form-textarea" rows="3" placeholder="不一定要深刻，有触动就值得记"></textarea></div>
-        <div><label style="font-size:.72rem;color:var(--text3)">能用上的地方（连接现实）</label><textarea id="fy-r-apply" class="form-textarea" rows="3" placeholder="这个观点能用在哪？工作/推文/交易/生活？"></textarea></div>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:.8rem">
-      <button class="btn btn-primary" onclick="fySaveReading()">保存本周读书</button>
-      <span id="fy-reading-saved" style="display:none;font-size:.75rem;color:var(--ok)">已保存 ✓</span>
     </div>
   </div>
 
@@ -2830,7 +2813,7 @@ async function fySave() {
 
 // ── Tab 切换 ──
 function fyTab(name) {
-  ['weekly','monthly','milestones','warnings','health','reading'].forEach(n => {
+  ['weekly','monthly','milestones','warnings'].forEach(n => {
     const p = document.getElementById('fy-panel-' + n);
     const b = document.getElementById('fyt-' + n);
     if (p) p.style.display = n === name ? '' : 'none';
