@@ -2663,6 +2663,7 @@ async function submitAddRecord() {
     cycling: parseFloat(document.getElementById('add_cycling').value) || 0,
     habits,
     note: document.getElementById('add_note').value || null,
+    gym: document.getElementById('add_gym').value || null,
   };
   const { error } = await db.from('daily_records').upsert(payload, { onConflict: 'user_id,date' });
   if (error) { alert('保存失败：' + error.message); return; }
@@ -2692,6 +2693,7 @@ function editHistRecord(r) {
   document.getElementById('eh_cycling').value = r.cycling || 0;
   document.getElementById('eh_cy_pace').value = h['骑行配速'] || 0;
   document.getElementById('eh_note').value = r.note || '';
+  document.getElementById('eh_gym').value = r.gym || '';
   // 渲染习惯芯片
   const habitKeys = ['深度阅读','锻炼身体','写作','学习技能','整理房间','独处思考','主动社交','复盘','早起'];
   document.getElementById('eh_habits').innerHTML = habitKeys.map(k =>
@@ -2744,6 +2746,7 @@ async function saveEditHist() {
     running: +document.getElementById('eh_running').value || 0,
     cycling: +document.getElementById('eh_cycling').value || 0,
     note:    document.getElementById('eh_note').value,
+    gym:     document.getElementById('eh_gym').value || null,
     habits
   };
 
