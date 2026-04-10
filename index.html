@@ -816,6 +816,26 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
     <div class="card-head">🏋️ 健身房训练记录</div>
     <textarea class="form-textarea" id="gymRecord" placeholder="部位:胸+三头 | 消耗:353卡 | 总重:6180kg | 时长:48min&#10;杠铃卧推 50kg×8×3&#10;上斜卧推 30kg×10×4&#10;..." style="min-height:100px;font-size:.8rem"></textarea>
   </div>
+  <div class="card mb" id="bodyDataCard">
+    <div class="card-head" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="toggleBodyCard()">
+      <span>📊 本周身体数据</span>
+      <span id="bodyCardHint" style="font-size:.72rem;color:var(--text3)"></span>
+      <span id="bodyCardArrow" style="font-size:.8rem;color:var(--text3)">▼</span>
+    </div>
+    <div id="bodyCardContent" style="display:none;margin-top:.8rem">
+      <p style="font-size:.72rem;color:var(--text3);margin-bottom:.8rem">建议每周一或周日记录一次，追踪身体变化趋势</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+        <div>
+          <label class="form-label">体重 (kg)</label>
+          <input type="number" id="bodyWeight" class="form-input" step="0.1" min="30" max="200" placeholder="例：72.5">
+        </div>
+        <div>
+          <label class="form-label">体脂率 (%)</label>
+          <input type="number" id="bodyFat" class="form-input" step="0.1" min="3" max="60" placeholder="例：18.5">
+        </div>
+      </div>
+    </div>
+  </div>
   <div class="card mb"><div class="card-head">今日备注</div><textarea class="form-textarea" id="dailyNote" placeholder="今天发生了什么？有什么感受……"></textarea></div>
   <div style="display:flex;gap:.7rem">
     <button class="btn btn-primary" id="saveCheckinBtn" onclick="saveCheckin()">✓ 保存打卡</button>
@@ -850,7 +870,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
     <table class="htable">
       <thead><tr>
         <th>日期</th><th>入睡</th><th>起床</th><th>睡眠</th>
-        <th>俯卧撑</th><th>深蹲</th><th>引体</th><th>臂曲伸</th><th>卷腹</th><th>跑步</th><th>配速</th><th>骑行</th><th style="color:var(--c-checkin)">健身房</th>
+        <th>俯卧撑</th><th>深蹲</th><th>引体</th><th>臂曲伸</th><th>卷腹</th><th>跑步</th><th>配速</th><th>骑行</th><th style="color:var(--c-checkin)">健身房</th><th style="color:#a78bfa">体重</th><th style="color:#f472b6">体脂%</th>
       </tr></thead>
       <tbody id="histBody"></tbody>
     </table>
@@ -1438,6 +1458,13 @@ async function loadTodayCheckin() {
     document.getElementById('ru_pace').value = hp['跑步配速'] || '';
     document.getElementById('dailyNote').value = data.note || '';
     document.getElementById('gymRecord').value = data.gym || '';
+    if (data.weight)   { document.getElementById('bodyWeight').value = data.weight; }
+    if (data.body_fat) { document.getElementById('bodyFat').value = data.body_fat; }
+    if (data.weight || data.body_fat) {
+      document.getElementById('bodyCardContent').style.display = 'block';
+      document.getElementById('bodyCardArrow').textContent = '▲';
+      document.getElementById('bodyCardHint').textContent = data.weight ? data.weight+'kg' + (data.body_fat ? ' · '+data.body_fat+'%' : '') : '';
+    }
     const habits = data.habits || {};
     document.querySelectorAll('.h-chip').forEach(chip => {
       const h = chip.dataset.habit;
@@ -1558,6 +1585,8 @@ async function saveCheckin() {
     running: +document.getElementById('ru').value  || 0,
     note:    document.getElementById('dailyNote').value,
     gym:     document.getElementById('gymRecord').value || null,
+    weight:    parseFloat(document.getElementById('bodyWeight')?.value) || null,
+    body_fat:  parseFloat(document.getElementById('bodyFat')?.value)    || null,
     habits,
   };
   const { data: upsertData, error } = await db.from('daily_records').upsert(payload, { onConflict: 'user_id,date' });
@@ -1631,6 +1660,8 @@ async function loadAndRenderHistory() {
       <td style="color:var(--text2)">${h['跑步配速']||'/'}</td>
       <td style="color:var(--c-history)">${r.cycling||'/'}</td>
       <td style="color:var(--c-checkin);font-size:.75rem">${r.gym ? `<span class="gym-toggle" onclick="event.stopPropagation();toggleGym(this)" style="cursor:pointer;user-select:none">🏋️</span>` : '/'}</td>
+      <td style="color:#a78bfa;font-weight:600">${r.weight ? r.weight+'kg' : '/'}</td>
+      <td style="color:#f472b6;font-weight:600">${r.body_fat ? r.body_fat+'%' : '/'}</td>
     </tr>` + (r.gym ? `<tr class="gym-detail" style="display:none"><td colspan="14" style="padding:.25rem .6rem .5rem 1.2rem;font-size:.72rem;color:var(--text3);white-space:pre-wrap;line-height:1.7;background:var(--sf2);border-bottom:1px solid var(--border)">${r.gym.replace(/\n/g,'<br>')}</td></tr>` : '');
   }).join('');
 
@@ -2664,7 +2695,9 @@ async function submitAddRecord() {
     cycling: parseFloat(document.getElementById('add_cycling').value) || 0,
     habits,
     note: document.getElementById('add_note').value || null,
-    gym: document.getElementById('add_gym').value || null,
+    gym:      document.getElementById('add_gym').value || null,
+    weight:   parseFloat(document.getElementById('add_weight')?.value)   || null,
+    body_fat: parseFloat(document.getElementById('add_body_fat')?.value) || null,
   };
   const { error } = await db.from('daily_records').upsert(payload, { onConflict: 'user_id,date' });
   if (error) { alert('保存失败：' + error.message); return; }
@@ -2695,6 +2728,8 @@ function editHistRecord(r) {
   document.getElementById('eh_cy_pace').value = h['骑行配速'] || 0;
   document.getElementById('eh_note').value = r.note || '';
   document.getElementById('eh_gym').value = r.gym || '';
+  document.getElementById('eh_weight').value   = r.weight   || '';
+  document.getElementById('eh_body_fat').value = r.body_fat || '';
   // 渲染习惯芯片
   const habitKeys = ['深度阅读','锻炼身体','写作','学习技能','整理房间','独处思考','主动社交','复盘','早起'];
   document.getElementById('eh_habits').innerHTML = habitKeys.map(k =>
@@ -2748,6 +2783,8 @@ async function saveEditHist() {
     cycling: +document.getElementById('eh_cycling').value || 0,
     note:    document.getElementById('eh_note').value,
     gym:     document.getElementById('eh_gym').value || null,
+    weight:   parseFloat(document.getElementById('eh_weight').value)   || null,
+    body_fat: parseFloat(document.getElementById('eh_body_fat').value) || null,
     habits
   };
 
@@ -2933,6 +2970,14 @@ async function fySaveReading() {
   const ins=document.getElementById('fy-r-insight'); if(ins) r.insight=ins.value;
   const app=document.getElementById('fy-r-apply');   if(app) r.apply=app.value;
   await fySave(); fyFlash('fy-reading-saved');
+}
+
+function toggleBodyCard() {
+  const content = document.getElementById('bodyCardContent');
+  const arrow   = document.getElementById('bodyCardArrow');
+  const open = content.style.display === 'none';
+  content.style.display = open ? 'block' : 'none';
+  arrow.textContent = open ? '▲' : '▼';
 }
 
 async function fySetBizContent(val) {
