@@ -689,6 +689,8 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
     <div class="nav-sec">
       <div class="nav-sec-lbl">规划</div>
       <div class="nav-item" data-mod="fiveyear" onclick="go('fiveyear',this)"><span class="nav-icon">◎</span>五年计划</div>
+      <div class="nav-sub-item" onclick="go('fiveyear',document.querySelector('[data-mod=fiveyear]'));setTimeout(()=>fyTab('hist-week'),300)" style="padding:.28rem .28rem .28rem 2.4rem;font-size:.75rem;color:var(--text3);cursor:pointer;border-radius:6px;transition:all .15s;margin:.1rem .4rem" onmouseenter="this.style.background='var(--bg)';this.style.color='var(--text)'" onmouseleave="this.style.background='';this.style.color='var(--text3)'">　周复盘历史</div>
+      <div class="nav-sub-item" onclick="go('fiveyear',document.querySelector('[data-mod=fiveyear]'));setTimeout(()=>fyTab('hist-month'),300)" style="padding:.28rem .28rem .28rem 2.4rem;font-size:.75rem;color:var(--text3);cursor:pointer;border-radius:6px;transition:all .15s;margin:.1rem .4rem" onmouseenter="this.style.background='var(--bg)';this.style.color='var(--text)'" onmouseleave="this.style.background='';this.style.color='var(--text3)'">　月对照历史</div>
     </div>
   </div>
   <div class="sidebar-foot">
