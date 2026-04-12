@@ -1039,7 +1039,8 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
     <button class="btn btn-ghost btn-sm fy-tab" id="fyt-monthly" onclick="fyTab('monthly')">每月对照</button>
     <button class="btn btn-ghost btn-sm fy-tab" id="fyt-milestones" onclick="fyTab('milestones')">三年里程碑</button>
     <button class="btn btn-ghost btn-sm fy-tab" id="fyt-warnings" onclick="fyTab('warnings')">漂移预警</button>
-    <button class="btn btn-ghost btn-sm fy-tab" id="fyt-history" onclick="fyTab('history')">历史记录</button>
+    <button class="btn btn-ghost btn-sm fy-tab" id="fyt-hist-week" onclick="fyTab('hist-week')">周复盘历史</button>
+    <button class="btn btn-ghost btn-sm fy-tab" id="fyt-hist-month" onclick="fyTab('hist-month')">月对照历史</button>
   </div>
 
   <div id="fy-panel-weekly">
@@ -1259,17 +1260,14 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
     </div>
   </div>
 
-  <div id="fy-panel-history" style="display:none">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-      <div style="font-size:.9rem;font-weight:500">历史复盘记录</div>
-      <div style="display:flex;gap:.6rem;align-items:center">
-        <select id="fy-hist-type" class="form-input" style="width:auto;padding:.3rem .6rem;font-size:.8rem" onchange="fyRenderHistory()">
-          <option value="week">每周复盘</option>
-          <option value="month">每月对照</option>
-        </select>
-      </div>
-    </div>
-    <div id="fy-history-list"></div>
+  <div id="fy-panel-hist-week" style="display:none">
+    <div style="font-size:.9rem;font-weight:500;margin-bottom:1rem">📅 周复盘历史</div>
+    <div id="fy-history-week-list"></div>
+  </div>
+
+  <div id="fy-panel-hist-month" style="display:none">
+    <div style="font-size:.9rem;font-weight:500;margin-bottom:1rem">📆 月对照历史</div>
+    <div id="fy-history-month-list"></div>
   </div>
 
   <div id="fy-panel-warnings" style="display:none">
@@ -2872,7 +2870,7 @@ async function fySave() {
 
 // ── Tab 切换 ──
 function fyTab(name) {
-  ['weekly','monthly','milestones','warnings','history'].forEach(n => {
+  ['weekly','monthly','milestones','warnings','hist-week','hist-month'].forEach(n => {
     const p = document.getElementById('fy-panel-' + n);
     const b = document.getElementById('fyt-' + n);
     if (p) p.style.display = n === name ? '' : 'none';
@@ -2881,7 +2879,8 @@ function fyTab(name) {
     }
   });
   if (name === 'warnings') fyBuildWarnings();
-  if (name === 'history') fyRenderHistory();
+  if (name === 'hist-week') fyRenderHistory('week');
+  if (name === 'hist-month') fyRenderHistory('month');
 }
 
 // ── 方向检验 ──
@@ -2991,12 +2990,11 @@ async function fySaveReading() {
   await fySave(); fyFlash('fy-reading-saved');
 }
 
-function fyRenderHistory() {
-  const type = document.getElementById('fy-hist-type').value;
-  const container = document.getElementById('fy-history-list');
+function fyRenderHistory(type) {
+  const container = document.getElementById(type==='week' ? 'fy-history-week-list' : 'fy-history-month-list');
   if (!container) return;
 
-  if (type === 'week') {
+  if (type === 'week' || !type) {
     const weeks = Object.entries(fyData.weeks||{}).sort((a,b)=>Number(b[0])-Number(a[0]));
     if (!weeks.length) { container.innerHTML = '<p style="color:var(--text3);font-size:.85rem">暂无周复盘记录</p>'; return; }
     container.innerHTML = weeks.map(([k,w]) => {
