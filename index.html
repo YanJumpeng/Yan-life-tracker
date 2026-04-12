@@ -1039,6 +1039,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
     <button class="btn btn-ghost btn-sm fy-tab" id="fyt-monthly" onclick="fyTab('monthly')">每月对照</button>
     <button class="btn btn-ghost btn-sm fy-tab" id="fyt-milestones" onclick="fyTab('milestones')">三年里程碑</button>
     <button class="btn btn-ghost btn-sm fy-tab" id="fyt-warnings" onclick="fyTab('warnings')">漂移预警</button>
+    <button class="btn btn-ghost btn-sm fy-tab" id="fyt-history" onclick="fyTab('history')">历史记录</button>
   </div>
 
   <div id="fy-panel-weekly">
@@ -1256,6 +1257,19 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
         </tbody>
       </table>
     </div>
+  </div>
+
+  <div id="fy-panel-history" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <div style="font-size:.9rem;font-weight:500">历史复盘记录</div>
+      <div style="display:flex;gap:.6rem;align-items:center">
+        <select id="fy-hist-type" class="form-input" style="width:auto;padding:.3rem .6rem;font-size:.8rem" onchange="fyRenderHistory()">
+          <option value="week">每周复盘</option>
+          <option value="month">每月对照</option>
+        </select>
+      </div>
+    </div>
+    <div id="fy-history-list"></div>
   </div>
 
   <div id="fy-panel-warnings" style="display:none">
@@ -2858,7 +2872,7 @@ async function fySave() {
 
 // ── Tab 切换 ──
 function fyTab(name) {
-  ['weekly','monthly','milestones','warnings'].forEach(n => {
+  ['weekly','monthly','milestones','warnings','history'].forEach(n => {
     const p = document.getElementById('fy-panel-' + n);
     const b = document.getElementById('fyt-' + n);
     if (p) p.style.display = n === name ? '' : 'none';
@@ -2867,6 +2881,7 @@ function fyTab(name) {
     }
   });
   if (name === 'warnings') fyBuildWarnings();
+  if (name === 'history') fyRenderHistory();
 }
 
 // ── 方向检验 ──
@@ -2974,6 +2989,69 @@ async function fySaveReading() {
   const ins=document.getElementById('fy-r-insight'); if(ins) r.insight=ins.value;
   const app=document.getElementById('fy-r-apply');   if(app) r.apply=app.value;
   await fySave(); fyFlash('fy-reading-saved');
+}
+
+function fyRenderHistory() {
+  const type = document.getElementById('fy-hist-type').value;
+  const container = document.getElementById('fy-history-list');
+  if (!container) return;
+
+  if (type === 'week') {
+    const weeks = Object.entries(fyData.weeks||{}).sort((a,b)=>Number(b[0])-Number(a[0]));
+    if (!weeks.length) { container.innerHTML = '<p style="color:var(--text3);font-size:.85rem">暂无周复盘记录</p>'; return; }
+    container.innerHTML = weeks.map(([k,w]) => {
+      const dir = w.dir || {};
+      const dirHtml = Object.entries(dir).map(([id,s]) => {
+        const line = (window.FY_DIR||[]).find(l=>l.id===id);
+        const label = line ? line.label : id;
+        const icon = s==='ok'?'✅':s==='warn'?'⚠️':'❌';
+        return `<span style="font-size:.72rem;margin-right:.5rem">${icon} ${label}</span>`;
+      }).join('');
+      const workQ = (w.work||{}).quality;
+      const workQStr = workQ ? `大树: ${workQ==='A'?'✅优秀':workQ==='B'?'😐正常':'⚠️凑合'}` : '';
+      const golden = w.goldenDays ? `🌅黄金${w.goldenDays}/7天` : '';
+      return `<div class="card mb" style="padding:1rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">
+          <span style="font-weight:500;color:var(--text)">第 ${k} 周</span>
+          <span style="font-size:.72rem;color:var(--text3)">${[workQStr,golden].filter(Boolean).join(' · ')}</span>
+        </div>
+        ${dirHtml ? `<div style="margin-bottom:.5rem;line-height:2">${dirHtml}</div>` : ''}
+        ${w.ai?.done ? `<div style="font-size:.78rem;color:var(--text2);margin-bottom:.3rem">🤖 AI: ${w.ai.done.slice(0,60)}${w.ai.done.length>60?'…':''}</div>` : ''}
+        ${w.side?.done ? `<div style="font-size:.78rem;color:var(--text2);margin-bottom:.3rem">💼 副业: ${w.side.done.slice(0,60)}${w.side.done.length>60?'…':''}</div>` : ''}
+        ${w.health?.energy ? `<div style="font-size:.78rem;color:var(--text2);margin-bottom:.3rem">💪 精力: ${w.health.energy==='good'?'🔥充沛':w.health.energy==='ok'?'😐一般':'😴疲惫'} · 跑${w.health['run-cnt']||0}次 健身${w.health['gym-cnt']||0}次</div>` : ''}
+        ${w.reading?.book ? `<div style="font-size:.78rem;color:var(--text2);margin-bottom:.3rem">📚 在读: ${w.reading.book} ${w.reading.progress||''}</div>` : ''}
+        ${w.summary ? `<div style="font-size:.78rem;color:var(--text3);border-top:1px solid var(--border);padding-top:.5rem;margin-top:.5rem">${w.summary.slice(0,100)}${w.summary.length>100?'…':''}</div>` : ''}
+      </div>`;
+    }).join('');
+
+  } else {
+    const months = Object.entries(fyData.months||{}).sort((a,b)=>b[0].localeCompare(a[0]));
+    if (!months.length) { container.innerHTML = '<p style="color:var(--text3);font-size:.85rem">暂无月度记录</p>'; return; }
+    container.innerHTML = months.map(([k,m]) => {
+      const snap = m.snap||{};
+      const bet = m.bet||{};
+      const dir = m.dir||{};
+      const dirHtml = Object.entries(dir).map(([id,s]) => {
+        const line = (window.FY_DIR||[]).find(l=>l.id===id);
+        const label = line ? line.label : id;
+        const icon = s==='ok'?'✅':s==='warn'?'⚠️':'❌';
+        return `<span style="font-size:.72rem;margin-right:.5rem">${icon} ${label}</span>`;
+      }).join('');
+      return `<div class="card mb" style="padding:1rem">
+        <div style="font-weight:500;color:var(--text);margin-bottom:.6rem">${k}</div>
+        ${m.who ? `<div style="font-size:.8rem;color:var(--text2);margin-bottom:.5rem;font-style:italic">"${m.who.slice(0,80)}${m.who.length>80?'…':''}"</div>` : ''}
+        ${dirHtml ? `<div style="margin-bottom:.5rem;line-height:2">${dirHtml}</div>` : ''}
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.4rem;margin-bottom:.5rem">
+          ${snap.rise ? `<div style="font-size:.72rem;color:var(--text3)">🌅 早起 ${snap.rise}天</div>` : ''}
+          ${snap.run ? `<div style="font-size:.72rem;color:var(--text3)">🏃 跑步 ${snap.run}km</div>` : ''}
+          ${snap.tweet ? `<div style="font-size:.72rem;color:var(--text3)">🐦 推文 ${snap.tweet}条</div>` : ''}
+          ${snap.income ? `<div style="font-size:.72rem;color:var(--text3)">💰 副业 ¥${snap.income}</div>` : ''}
+        </div>
+        ${bet.main ? `<div style="font-size:.78rem;padding:.4rem .6rem;background:var(--sf2);border-radius:6px;color:var(--text2)">🎯 押注: ${bet.main.slice(0,80)}${bet.main.length>80?'…':''}</div>` : ''}
+        ${bet.result ? `<div style="font-size:.78rem;margin-top:.3rem;color:${bet.result.includes('✅')?'var(--ok)':'var(--text3)'}">结果: ${bet.result.slice(0,60)}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
 }
 
 function toggleBodyCard() {
@@ -3115,17 +3193,30 @@ async function fySaveWeek() {
   if (!fyData.weeks[k]) fyData.weeks[k] = {};
   const w = fyData.weeks[k];
   w.tweet = {
-    total:document.getElementById('fy-tw-total').value, feel:document.getElementById('fy-tw-feel').value,
-    log:document.getElementById('fy-tw-log').value,     biz:document.getElementById('fy-tw-biz').value,
-    new:document.getElementById('fy-tw-new').value,     fans:document.getElementById('fy-tw-fans').value,
-    best:document.getElementById('fy-tw-best').value
+    total: document.getElementById('fy-tw-total').value,
+    feel:  document.getElementById('fy-tw-feel').value,
+    log:   document.getElementById('fy-tw-log').value,
+    biz:   document.getElementById('fy-tw-biz').value,
+    new:   document.getElementById('fy-tw-new').value,
+    fans:  document.getElementById('fy-tw-fans').value,
+    best:  document.getElementById('fy-tw-best').value,
+    bizContent: _bizContent
   };
   w.ai   = {done:document.getElementById('fy-ai-done').value,   block:document.getElementById('fy-ai-block').value};
-  w.side = {done:document.getElementById('fy-side-done').value, next:document.getElementById('fy-side-next').value,
-    income:(document.getElementById('fy-side-income')||{}).value||'', lead:(w.side||{}).lead||''};
-  w.work = {quality:(w.work||{}).quality||'', proactive:(w.work||{}).proactive||'',
-    proactiveNote:(document.getElementById('fy-work-proactive-note')||{}).value||'',
-    feedback:(document.getElementById('fy-work-feedback')||{}).value||''};
+  w.side = {
+    done:   document.getElementById('fy-side-done').value,
+    next:   document.getElementById('fy-side-next').value,
+    income: (document.getElementById('fy-side-income')||{}).value||'',
+    lead:   (w.side||{}).lead||''
+  };
+  // 保留 tweet.bizContent（按钮选择状态）
+  const _bizContent = (w.tweet||{}).bizContent||'';
+  w.work = {
+    quality:       (w.work||{}).quality||'',
+    proactive:     (w.work||{}).proactive||'',
+    proactiveNote: (document.getElementById('fy-work-proactive-note')||{}).value||'',
+    feedback:      (document.getElementById('fy-work-feedback')||{}).value||''
+  };
   w.trade = {...(w.trade||{}), spot:document.getElementById('fy-tr-spot').value, note:document.getElementById('fy-tr-note').value};
   const gdEl=document.getElementById('fy-golden-days'); if(gdEl) w.goldenDays=gdEl.value;
   w.summary = document.getElementById('fy-week-summary').value;
