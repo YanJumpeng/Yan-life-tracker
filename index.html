@@ -2920,7 +2920,7 @@ async function fySetWork(field, val) {
   fyData.weeks[k].work[field] = val;
   if (field === 'quality') {
     ['A','B','C'].forEach(s => {
-      const el = document.getElementById('fy-work-q'+s);
+      const el = document.getElementById('fy-work-q'+s.toLowerCase());
       if(el) el.style.background = s===val ? (s==='A'?'var(--ok-l)':s==='B'?'var(--warn-l)':'var(--bad-l)') : '';
       if(el) el.style.color = s===val ? (s==='A'?'var(--ok)':s==='B'?'var(--warn)':'var(--bad)') : '';
     });
@@ -3235,7 +3235,7 @@ function fyLoadWeek() {
   const gd=document.getElementById('fy-golden-days'); if(gd) gd.value=w.goldenDays||'';
   // 大树财经
   const wk=w.work||{};
-  ['A','B','C'].forEach(s=>{ const el=document.getElementById('fy-work-q'+s); if(el){ el.style.background=wk.quality===s?(s==='A'?'var(--ok-l)':s==='B'?'var(--warn-l)':'var(--bad-l)'):''; el.style.color=wk.quality===s?(s==='A'?'var(--ok)':s==='B'?'var(--warn)':'var(--bad)'):''; }});
+  ['A','B','C'].forEach(s=>{ const el=document.getElementById('fy-work-q'+s.toLowerCase()); if(el){ el.style.background=wk.quality===s?(s==='A'?'var(--ok-l)':s==='B'?'var(--warn-l)':'var(--bad-l)'):''; el.style.color=wk.quality===s?(s==='A'?'var(--ok)':s==='B'?'var(--warn)':'var(--bad)'):''; }});
   const wpyn=document.getElementById('fy-work-proactive-y'); if(wpyn) wpyn.style.background=wk.proactive==='yes'?'var(--ok-l)':'';
   const wpnn=document.getElementById('fy-work-proactive-n'); if(wpnn) wpnn.style.background=wk.proactive==='no'?'var(--bad-l)':'';
   const wpnote=document.getElementById('fy-work-proactive-note'); if(wpnote) wpnote.value=wk.proactiveNote||'';
@@ -3270,31 +3270,26 @@ async function fySaveWeek() {
   const k = document.getElementById('fy-week-sel').value;
   if (!fyData.weeks[k]) fyData.weeks[k] = {};
   const w = fyData.weeks[k];
-  w.tweet = {
-    total: document.getElementById('fy-tw-total').value,
-    feel:  document.getElementById('fy-tw-feel').value,
-    log:   document.getElementById('fy-tw-log').value,
-    biz:   document.getElementById('fy-tw-biz').value,
-    new:   document.getElementById('fy-tw-new').value,
-    fans:  document.getElementById('fy-tw-fans').value,
-    best:  document.getElementById('fy-tw-best').value,
-    bizContent: _bizContent
-  };
-  w.ai   = {done:document.getElementById('fy-ai-done').value,   block:document.getElementById('fy-ai-block').value};
-  w.side = {
-    done:   document.getElementById('fy-side-done').value,
-    next:   document.getElementById('fy-side-next').value,
-    income: (document.getElementById('fy-side-income')||{}).value||'',
-    lead:   (w.side||{}).lead||''
-  };
-  // 保留 tweet.bizContent（按钮选择状态）
-  const _bizContent = (w.tweet||{}).bizContent||'';
-  w.work = {
-    quality:       (w.work||{}).quality||'',
-    proactive:     (w.work||{}).proactive||'',
-    proactiveNote: (document.getElementById('fy-work-proactive-note')||{}).value||'',
-    feedback:      (document.getElementById('fy-work-feedback')||{}).value||''
-  };
+  // tweet：保留 bizContent 按钮状态，只更新文本字段
+  if (!w.tweet) w.tweet = {};
+  w.tweet.total = document.getElementById('fy-tw-total').value;
+  w.tweet.feel  = document.getElementById('fy-tw-feel').value;
+  w.tweet.log   = document.getElementById('fy-tw-log').value;
+  w.tweet.biz   = document.getElementById('fy-tw-biz').value;
+  w.tweet.new   = document.getElementById('fy-tw-new').value;
+  w.tweet.fans  = document.getElementById('fy-tw-fans').value;
+  w.tweet.best  = document.getElementById('fy-tw-best').value;
+  // ai
+  w.ai = {done:document.getElementById('fy-ai-done').value, block:document.getElementById('fy-ai-block').value};
+  // side：保留 lead 按钮状态
+  if (!w.side) w.side = {};
+  w.side.done   = document.getElementById('fy-side-done').value;
+  w.side.next   = document.getElementById('fy-side-next').value;
+  w.side.income = (document.getElementById('fy-side-income')||{}).value||'';
+  // work：保留 quality/proactive 按钮状态
+  if (!w.work) w.work = {};
+  w.work.proactiveNote = (document.getElementById('fy-work-proactive-note')||{}).value||'';
+  w.work.feedback      = (document.getElementById('fy-work-feedback')||{}).value||'';
   w.trade = {...(w.trade||{}), spot:document.getElementById('fy-tr-spot').value, note:document.getElementById('fy-tr-note').value};
   const gdEl=document.getElementById('fy-golden-days'); if(gdEl) w.goldenDays=gdEl.value;
   w.summary = document.getElementById('fy-week-summary').value;
