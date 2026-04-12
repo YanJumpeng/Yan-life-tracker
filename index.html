@@ -2997,28 +2997,108 @@ function fyRenderHistory(type) {
   if (type === 'week' || !type) {
     const weeks = Object.entries(fyData.weeks||{}).sort((a,b)=>Number(b[0])-Number(a[0]));
     if (!weeks.length) { container.innerHTML = '<p style="color:var(--text3);font-size:.85rem">暂无周复盘记录</p>'; return; }
+
+    const SEC = (icon,title,content) => content ? `
+      <div style="margin-bottom:.8rem">
+        <div style="font-size:.68rem;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin-bottom:.35rem;font-weight:500">${icon} ${title}</div>
+        <div style="font-size:.8rem;color:var(--text2);line-height:1.7">${content}</div>
+      </div>` : '';
+
+    const TAG = (text,color) => `<span style="display:inline-block;padding:.15rem .55rem;border-radius:20px;font-size:.7rem;background:var(--${color}-l);color:var(--${color});margin:.15rem .2rem .15rem 0">${text}</span>`;
+
     container.innerHTML = weeks.map(([k,w]) => {
       const dir = w.dir || {};
-      const dirHtml = Object.entries(dir).map(([id,s]) => {
-        const line = (window.FY_DIR||[]).find(l=>l.id===id);
-        const label = line ? line.label : id;
-        const icon = s==='ok'?'✅':s==='warn'?'⚠️':'❌';
-        return `<span style="font-size:.72rem;margin-right:.5rem">${icon} ${label}</span>`;
+      // A 方向检验
+      const dirTags = (window.FY_DIR||[]).map(line => {
+        const s = dir[line.id];
+        if (!s) return '';
+        return TAG((s==='ok'?'✅ ':s==='warn'?'⚠️ ':'❌ ')+line.label, s==='ok'?'ok':s==='warn'?'warn':'bad');
       }).join('');
-      const workQ = (w.work||{}).quality;
-      const workQStr = workQ ? `大树: ${workQ==='A'?'✅优秀':workQ==='B'?'😐正常':'⚠️凑合'}` : '';
-      const golden = w.goldenDays ? `🌅黄金${w.goldenDays}/7天` : '';
-      return `<div class="card mb" style="padding:1rem">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">
-          <span style="font-weight:500;color:var(--text)">第 ${k} 周</span>
-          <span style="font-size:.72rem;color:var(--text3)">${[workQStr,golden].filter(Boolean).join(' · ')}</span>
+
+      // B 推特
+      const tw = w.tweet||{};
+      const twLines = [
+        tw.total ? `发推 ${tw.total} 条` : '',
+        tw.fans  ? `粉丝 ${tw.fans}` : '',
+        tw.bizContent==='yes' ? TAG('✅ 有潜客向内容','ok') : tw.bizContent==='no' ? TAG('❌ 无潜客向内容','bad') : '',
+        tw.best  ? `最佳主题：${tw.best}` : '',
+        tw.feel  ? `感受：${tw.feel}` : '',
+      ].filter(Boolean).join('<br>');
+
+      // C AI学习
+      const ai = w.ai||{};
+      const aiLines = [
+        ai.done  ? `完成：${ai.done}` : '',
+        ai.block ? `卡点：${ai.block}` : '',
+      ].filter(Boolean).join('<br>');
+
+      // D 交易
+      const tr = w.trade||{};
+      const trLines = [
+        tr.spot ? `持仓：${tr.spot}` : '',
+        tr.note ? `复盘：${tr.note}` : '',
+      ].filter(Boolean).join('<br>');
+
+      // E 大树财经
+      const wk = w.work||{};
+      const workQ = wk.quality;
+      const workQTag = workQ ? TAG(workQ==='A'?'✅ 优秀':workQ==='B'?'😐 正常':'⚠️ 凑合', workQ==='A'?'ok':workQ==='B'?'warn':'bad') : '';
+      const proTag = wk.proactive ? TAG(wk.proactive==='yes'?'✅ 有主动出活':'❌ 无主动出活', wk.proactive==='yes'?'ok':'bad') : '';
+      const workLines = [
+        workQTag + proTag,
+        wk.proactiveNote ? `出活内容：${wk.proactiveNote}` : '',
+        wk.feedback      ? `收到反馈：${wk.feedback}` : '',
+      ].filter(Boolean).join('<br>');
+
+      // F 副业
+      const sd = w.side||{};
+      const leadTag = sd.lead ? TAG(sd.lead==='yes'?'✅ 有客户接触':'❌ 无客户接触', sd.lead==='yes'?'ok':'bad') : '';
+      const sideLines = [
+        sd.done   ? `本周动作：${sd.done}` : '',
+        sd.next   ? `下周计划：${sd.next}` : '',
+        sd.income ? `副业收入：¥${sd.income}` : '',
+        leadTag,
+      ].filter(Boolean).join('<br>');
+
+      // G 健康
+      const hh = w.health||{};
+      const energyTag = hh.energy ? TAG(hh.energy==='good'?'🔥 精力充沛':hh.energy==='ok'?'😐 状态一般':'😴 身体疲惫', hh.energy==='good'?'ok':hh.energy==='ok'?'warn':'bad') : '';
+      const healthLines = [
+        energyTag,
+        [hh['rise']?`7:30前起床 ${hh['rise']}天`:'', hh['run-cnt']?`跑步 ${hh['run-cnt']}次/${hh['run-km']||0}km`:'', hh['gym-cnt']?`健身 ${hh['gym-cnt']}次`:'', hh['sleep']?`均睡 ${hh['sleep']}h`:''].filter(Boolean).join(' · '),
+        hh.note ? `备注：${hh.note}` : '',
+      ].filter(Boolean).join('<br>');
+
+      // H 读书
+      const rr = w.reading||{};
+      const readLines = [
+        rr.book     ? `在读：《${rr.book}》${rr.progress||''}` : '',
+        rr.days     ? `阅读 ${rr.days} 天` : '',
+        rr.min30==='yes' ? TAG('✅ 大多数天读满30min','ok') : rr.min30==='no' ? TAG('❌ 未达30min/天','bad') : '',
+        rr.insight  ? `触动：${rr.insight}` : '',
+        rr.apply    ? `连接：${rr.apply}` : '',
+      ].filter(Boolean).join('<br>');
+
+      // 黄金3小时
+      const golden = w.goldenDays ? TAG(`🌅 黄金3小时 ${w.goldenDays}/7天`, Number(w.goldenDays)>=5?'ok':Number(w.goldenDays)>=3?'warn':'bad') : '';
+
+      return `<div class="card mb" style="padding:1.2rem">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;padding-bottom:.7rem;border-bottom:1px solid var(--border)">
+          <span style="font-size:1rem;font-weight:600;color:var(--text)">第 ${k} 周</span>
+          <span>${golden}</span>
         </div>
-        ${dirHtml ? `<div style="margin-bottom:.5rem;line-height:2">${dirHtml}</div>` : ''}
-        ${w.ai?.done ? `<div style="font-size:.78rem;color:var(--text2);margin-bottom:.3rem">🤖 AI: ${w.ai.done.slice(0,60)}${w.ai.done.length>60?'…':''}</div>` : ''}
-        ${w.side?.done ? `<div style="font-size:.78rem;color:var(--text2);margin-bottom:.3rem">💼 副业: ${w.side.done.slice(0,60)}${w.side.done.length>60?'…':''}</div>` : ''}
-        ${w.health?.energy ? `<div style="font-size:.78rem;color:var(--text2);margin-bottom:.3rem">💪 精力: ${w.health.energy==='good'?'🔥充沛':w.health.energy==='ok'?'😐一般':'😴疲惫'} · 跑${w.health['run-cnt']||0}次 健身${w.health['gym-cnt']||0}次</div>` : ''}
-        ${w.reading?.book ? `<div style="font-size:.78rem;color:var(--text2);margin-bottom:.3rem">📚 在读: ${w.reading.book} ${w.reading.progress||''}</div>` : ''}
-        ${w.summary ? `<div style="font-size:.78rem;color:var(--text3);border-top:1px solid var(--border);padding-top:.5rem;margin-top:.5rem">${w.summary.slice(0,100)}${w.summary.length>100?'…':''}</div>` : ''}
+        ${dirTags ? SEC('🧭','方向检验', dirTags) : ''}
+        ${twLines  ? SEC('🐦','推特运营', twLines) : ''}
+        ${aiLines  ? SEC('🤖','AI学习',   aiLines) : ''}
+        ${trLines  ? SEC('📈','交易',      trLines) : ''}
+        ${workLines? SEC('🏢','大树财经',  workLines) : ''}
+        ${sideLines? SEC('💼','副业变现',  sideLines) : ''}
+        ${healthLines?SEC('💪','健康身体', healthLines) : ''}
+        ${readLines? SEC('📚','读书',      readLines) : ''}
+        ${w.summary||w.next ? `<div style="margin-top:.8rem;padding-top:.8rem;border-top:1px solid var(--border)">
+          ${w.summary ? `<div style="font-size:.8rem;color:var(--text2);margin-bottom:.4rem"><span style="color:var(--text3);font-size:.68rem">本周总结　</span>${w.summary}</div>` : ''}
+          ${w.next    ? `<div style="font-size:.8rem;color:var(--text2)"><span style="color:var(--text3);font-size:.68rem">下周重点　</span>${w.next}</div>` : ''}
+        </div>` : ''}
       </div>`;
     }).join('');
 
