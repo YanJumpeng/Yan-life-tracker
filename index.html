@@ -3008,6 +3008,15 @@ function fyRenderHistory(type) {
 
     const TAG = (text,color) => `<span style="display:inline-block;padding:.15rem .55rem;border-radius:20px;font-size:.7rem;background:var(--${color}-l);color:var(--${color});margin:.15rem .2rem .15rem 0">${text}</span>`;
 
+    const toggleWeekHist = (k) => {
+      const body = document.getElementById('fywh-body-'+k);
+      const arrow = document.getElementById('fywh-arrow-'+k);
+      if (!body) return;
+      const open = body.style.display === 'none';
+      body.style.display = open ? 'block' : 'none';
+      arrow.textContent = open ? '▲' : '▼';
+    };
+
     container.innerHTML = weeks.map(([k,w]) => {
       const dir = w.dir || {};
       // A 方向检验
@@ -3084,23 +3093,31 @@ function fyRenderHistory(type) {
       // 黄金3小时
       const golden = w.goldenDays ? TAG(`🌅 黄金3小时 ${w.goldenDays}/7天`, Number(w.goldenDays)>=5?'ok':Number(w.goldenDays)>=3?'warn':'bad') : '';
 
-      return `<div class="card mb" style="padding:1.2rem">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;padding-bottom:.7rem;border-bottom:1px solid var(--border)">
-          <span style="font-size:1rem;font-weight:600;color:var(--text)">第 ${k} 周</span>
-          <span>${golden}</span>
+      const dateRange = weekDateRange(Number(k));
+      return `<div class="card mb" style="padding:0;overflow:hidden">
+        <div onclick="toggleWeekHist('${k}')" style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.2rem;cursor:pointer;user-select:none">
+          <div style="display:flex;align-items:center;gap:.8rem">
+            <span style="font-size:.95rem;font-weight:600;color:var(--text)">第 ${k} 周</span>
+            <span style="font-size:.75rem;color:var(--text3)">${dateRange}</span>
+            ${golden}
+          </div>
+          <span id="fywh-arrow-${k}" style="font-size:.8rem;color:var(--text3)">▼</span>
         </div>
-        ${dirTags ? SEC('🧭','方向检验', dirTags) : ''}
-        ${twLines  ? SEC('🐦','推特运营', twLines) : ''}
-        ${aiLines  ? SEC('🤖','AI学习',   aiLines) : ''}
-        ${trLines  ? SEC('📈','交易',      trLines) : ''}
-        ${workLines? SEC('🏢','大树财经',  workLines) : ''}
-        ${sideLines? SEC('💼','副业变现',  sideLines) : ''}
-        ${healthLines?SEC('💪','健康身体', healthLines) : ''}
-        ${readLines? SEC('📚','读书',      readLines) : ''}
-        ${w.summary||w.next ? `<div style="margin-top:.8rem;padding-top:.8rem;border-top:1px solid var(--border)">
-          ${w.summary ? `<div style="font-size:.8rem;color:var(--text2);margin-bottom:.4rem"><span style="color:var(--text3);font-size:.68rem">本周总结　</span>${w.summary}</div>` : ''}
-          ${w.next    ? `<div style="font-size:.8rem;color:var(--text2)"><span style="color:var(--text3);font-size:.68rem">下周重点　</span>${w.next}</div>` : ''}
-        </div>` : ''}
+        <div id="fywh-body-${k}" style="display:none;padding:0 1.2rem 1.2rem">
+          <div style="height:1px;background:var(--border);margin-bottom:.9rem"></div>
+          ${dirTags ? SEC('🧭','方向检验', dirTags) : ''}
+          ${twLines  ? SEC('🐦','推特运营', twLines) : ''}
+          ${aiLines  ? SEC('🤖','AI学习',   aiLines) : ''}
+          ${trLines  ? SEC('📈','交易',      trLines) : ''}
+          ${workLines? SEC('🏢','大树财经',  workLines) : ''}
+          ${sideLines? SEC('💼','副业变现',  sideLines) : ''}
+          ${healthLines?SEC('💪','健康身体', healthLines) : ''}
+          ${readLines? SEC('📚','读书',      readLines) : ''}
+          ${w.summary||w.next ? `<div style="margin-top:.8rem;padding-top:.8rem;border-top:1px solid var(--border)">
+            ${w.summary ? `<div style="font-size:.8rem;color:var(--text2);margin-bottom:.4rem"><span style="color:var(--text3);font-size:.68rem">本周总结　</span>${w.summary}</div>` : ''}
+            ${w.next    ? `<div style="font-size:.8rem;color:var(--text2)"><span style="color:var(--text3);font-size:.68rem">下周重点　</span>${w.next}</div>` : ''}
+          </div>` : ''}
+        </div>
       </div>`;
     }).join('');
 
@@ -3186,6 +3203,17 @@ async function fySetTrade(field, val) {
 }
 
 // ── 周选择器 ──
+// 周次 → 日期范围（第1周起点：2026-02-17）
+function weekDateRange(weekNum) {
+  const EPOCH = new Date('2026-02-17'); // 第1周周一
+  const start = new Date(EPOCH);
+  start.setDate(EPOCH.getDate() + (weekNum - 1) * 7);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const fmt = d => `${d.getMonth()+1}月${d.getDate()}日`;
+  return `${fmt(start)}—${fmt(end)}`;
+}
+
 function fyInitWeekSel() {
   const sel = document.getElementById('fy-week-sel'); if (!sel) return;
   sel.innerHTML = '';
@@ -3193,7 +3221,7 @@ function fyInitWeekSel() {
   if (!keys.length) { fyData.weeks['14'] = {}; keys = [14]; }
   keys.forEach(k => {
     const o = document.createElement('option');
-    o.value = k; o.textContent = '第' + k + '周'; sel.appendChild(o);
+    o.value = k; o.textContent = `第${k}周（${weekDateRange(k)}）`; sel.appendChild(o);
   });
   sel.value = String(keys[keys.length-1]);
 }
