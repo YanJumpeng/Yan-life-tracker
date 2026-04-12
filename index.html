@@ -2860,9 +2860,14 @@ async function fyLoadRemote() {
     .select('data').eq('user_id', currentUser.id).maybeSingle();
   if (data && data.data) {
     fyData = data.data;
-    if (!fyData.weeks) fyData.weeks = {};
-    if (!fyData.months) fyData.months = {};
+    if (!fyData.weeks)    fyData.weeks = {};
+    if (!fyData.months)   fyData.months = {};
     if (!fyData.warnings) fyData.warnings = {};
+    // 补丁：给已有周数据补 startDate（按实际日历周）
+    const WEEK_STARTS = {'14':'2026-04-06'};
+    Object.entries(WEEK_STARTS).forEach(([k,d]) => {
+      if (fyData.weeks[k] && !fyData.weeks[k].startDate) fyData.weeks[k].startDate = d;
+    });
   }
 }
 
@@ -3008,15 +3013,6 @@ function fyRenderHistory(type) {
 
     const TAG = (text,color) => `<span style="display:inline-block;padding:.15rem .55rem;border-radius:20px;font-size:.7rem;background:var(--${color}-l);color:var(--${color});margin:.15rem .2rem .15rem 0">${text}</span>`;
 
-    const toggleWeekHist = (k) => {
-      const body = document.getElementById('fywh-body-'+k);
-      const arrow = document.getElementById('fywh-arrow-'+k);
-      if (!body) return;
-      const open = body.style.display === 'none';
-      body.style.display = open ? 'block' : 'none';
-      arrow.textContent = open ? '▲' : '▼';
-    };
-
     container.innerHTML = weeks.map(([k,w]) => {
       const dir = w.dir || {};
       // A 方向检验
@@ -3095,7 +3091,7 @@ function fyRenderHistory(type) {
 
       const dateRange = weekDateRange(Number(k));
       return `<div class="card mb" style="padding:0;overflow:hidden">
-        <div onclick="toggleWeekHist('${k}')" style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.2rem;cursor:pointer;user-select:none">
+        <div data-whk="${k}" class="fy-whd-hdr" style="display:flex;align-items:center;justify-content:space-between;padding:1rem 1.2rem;cursor:pointer;user-select:none">
           <div style="display:flex;align-items:center;gap:.8rem">
             <span style="font-size:.95rem;font-weight:600;color:var(--text)">第 ${k} 周</span>
             <span style="font-size:.75rem;color:var(--text3)">${dateRange}</span>
@@ -3120,6 +3116,19 @@ function fyRenderHistory(type) {
         </div>
       </div>`;
     }).join('');
+
+    // 事件委托：折叠展开
+    container.onclick = (e) => {
+      const hdr = e.target.closest('.fy-whd-hdr');
+      if (!hdr) return;
+      const k = hdr.dataset.whk;
+      const body  = document.getElementById('fywh-body-' + k);
+      const arrow = document.getElementById('fywh-arrow-' + k);
+      if (!body) return;
+      const open = body.style.display === 'none';
+      body.style.display = open ? 'block' : 'none';
+      if (arrow) arrow.textContent = open ? '▲' : '▼';
+    };
 
   } else {
     const months = Object.entries(fyData.months||{}).sort((a,b)=>b[0].localeCompare(a[0]));
@@ -3203,15 +3212,24 @@ async function fySetTrade(field, val) {
 }
 
 // ── 周选择器 ──
-// 周次 → 日期范围（第1周起点：2026-02-17）
+// 从存储的 startDate 计算日期范围，没有 startDate 则返回空字符串
 function weekDateRange(weekNum) {
-  const EPOCH = new Date('2026-02-17'); // 第1周周一
-  const start = new Date(EPOCH);
-  start.setDate(EPOCH.getDate() + (weekNum - 1) * 7);
-  const end = new Date(start);
+  const w = fyData.weeks[String(weekNum)] || {};
+  if (!w.startDate) return '';
+  const start = new Date(w.startDate);
+  const end   = new Date(start);
   end.setDate(start.getDate() + 6);
   const fmt = d => `${d.getMonth()+1}月${d.getDate()}日`;
   return `${fmt(start)}—${fmt(end)}`;
+}
+
+// 获取本周一的日期字符串
+function getThisWeekMonday() {
+  const now = new Date();
+  const day = now.getDay() || 7; // 0=周日→7
+  const mon = new Date(now);
+  mon.setDate(now.getDate() - day + 1);
+  return mon.toISOString().slice(0,10);
 }
 
 function fyInitWeekSel() {
@@ -3221,7 +3239,8 @@ function fyInitWeekSel() {
   if (!keys.length) { fyData.weeks['14'] = {}; keys = [14]; }
   keys.forEach(k => {
     const o = document.createElement('option');
-    o.value = k; o.textContent = `第${k}周（${weekDateRange(k)}）`; sel.appendChild(o);
+    const dr = weekDateRange(k);
+    o.value = k; o.textContent = dr ? `第${k}周（${dr}）` : `第${k}周`; sel.appendChild(o);
   });
   sel.value = String(keys[keys.length-1]);
 }
@@ -3330,7 +3349,7 @@ async function fySaveWeek() {
 async function fyAddWeek() {
   const keys = Object.keys(fyData.weeks).map(Number).sort((a,b)=>a-b);
   const next = String(keys.length ? keys[keys.length-1]+1 : 1);
-  fyData.weeks[next] = {}; fyInitWeekSel();
+  fyData.weeks[next] = { startDate: getThisWeekMonday() }; fyInitWeekSel();
   document.getElementById('fy-week-sel').value = next; fyLoadWeek();
 }
 
