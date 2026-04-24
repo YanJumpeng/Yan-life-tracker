@@ -2060,7 +2060,9 @@ function setEditBookRating(n) {
 }
 
 function openEditBook(bookId) {
-  const b = cachedBooks.find(x => x.id === bookId); if (!b) return;
+  console.log('[editBook] bookId:', bookId, 'cachedBooks:', cachedBooks.length, cachedBooks.map(x=>x.id));
+  const b = cachedBooks.find(x => x.id === bookId);
+  if (!b) { alert('找不到书籍，请刷新页面后重试'); return; }
   _editBookId = bookId;
   _editBookRating = b.rating || 0;
   document.getElementById('eb_title').value       = b.title || '';
@@ -2777,7 +2779,7 @@ function toast(msg) {
 </div>
 
 <!-- 编辑书籍弹窗 -->
-<div id="editBookModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.45);align-items:center;justify-content:center">
+<div id="editBookModal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.45);align-items:center;justify-content:center">
   <div style="background:var(--surface);border-radius:16px;padding:1.6rem;width:90%;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto">
     <div style="font-size:1rem;font-weight:600;margin-bottom:1.2rem;color:var(--text)">编辑书籍</div>
     <div class="form-group"><label class="form-label">书名</label>
