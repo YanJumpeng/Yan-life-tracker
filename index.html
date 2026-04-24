@@ -2031,92 +2031,94 @@ function renderBookGrid() {
     document.getElementById('bookGrid').innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">◇</div><div class="empty-text">书架还是空的<br>点击右上角添加第一本书</div></div>`;
     return;
   }
-  document.getElementById('bookGrid').innerHTML = cachedBooks.map(b => `
-    <div class="b-card" data-status="${b.status}" onclick="showBookStats('${b.id}','${b.title.replace(/'/g,"&#39;")}')">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.4rem">
-        <div style="flex:1;min-width:0">
-          <div class="b-title">${b.title}</div>
-          <div class="b-author">${b.author||''}</div>
+  document.getElementById('bookGrid').innerHTML = cachedBooks.map(b => {
+    const statusLabel = sl[b.status]||'';
+    const statusClass = sc[b.status]||'';
+    const stars = b.rating ? '★'.repeat(b.rating)+'☆'.repeat(5-b.rating) : '';
+    return `<div style="break-inside:avoid">
+      <div class="b-card" data-status="${b.status}" data-bid="${b.id}" style="cursor:default">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.4rem">
+          <div style="flex:1;min-width:0;cursor:pointer" onclick="showBookStats('${b.id}','${b.title.replace(/'/g,"&#39;")}')">
+            <div class="b-title">${b.title}</div>
+            <div class="b-author">${b.author||''}</div>
+          </div>
+          <button data-ebid="${b.id}" onclick="toggleInlineEdit(this.dataset.ebid)" style="flex-shrink:0;background:none;border:1px solid var(--border);border-radius:6px;padding:.2rem .5rem;font-size:.7rem;color:var(--text3);cursor:pointer;margin-top:.1rem">✏️</button>
         </div>
-        <button onclick="event.stopPropagation();openEditBook('${b.id}')" style="flex-shrink:0;background:none;border:1px solid var(--border);border-radius:6px;padding:.2rem .5rem;font-size:.7rem;color:var(--text3);cursor:pointer;margin-top:.1rem" title="编辑">✏️</button>
+        <span class="b-badge ${statusClass}">${statusLabel}</span>
+        ${b.note?`<div class="b-note">${b.note}</div>`:''}
+        ${stars?`<div class="b-stars" style="color:var(--warn)">${stars}</div>`:''}
+        <div class="b-prog"><div class="b-fill" style="width:${b.progress}%"></div></div>
+        ${b.status==='reading'?`<div class="b-plabel">${b.progress}% 完成</div>`:''}
       </div>
-      <span class="b-badge ${sc[b.status]}">${sl[b.status]}</span>
-      ${b.note?`<div class="b-note">${b.note}</div>`:''}
-      ${b.rating?`<div class="b-stars" style="color:var(--warn)">${'★'.repeat(b.rating)}${'☆'.repeat(5-b.rating)}</div>`:''}
-      <div class="b-prog"><div class="b-fill" style="width:${b.progress}%"></div></div>
-      ${b.status==='reading'?`<div class="b-plabel">${b.progress}% 完成</div>`:''}
-    </div>`).join('');
+      <div id="bkedit-${b.id}" style="display:none;background:var(--sf2);border:1px solid var(--border);border-radius:12px;padding:1rem;margin-top:.4rem;grid-column:span 1">
+        <div style="font-size:.75rem;color:var(--text3);margin-bottom:.8rem;font-weight:500">编辑《${b.title}》</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem">
+          <div><label style="font-size:.7rem;color:var(--text3)">书名</label><input data-f="title" value="${b.title.replace(/"/g,'&quot;')}" style="width:100%;padding:.3rem .5rem;font-size:.8rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)"></div>
+          <div><label style="font-size:.7rem;color:var(--text3)">作者</label><input data-f="author" value="${(b.author||'').replace(/"/g,'&quot;')}" style="width:100%;padding:.3rem .5rem;font-size:.8rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.5rem;margin-bottom:.5rem">
+          <div><label style="font-size:.7rem;color:var(--text3)">状态</label>
+            <select data-f="status" style="width:100%;padding:.3rem .4rem;font-size:.8rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)">
+              <option value="reading" ${b.status==='reading'?'selected':''}>在读</option>
+              <option value="done"    ${b.status==='done'   ?'selected':''}>已读</option>
+              <option value="want"    ${b.status==='want'   ?'selected':''}>想读</option>
+            </select></div>
+          <div><label style="font-size:.7rem;color:var(--text3)">进度%</label><input data-f="progress" type="number" min="0" max="100" value="${b.progress||0}" style="width:100%;padding:.3rem .5rem;font-size:.8rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)"></div>
+          <div><label style="font-size:.7rem;color:var(--text3)">评分</label><input data-f="rating" type="number" min="0" max="5" value="${b.rating||0}" style="width:100%;padding:.3rem .5rem;font-size:.8rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)"></div>
+        </div>
+        <div style="margin-bottom:.7rem"><label style="font-size:.7rem;color:var(--text3)">备注</label><input data-f="note" value="${(b.note||'').replace(/"/g,'&quot;')}" style="width:100%;padding:.3rem .5rem;font-size:.8rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)"></div>
+        <div style="display:flex;justify-content:space-between">
+          <button data-did="${b.id}" onclick="deleteBookInline(this.dataset.did)" style="padding:.3rem .8rem;border:1px solid var(--bad);background:none;color:var(--bad);border-radius:6px;cursor:pointer;font-size:.75rem">🗑 删除</button>
+          <div style="display:flex;gap:.5rem">
+            <button onclick="toggleInlineEdit('${b.id}')" style="padding:.3rem .8rem;border:1px solid var(--border);background:none;color:var(--text2);border-radius:6px;cursor:pointer;font-size:.75rem">取消</button>
+            <button data-sid="${b.id}" onclick="saveInlineEdit(this.dataset.sid)" style="padding:.3rem .8rem;background:var(--c-reading);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:.75rem;font-weight:500">保存</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
-let _editBookId = null;
-let _editBookRating = 0;
-
-function setEditBookRating(n) {
-  _editBookRating = n;
-  document.querySelectorAll('#eb_stars [data-star]').forEach(s => {
-    s.textContent = +s.dataset.star <= n ? '★' : '☆';
-    s.style.color = +s.dataset.star <= n ? 'var(--warn)' : 'var(--text3)';
-  });
+function toggleInlineEdit(bid) {
+  const el = document.getElementById('bkedit-' + bid);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
-function openEditBook(bookId) {
-  console.log('[editBook] bookId:', bookId, 'cachedBooks:', cachedBooks.length, cachedBooks.map(x=>x.id));
-  const b = cachedBooks.find(x => x.id === bookId);
-  if (!b) { alert('找不到书籍，请刷新页面后重试'); return; }
-  _editBookId = bookId;
-  _editBookRating = b.rating || 0;
-  document.getElementById('eb_title').value       = b.title || '';
-  document.getElementById('eb_author').value      = b.author || '';
-  document.getElementById('eb_status').value      = b.status || 'want';
-  document.getElementById('eb_progress').value    = b.progress || 0;
-  document.getElementById('eb_total_pages').value = b.total_pages || '';
-  document.getElementById('eb_note').value        = b.note || '';
-  setEditBookRating(_editBookRating);
-  document.getElementById('editBookModal').style.display = 'flex';
-}
-
-function closeEditBook() {
-  document.getElementById('editBookModal').style.display = 'none';
-  _editBookId = null;
-}
-
-async function saveEditBook() {
-  if (!_editBookId || !currentUser) return;
+async function saveInlineEdit(bid) {
+  if (!currentUser) { alert('请先登录'); return; }
+  const el = document.getElementById('bkedit-' + bid);
+  if (!el) return;
+  const get = f => el.querySelector('[data-f="'+f+'"]')?.value ?? '';
   const payload = {
-    title:       document.getElementById('eb_title').value.trim(),
-    author:      document.getElementById('eb_author').value.trim(),
-    status:      document.getElementById('eb_status').value,
-    progress:    Math.min(100, Math.max(0, +document.getElementById('eb_progress').value || 0)),
-    total_pages: +document.getElementById('eb_total_pages').value || null,
-    note:        document.getElementById('eb_note').value.trim(),
-    rating:      _editBookRating,
+    title:    get('title').trim(),
+    author:   get('author').trim(),
+    status:   get('status'),
+    progress: Math.min(100, Math.max(0, +get('progress') || 0)),
+    rating:   Math.min(5,   Math.max(0, +get('rating')   || 0)),
+    note:     get('note').trim(),
   };
   if (!payload.title) { alert('书名不能为空'); return; }
-  const { error } = await db.from('books').update(payload).eq('id', _editBookId);
+  const { error } = await db.from('books').update(payload).eq('id', bid);
   if (error) { alert('保存失败: ' + error.message); return; }
-  const idx = cachedBooks.findIndex(x => x.id === _editBookId);
+  const idx = cachedBooks.findIndex(x => x.id === bid);
   if (idx >= 0) cachedBooks[idx] = { ...cachedBooks[idx], ...payload };
   renderBookGrid();
-  closeEditBook();
   toast('✓ 已更新');
 }
 
-async function deleteBook() {
-  if (!_editBookId || !currentUser) return;
+async function deleteBookInline(bid) {
+  if (!currentUser) { alert('请先登录'); return; }
   if (!confirm('确定删除这本书？')) return;
-  const { error } = await db.from('books').delete().eq('id', _editBookId);
+  const { error } = await db.from('books').delete().eq('id', bid);
   if (error) { alert('删除失败: ' + error.message); return; }
-  cachedBooks = cachedBooks.filter(x => x.id !== _editBookId);
+  cachedBooks = cachedBooks.filter(x => x.id !== bid);
   renderBookGrid();
-  closeEditBook();
-  document.getElementById('reading-stats-section').style.display = 'none';
+  const sec = document.getElementById('reading-stats-section');
+  if (sec) sec.style.display = 'none';
   toast('✓ 已删除');
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const m = document.getElementById('editBookModal');
-  if (m) m.addEventListener('click', e => { if (e.target === m) closeEditBook(); });
-});
 
 async function showBookStats(bookId, bookTitle) {
   const section = document.getElementById('reading-stats-section');
@@ -2778,43 +2780,6 @@ function toast(msg) {
   </div>
 </div>
 
-<!-- 编辑书籍弹窗 -->
-<div id="editBookModal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.45);align-items:center;justify-content:center">
-  <div style="background:var(--surface);border-radius:16px;padding:1.6rem;width:90%;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,.2);max-height:90vh;overflow-y:auto">
-    <div style="font-size:1rem;font-weight:600;margin-bottom:1.2rem;color:var(--text)">编辑书籍</div>
-    <div class="form-group"><label class="form-label">书名</label>
-      <input id="eb_title" class="form-input" type="text" placeholder="书名"></div>
-    <div class="form-group"><label class="form-label">作者</label>
-      <input id="eb_author" class="form-input" type="text" placeholder="作者"></div>
-    <div class="form-group"><label class="form-label">状态</label>
-      <select id="eb_status" class="form-input">
-        <option value="reading">在读</option>
-        <option value="done">已读</option>
-        <option value="want">想读</option>
-      </select></div>
-    <div class="form-group"><label class="form-label">进度（%）</label>
-      <input id="eb_progress" class="form-input" type="number" min="0" max="100" placeholder="0~100"></div>
-    <div class="form-group"><label class="form-label">总页数</label>
-      <input id="eb_total_pages" class="form-input" type="number" min="0" placeholder="选填"></div>
-    <div class="form-group"><label class="form-label">评分（0-5）</label>
-      <div style="display:flex;gap:.5rem;margin-top:.3rem" id="eb_stars">
-        <span onclick="setEditBookRating(1)" style="font-size:1.4rem;cursor:pointer" data-star="1">☆</span>
-        <span onclick="setEditBookRating(2)" style="font-size:1.4rem;cursor:pointer" data-star="2">☆</span>
-        <span onclick="setEditBookRating(3)" style="font-size:1.4rem;cursor:pointer" data-star="3">☆</span>
-        <span onclick="setEditBookRating(4)" style="font-size:1.4rem;cursor:pointer" data-star="4">☆</span>
-        <span onclick="setEditBookRating(5)" style="font-size:1.4rem;cursor:pointer" data-star="5">☆</span>
-      </div></div>
-    <div class="form-group"><label class="form-label">备注</label>
-      <textarea id="eb_note" class="form-input" rows="2" placeholder="简短备注…"></textarea></div>
-    <div style="display:flex;gap:.8rem;justify-content:space-between;margin-top:1.2rem">
-      <button onclick="deleteBook()" style="padding:.5rem 1rem;border:1px solid var(--bad);background:none;color:var(--bad);border-radius:8px;cursor:pointer;font-size:.8rem">🗑 删除</button>
-      <div style="display:flex;gap:.6rem">
-        <button onclick="closeEditBook()" style="padding:.5rem 1rem;border:1px solid var(--border);background:none;color:var(--text2);border-radius:8px;cursor:pointer">取消</button>
-        <button onclick="saveEditBook()" style="padding:.5rem 1.2rem;border:none;background:var(--c-reading);color:#fff;border-radius:8px;cursor:pointer;font-weight:500">保存</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- 编辑历史记录弹窗 -->
 <div id="editHistModal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.45);align-items:center;justify-content:center">
