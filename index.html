@@ -2689,6 +2689,7 @@ function closeAddRecord() {
   document.getElementById('addRecordModal').style.display = 'none';
 }
 async function submitAddRecord() {
+  if (!currentUser) { alert('请先登录'); return; }
   const date = document.getElementById('add_date').value;
   if (!date) { alert('请选择日期'); return; }
   const habits = {};
@@ -2717,11 +2718,17 @@ async function submitAddRecord() {
     weight:   parseFloat(document.getElementById('add_weight')?.value)   || null,
     body_fat: parseFloat(document.getElementById('add_body_fat')?.value) || null,
   };
-  const { error } = await db.from('daily_records').upsert(payload, { onConflict: 'user_id,date' });
-  if (error) { alert('保存失败：' + error.message); return; }
-  closeAddRecord();
-  loadAndRenderHistory();
-  alert('✅ 补录成功！');
+  console.log('[补录] payload:', JSON.stringify(payload));
+  try {
+    const { error } = await db.from('daily_records').upsert(payload, { onConflict: 'user_id,date' });
+    if (error) { console.error('[补录] error:', error); alert('保存失败：' + error.message); return; }
+    closeAddRecord();
+    loadAndRenderHistory();
+    alert('✅ 补录成功！');
+  } catch(e) {
+    console.error('[补录] catch:', e);
+    alert('保存出错：' + e.message);
+  }
 }
 document.getElementById('addRecordModal').addEventListener('click', function(e) {
 });
@@ -2764,6 +2771,7 @@ function closeEditHist() {
 
 async function saveEditHist() {
   if (!_editHistRecord) return;
+  if (!currentUser) { alert('请先登录'); return; }
   const sleepT = document.getElementById('eh_sleep').value;
   const wakeT  = document.getElementById('eh_wake').value;
   let sleepH = null;
@@ -2806,11 +2814,17 @@ async function saveEditHist() {
     habits
   };
 
-  const { error } = await db.from('daily_records').update(payload).eq('id', _editHistRecord.id);
-  if (error) { alert('保存失败: ' + (error.message||JSON.stringify(error))); return; }
-  closeEditHist();
-  toast('✓ 记录已更新');
-  loadAndRenderHistory();
+  console.log('[编辑] payload:', JSON.stringify(payload));
+  try {
+    const { error } = await db.from('daily_records').update(payload).eq('id', _editHistRecord.id);
+    if (error) { console.error('[编辑] error:', error); alert('保存失败: ' + (error.message||JSON.stringify(error))); return; }
+    closeEditHist();
+    toast('✓ 记录已更新');
+    loadAndRenderHistory();
+  } catch(e) {
+    console.error('[编辑] catch:', e);
+    alert('保存出错：' + e.message);
+  }
 }
 
 // 点击弹窗外部关闭
