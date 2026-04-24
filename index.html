@@ -2620,6 +2620,15 @@ function toast(msg) {
       <div class="mood-btn" data-mood="5" onclick="setAddMood(5)">🤩<span>很棒</span></div>
     </div>
 
+    <!-- 健身记录 -->
+    <div class="form-group" style="margin-top:.8rem">
+      <label class="form-label">健身内容</label>
+      <input type="text" id="add_gym" class="form-input" placeholder="例：胸+三头，8940kg，54min">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.5rem">
+      <div class="form-group"><label class="form-label">体重（kg）</label><input type="number" id="add_weight" class="form-input" step="0.1" placeholder="选填"></div>
+      <div class="form-group"><label class="form-label">体脂率（%）</label><input type="number" id="add_body_fat" class="form-input" step="0.1" placeholder="选填"></div>
+    </div>
     <!-- 备注 -->
     <div class="form-group" style="margin-top:.8rem"><label class="form-label">今日备注</label><textarea id="add_note" rows="2" class="form-input" placeholder="今天发生了什么…"></textarea></div>
 
@@ -2677,7 +2686,7 @@ function openAddRecord() {
   document.getElementById('add_date').value = today;
   ['add_sleep_time','add_wake','add_sleep_hours','add_nap_hours','add_pushup','add_squat',
    'add_pullup','add_dips','add_running','add_ru_pace','add_cycling','add_cy_pace',
-   'add_note'].forEach(id => {
+   'add_note','add_gym','add_weight','add_body_fat'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = ['add_pushup','add_squat','add_pullup','add_dips','add_running','add_cycling','add_cy_pace','add_book_pages'].includes(id) ? '0' : '';
   });
@@ -2714,7 +2723,7 @@ async function submitAddRecord() {
     cycling: parseFloat(document.getElementById('add_cycling').value) || 0,
     habits,
     note: document.getElementById('add_note').value || null,
-    gym:      document.getElementById('add_gym').value || null,
+    gym:      document.getElementById('add_gym')?.value || null,
     weight:   parseFloat(document.getElementById('add_weight')?.value)   || null,
     body_fat: parseFloat(document.getElementById('add_body_fat')?.value) || null,
   };
