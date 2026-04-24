@@ -2796,7 +2796,11 @@ function toast(msg) {
       <input id="eb_total_pages" class="form-input" type="number" min="0" placeholder="选填"></div>
     <div class="form-group"><label class="form-label">评分（0-5）</label>
       <div style="display:flex;gap:.5rem;margin-top:.3rem" id="eb_stars">
-        ${[1,2,3,4,5].map(i=>`<span onclick="setEditBookRating(${i})" style="font-size:1.4rem;cursor:pointer" data-star="${i}">☆</span>`).join('')}
+        <span onclick="setEditBookRating(1)" style="font-size:1.4rem;cursor:pointer" data-star="1">☆</span>
+        <span onclick="setEditBookRating(2)" style="font-size:1.4rem;cursor:pointer" data-star="2">☆</span>
+        <span onclick="setEditBookRating(3)" style="font-size:1.4rem;cursor:pointer" data-star="3">☆</span>
+        <span onclick="setEditBookRating(4)" style="font-size:1.4rem;cursor:pointer" data-star="4">☆</span>
+        <span onclick="setEditBookRating(5)" style="font-size:1.4rem;cursor:pointer" data-star="5">☆</span>
       </div></div>
     <div class="form-group"><label class="form-label">备注</label>
       <textarea id="eb_note" class="form-input" rows="2" placeholder="简短备注…"></textarea></div>
