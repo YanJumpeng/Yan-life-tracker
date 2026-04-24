@@ -2109,10 +2109,6 @@ async function showBookStats(bookId, bookTitle) {
 async function addBook() {
   const title = prompt('书名：'); if (!title) return;
   const author = prompt('作者：') || '';
-  const cyPaceEh = +document.getElementById('eh_cy_pace').value || 0;
-  if (cyPaceEh > 0) habits['骑行配速'] = cyPaceEh;
-  else delete habits['骑行配速'];
-
   const payload = { user_id: currentUser.id, title, author, status:'want', progress:0, rating:0 };
   const { data } = await db.from('books').insert(payload).select().single();
   if (data) { cachedBooks.unshift(data); renderBookGrid(); toast('✓ 已添加书籍'); }
