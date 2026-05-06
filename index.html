@@ -393,6 +393,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 [data-page="dashboard"] .page-header{border-color:var(--c-dash)}
 [data-page="fiveyear"] .page-header{border-color:#3C3489}
 .nav-item[data-mod="fiveyear"].active{background:#3C3489}
+.nav-item[data-mod="english"].active{background:#1a7f5a}
 [data-page="checkin"] .ph-title{color:var(--c-checkin)}
 [data-page="todo"] .ph-title{color:var(--c-todo)}
 [data-page="history"] .ph-title{color:var(--c-history)}
@@ -689,6 +690,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
     <div class="nav-sec">
       <div class="nav-sec-lbl">规划</div>
       <div class="nav-item" data-mod="fiveyear" onclick="go('fiveyear',this)"><span class="nav-icon">◎</span>五年计划</div>
+      <div class="nav-item" data-mod="english" onclick="go('english',this)"><span class="nav-icon">🇬🇧</span>英语日记</div>
       <div class="nav-item" data-mod="hist-week" onclick="go('fiveyear',document.querySelector('[data-mod=fiveyear]'));setTimeout(()=>fyTab('hist-week'),300);document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));this.classList.add('active')"><span class="nav-icon">📅</span>周复盘历史</div>
       <div class="nav-item" data-mod="hist-month" onclick="go('fiveyear',document.querySelector('[data-mod=fiveyear]'));setTimeout(()=>fyTab('hist-month'),300);document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));this.classList.add('active')"><span class="nav-icon">📆</span>月对照历史</div>
     </div>
@@ -738,6 +740,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
         <div class="h-chip" data-habit="主动社交" onclick="this.classList.toggle('on')"><span class="hd"></span>主动社交</div>
         <div class="h-chip" data-habit="复盘" onclick="this.classList.toggle('on')"><span class="hd"></span>复盘总结</div>
         <div class="h-chip" data-habit="早起" onclick="this.classList.toggle('on')"><span class="hd"></span>早起</div>
+        <div class="h-chip" data-habit="英语学习" onclick="this.classList.toggle('on')"><span class="hd"></span>英语学习</div>
       </div>
     </div>
     <!-- 心情评分 -->
@@ -1296,6 +1299,55 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
     </div>
   </div>
 </div>
+
+  <!-- ══ ENGLISH DIARY PAGE ══ -->
+  <div id="page-english" class="page">
+    <div class="card" style="margin-bottom:1rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem">
+        <div>
+          <div class="card-head" style="margin-bottom:.2rem">🇬🇧 英语日记</div>
+          <div style="font-size:.75rem;color:var(--text3)">每天一条，积累可见的成长</div>
+        </div>
+        <div style="display:flex;gap:.5rem;align-items:center">
+          <span id="eng-streak" style="font-size:.8rem;color:var(--text3)">连续 0 天</span>
+          <button onclick="openNewEngEntry()" style="padding:.4rem 1rem;background:#1a7f5a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:500">+ 新建今日日记</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 新建/编辑表单 -->
+    <div id="eng-form" style="display:none;background:var(--sf2);border:1px solid var(--border);border-radius:14px;padding:1.2rem;margin-bottom:1rem">
+      <div style="font-size:.8rem;font-weight:600;color:var(--text2);margin-bottom:.8rem" id="eng-form-title">📝 今日英语日记</div>
+      <div style="display:grid;gap:.7rem">
+        <div>
+          <label style="font-size:.7rem;color:var(--text3);display:block;margin-bottom:.3rem">✍️ 今日英文短文 <span style="color:var(--text3);font-weight:400">（3-5句，写你今天的想法/观察/感受）</span></label>
+          <textarea id="eng-writing" rows="5" placeholder="e.g. Today I ran 5km in the morning. The weather was cool and I felt energized. I've been thinking about how consistency beats intensity..." style="width:100%;padding:.6rem .8rem;font-size:.9rem;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);resize:vertical;line-height:1.6"></textarea>
+        </div>
+        <div>
+          <label style="font-size:.7rem;color:var(--text3);display:block;margin-bottom:.3rem">🎧 今日输入来源 <span style="color:var(--text3);font-weight:400">（播客/文章标题 + 一句话摘要）</span></label>
+          <input id="eng-input-source" placeholder="e.g. Bankless: The Future of DeFi — Key takeaway: liquidity is the new moat" style="width:100%;padding:.4rem .7rem;font-size:.85rem;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)">
+        </div>
+        <div>
+          <label style="font-size:.7rem;color:var(--text3);display:block;margin-bottom:.3rem">📚 今日新词/表达 <span style="color:var(--text3);font-weight:400">（3-5个，格式：word — 释义）</span></label>
+          <textarea id="eng-vocab" rows="3" placeholder="e.g. moat — 护城河&#10;liquidity — 流动性&#10;conviction — 坚定信念" style="width:100%;padding:.6rem .8rem;font-size:.85rem;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);resize:vertical"></textarea>
+        </div>
+        <div>
+          <label style="font-size:.7rem;color:var(--text3);display:block;margin-bottom:.3rem">🪻 中文复盘 <span style="color:var(--text3);font-weight:400">（一句话：今天卡在哪/明天试什么）</span></label>
+          <input id="eng-reflection" placeholder="e.g. 今天写到第三句卡住了，明天试着先列中文提纲再翻译" style="width:100%;padding:.4rem .7rem;font-size:.85rem;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)">
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:.5rem;margin-top:.3rem">
+          <button onclick="document.getElementById('eng-form').style.display='none'" style="padding:.4rem .9rem;border:1px solid var(--border);background:none;color:var(--text2);border-radius:8px;cursor:pointer;font-size:.8rem">取消</button>
+          <button onclick="saveEngEntry()" style="padding:.4rem 1rem;background:#1a7f5a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.8rem;font-weight:500">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 日记列表 -->
+    <div id="eng-list" style="display:flex;flex-direction:column;gap:.8rem">
+      <div style="text-align:center;color:var(--text3);padding:2rem;font-size:.85rem">加载中…</div>
+    </div>
+  </div>
+
 </main>
 </div>
 
@@ -1446,6 +1498,7 @@ function go(id, el) {
   if(id==='journal')   loadAndRenderJournals();
   if(id==='reading')   loadAndRenderBooks();
   if(id==='todo')      loadAndRenderTodo();
+  if(id==='english')   loadAndRenderEnglish();
 }
 
 // ── LOADING ──
@@ -2016,6 +2069,121 @@ async function saveJ() {
 // ══════════════════════════
 //  BOOKS
 // ══════════════════════════
+
+// ══════════════════════════
+//  ENGLISH DIARY
+// ══════════════════════════
+let cachedEngEntries = [];
+let editingEngId = null;
+
+async function loadAndRenderEnglish() {
+  if (!currentUser) { document.getElementById('eng-list').innerHTML = '<div style="text-align:center;color:var(--text3);padding:2rem">请先登录</div>'; return; }
+  const { data, error } = await db.from('journal_entries')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .eq('type', 'english')
+    .order('entry_date', { ascending: false });
+  if (error) { console.error(error); return; }
+  cachedEngEntries = data || [];
+  renderEngList();
+  updateEngStreak();
+}
+
+function updateEngStreak() {
+  if (!cachedEngEntries.length) { document.getElementById('eng-streak').textContent = '连续 0 天'; return; }
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date());
+  const dates = cachedEngEntries.map(e => e.entry_date).sort().reverse();
+  let streak = 0, cur = today;
+  for (const d of dates) {
+    if (d === cur) { streak++; const dt = new Date(cur); dt.setDate(dt.getDate()-1); cur = dt.toISOString().slice(0,10); }
+    else if (d < cur) break;
+  }
+  document.getElementById('eng-streak').textContent = `连续 ${streak} 天 🔥`;
+}
+
+function renderEngList() {
+  const el = document.getElementById('eng-list');
+  if (!cachedEngEntries.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--text3);padding:3rem;font-size:.85rem">还没有英语日记，点右上角「+ 新建今日日记」开始吧 🇬🇧</div>';
+    return;
+  }
+  el.innerHTML = cachedEngEntries.map((e, idx) => {
+    const meta = e.body ? JSON.parse(e.body) : {};
+    const dayNum = cachedEngEntries.length - idx;
+    const dateStr = e.entry_date;
+    return `<div style="background:var(--sf2);border:1px solid var(--border);border-radius:14px;padding:1.2rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem">
+        <div style="display:flex;align-items:center;gap:.6rem">
+          <span style="background:#1a7f5a;color:#fff;border-radius:6px;padding:.15rem .5rem;font-size:.7rem;font-weight:600">Day ${dayNum}</span>
+          <span style="font-size:.8rem;color:var(--text3)">${dateStr}</span>
+        </div>
+        <button data-eid="${e.id}" onclick="editEngEntry(this.dataset.eid)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:.15rem .5rem;font-size:.7rem;color:var(--text3);cursor:pointer">✏️ 编辑</button>
+      </div>
+      ${meta.writing ? `<div style="font-size:.9rem;line-height:1.7;color:var(--text);margin-bottom:.8rem;padding:.7rem;background:var(--surface);border-radius:8px;border-left:3px solid #1a7f5a">${meta.writing.replace(/
+/g,'<br>')}</div>` : ''}
+      ${meta.input_source ? `<div style="font-size:.75rem;color:var(--text3);margin-bottom:.5rem">🎧 <span style="color:var(--text2)">${meta.input_source}</span></div>` : ''}
+      ${meta.vocab ? `<div style="margin-bottom:.5rem">
+        <div style="font-size:.7rem;color:var(--text3);margin-bottom:.3rem">📚 新词</div>
+        <div style="font-size:.78rem;color:var(--text2);line-height:1.8">${meta.vocab.replace(/
+/g,'<br>')}</div>
+      </div>` : ''}
+      ${meta.reflection ? `<div style="font-size:.78rem;color:var(--text3);border-top:1px solid var(--border);padding-top:.6rem;margin-top:.3rem">🪻 ${meta.reflection}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function openNewEngEntry() {
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date());
+  const exists = cachedEngEntries.find(e => e.entry_date === today);
+  if (exists) { editEngEntry(exists.id); return; }
+  editingEngId = null;
+  document.getElementById('eng-form-title').textContent = '📝 今日英语日记';
+  document.getElementById('eng-writing').value = '';
+  document.getElementById('eng-input-source').value = '';
+  document.getElementById('eng-vocab').value = '';
+  document.getElementById('eng-reflection').value = '';
+  document.getElementById('eng-form').style.display = 'block';
+  document.getElementById('eng-writing').focus();
+}
+
+function editEngEntry(id) {
+  const e = cachedEngEntries.find(x => x.id === id);
+  if (!e) return;
+  const meta = e.body ? JSON.parse(e.body) : {};
+  editingEngId = id;
+  document.getElementById('eng-form-title').textContent = `✏️ 编辑 ${e.entry_date}`;
+  document.getElementById('eng-writing').value = meta.writing || '';
+  document.getElementById('eng-input-source').value = meta.input_source || '';
+  document.getElementById('eng-vocab').value = meta.vocab || '';
+  document.getElementById('eng-reflection').value = meta.reflection || '';
+  document.getElementById('eng-form').style.display = 'block';
+  document.getElementById('eng-form').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function saveEngEntry() {
+  if (!currentUser) { toast('请先登录'); return; }
+  const writing = document.getElementById('eng-writing').value.trim();
+  if (!writing) { toast('英文短文不能为空'); return; }
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date());
+  const body = JSON.stringify({
+    writing,
+    input_source: document.getElementById('eng-input-source').value.trim(),
+    vocab:        document.getElementById('eng-vocab').value.trim(),
+    reflection:   document.getElementById('eng-reflection').value.trim(),
+  });
+  const payload = { user_id: currentUser.id, entry_date: today, title: `English Diary · ${today}`, body, type: 'english' };
+  let error;
+  if (editingEngId) {
+    ({ error } = await db.from('journal_entries').update({ body, title: payload.title }).eq('id', editingEngId));
+  } else {
+    ({ error } = await db.from('journal_entries').insert(payload));
+  }
+  if (error) { toast('保存失败: ' + (error.message||'')); return; }
+  document.getElementById('eng-form').style.display = 'none';
+  toast('✓ 已保存');
+  loadAndRenderEnglish();
+}
+
 async function loadAndRenderBooks() {
   showLoading('加载书单…');
   const { data } = await db.from('books').select('*').eq('user_id', currentUser.id).order('created_at', {ascending:false});
