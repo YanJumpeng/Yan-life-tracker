@@ -2107,28 +2107,33 @@ function renderEngList() {
     el.innerHTML = '<div style="text-align:center;color:var(--text3);padding:3rem;font-size:.85rem">还没有英语日记，点右上角「+ 新建今日日记」开始吧 🇬🇧</div>';
     return;
   }
-  el.innerHTML = cachedEngEntries.map((e, idx) => {
-    const meta = e.body ? JSON.parse(e.body) : {};
-    const dayNum = cachedEngEntries.length - idx;
-    const dateStr = e.entry_date;
-    return `<div style="background:var(--sf2);border:1px solid var(--border);border-radius:14px;padding:1.2rem">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem">
-        <div style="display:flex;align-items:center;gap:.6rem">
-          <span style="background:#1a7f5a;color:#fff;border-radius:6px;padding:.15rem .5rem;font-size:.7rem;font-weight:600">Day ${dayNum}</span>
-          <span style="font-size:.8rem;color:var(--text3)">${dateStr}</span>
-        </div>
-        <button data-eid="${e.id}" onclick="editEngEntry(this.dataset.eid)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:.15rem .5rem;font-size:.7rem;color:var(--text3);cursor:pointer">✏️ 编辑</button>
-      </div>
-      ${meta.writing ? `<div style="font-size:.9rem;line-height:1.7;color:var(--text);margin-bottom:.8rem;padding:.7rem;background:var(--surface);border-radius:8px;border-left:3px solid #1a7f5a">${meta.writing.replace(/
-/g,'<br>')}</div>` : ''}
-      ${meta.input_source ? `<div style="font-size:.75rem;color:var(--text3);margin-bottom:.5rem">🎧 <span style="color:var(--text2)">${meta.input_source}</span></div>` : ''}
-      ${meta.vocab ? `<div style="margin-bottom:.5rem">
-        <div style="font-size:.7rem;color:var(--text3);margin-bottom:.3rem">📚 新词</div>
-        <div style="font-size:.78rem;color:var(--text2);line-height:1.8">${meta.vocab.replace(/
-/g,'<br>')}</div>
-      </div>` : ''}
-      ${meta.reflection ? `<div style="font-size:.78rem;color:var(--text3);border-top:1px solid var(--border);padding-top:.6rem;margin-top:.3rem">🪻 ${meta.reflection}</div>` : ''}
-    </div>`;
+  const total = cachedEngEntries.length;
+  el.innerHTML = cachedEngEntries.map(function(e, idx) {
+    var meta = {};
+    try { meta = e.body ? JSON.parse(e.body) : {}; } catch(err) {}
+    var dayNum = total - idx;
+    var writingHtml = meta.writing
+      ? '<div style="font-size:.9rem;line-height:1.7;color:var(--text);margin-bottom:.8rem;padding:.7rem;background:var(--surface);border-radius:8px;border-left:3px solid #1a7f5a">' + meta.writing.split('\n').join('<br>') + '</div>'
+      : '';
+    var sourceHtml = meta.input_source
+      ? '<div style="font-size:.75rem;color:var(--text3);margin-bottom:.5rem">🎧 <span style="color:var(--text2)">' + meta.input_source + '</span></div>'
+      : '';
+    var vocabHtml = meta.vocab
+      ? '<div style="margin-bottom:.5rem"><div style="font-size:.7rem;color:var(--text3);margin-bottom:.3rem">📚 新词</div><div style="font-size:.78rem;color:var(--text2);line-height:1.8">' + meta.vocab.split('\n').join('<br>') + '</div></div>'
+      : '';
+    var reflectionHtml = meta.reflection
+      ? '<div style="font-size:.78rem;color:var(--text3);border-top:1px solid var(--border);padding-top:.6rem;margin-top:.3rem">🪻 ' + meta.reflection + '</div>'
+      : '';
+    return '<div style="background:var(--sf2);border:1px solid var(--border);border-radius:14px;padding:1.2rem">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem">'
+      + '<div style="display:flex;align-items:center;gap:.6rem">'
+      + '<span style="background:#1a7f5a;color:#fff;border-radius:6px;padding:.15rem .5rem;font-size:.7rem;font-weight:600">Day ' + dayNum + '</span>'
+      + '<span style="font-size:.8rem;color:var(--text3)">' + e.entry_date + '</span>'
+      + '</div>'
+      + '<button data-eid="' + e.id + '" onclick="editEngEntry(this.dataset.eid)" style="background:none;border:1px solid var(--border);border-radius:6px;padding:.15rem .5rem;font-size:.7rem;color:var(--text3);cursor:pointer">✏️ 编辑</button>'
+      + '</div>'
+      + writingHtml + sourceHtml + vocabHtml + reflectionHtml
+      + '</div>';
   }).join('');
 }
 
