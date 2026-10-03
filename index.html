@@ -727,6 +727,12 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
           <input type="text" class="form-input" id="napT" placeholder="1h30'" style="width:90px;text-align:center">
         </div>
       </div>
+      <div class="time-row" style="margin-top:.75rem">
+        <div class="form-group"><label class="form-label">睡眠得分</label><input type="number" class="form-input" id="sleepScore" placeholder="83" min="0" max="100" style="width:90px;text-align:center"></div>
+        <div class="form-group"><label class="form-label">深睡</label><input type="text" class="form-input" id="deepT" placeholder="01:36" style="width:90px;text-align:center"></div>
+        <div class="form-group"><label class="form-label">浅睡</label><input type="text" class="form-input" id="lightT" placeholder="05:08" style="width:90px;text-align:center"></div>
+        <div class="form-group"><label class="form-label">REM</label><input type="text" class="form-input" id="remT" placeholder="01:14" style="width:90px;text-align:center"></div>
+      </div>
     </div>
     <div class="card">
       <div class="card-head">习惯打卡</div>
@@ -874,7 +880,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
   <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
     <table class="htable">
       <thead><tr>
-        <th>日期</th><th>入睡</th><th>起床</th><th>睡眠</th>
+        <th>日期</th><th>入睡</th><th>起床</th><th>睡眠</th><th>得分</th><th>深睡</th><th>浅睡</th><th>REM</th>
         <th>俯卧撑</th><th>深蹲</th><th>引体</th><th>臂曲伸</th><th>卷腹</th><th>跑步</th><th>配速</th><th>骑行</th><th style="color:var(--c-checkin)">健身房</th><th style="color:#a78bfa">体重</th><th style="color:#f472b6">体脂%</th>
       </tr></thead>
       <tbody id="histBody"></tbody>
@@ -1518,6 +1524,10 @@ async function loadTodayCheckin() {
   if (data) {
     if(data.sleep_time) document.getElementById('sleepT').value = data.sleep_time.slice(0,5);
     if(data.wake_time)  document.getElementById('wakeT').value  = data.wake_time.slice(0,5);
+    if(data.sleep_score != null) document.getElementById('sleepScore').value = data.sleep_score;
+    if(data.deep_sleep)  document.getElementById('deepT').value  = data.deep_sleep.slice(0,5);
+    if(data.light_sleep) document.getElementById('lightT').value = data.light_sleep.slice(0,5);
+    if(data.rem_sleep)   document.getElementById('remT').value   = data.rem_sleep.slice(0,5);
     calcSleep();
     document.getElementById('pu').value  = data.pushup  || 0;
     document.getElementById('sq').value  = data.squat   || 0;
@@ -1648,6 +1658,10 @@ async function saveCheckin() {
       var hm=v.match(/(\d+)h(?:(\d+)')?/);
       return hm ? parseFloat(hm[1])+(parseInt(hm[2]||0)/60) : 0;
     })(),
+    sleep_score: parseInt(document.getElementById('sleepScore').value) || null,
+    deep_sleep:  document.getElementById('deepT').value.trim()  || null,
+    light_sleep: document.getElementById('lightT').value.trim() || null,
+    rem_sleep:   document.getElementById('remT').value.trim()   || null,
     crunch: +document.getElementById('cr').value || 0,
     pushup:  +document.getElementById('pu').value  || 0,
     squat:   +document.getElementById('sq').value  || 0,
@@ -1703,13 +1717,18 @@ async function loadAndRenderHistory() {
   cachedRecords = data || [];
   const tbody = document.getElementById('histBody');
   if (!cachedRecords.length) {
-    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:2rem;color:var(--text3)">${histYear}年${histMonth+1}月暂无记录</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="19" style="text-align:center;padding:2rem;color:var(--text3)">${histYear}年${histMonth+1}月暂无记录</td></tr>`;
     return;
   }
   tbody.innerHTML = cachedRecords.map((r, idx) => {
     const dur = r.sleep_hours;
     // 睡眠颜色：<6h 红色加粗，≥8h 绿色加粗，其余橙色
     const sc = dur>=8 ? 'c-ok c-bold' : dur&&dur<6 ? 'c-bad c-bold' : dur ? 'c-warn' : '';
+    // 睡眠得分颜色：≥85 绿色加粗，<70 红色加粗，其余橙色
+    const ssc = r.sleep_score>=85 ? 'c-ok c-bold' : (r.sleep_score!=null&&r.sleep_score<70) ? 'c-bad c-bold' : r.sleep_score!=null ? 'c-warn' : '';
+    // 深睡颜色：≥90min 绿色加粗，<60min 红色加粗，其余橙色
+    const dmin = r.deep_sleep ? (()=>{const p=r.deep_sleep.split(':');return (+p[0]||0)*60+(+p[1]||0);})() : null;
+    const dsc = dmin==null ? '' : dmin>=90 ? 'c-ok c-bold' : dmin<60 ? 'c-bad c-bold' : 'c-warn';
     const wk = r.wake_time ? r.wake_time.slice(0,5) : '/';
     const wh = r.wake_time ? parseInt(r.wake_time) : null;
     const wm = r.wake_time ? parseInt(r.wake_time.split(':')[1]||0) : 0;
@@ -1723,6 +1742,10 @@ async function loadAndRenderHistory() {
       <td style="color:var(--text3)">${r.sleep_time?r.sleep_time.slice(0,5):'/'}</td>
       <td class="${wc}">${wk}</td>
       <td class="${sc}">${dur||'/'}</td>
+      <td class="${ssc}">${r.sleep_score!=null?r.sleep_score:'/'}</td>
+      <td class="${dsc}">${r.deep_sleep?r.deep_sleep.slice(0,5):'/'}</td>
+      <td style="color:var(--text3)">${r.light_sleep?r.light_sleep.slice(0,5):'/'}</td>
+      <td style="color:var(--text3)">${r.rem_sleep?r.rem_sleep.slice(0,5):'/'}</td>
       <td class="c-txt" style="font-weight:600;color:var(--c-checkin)">${r.pushup||0}</td>
       <td>${r.squat||'/'}</td>
       <td style="color:var(--c-todo);font-weight:500">${r.pullup||'/'}</td>
@@ -1734,7 +1757,7 @@ async function loadAndRenderHistory() {
       <td style="color:var(--c-checkin);font-size:.75rem">${r.gym ? `<span class="gym-toggle" onclick="event.stopPropagation();toggleGym(this)" style="cursor:pointer;user-select:none">🏋️</span>` : '/'}</td>
       <td style="color:#a78bfa;font-weight:600">${r.weight ? r.weight+'kg' : '/'}</td>
       <td style="color:#f472b6;font-weight:600">${r.body_fat ? r.body_fat+'%' : '/'}</td>
-    </tr>` + (r.gym ? `<tr class="gym-detail" style="display:none"><td colspan="14" style="padding:.25rem .6rem .5rem 1.2rem;font-size:.72rem;color:var(--text3);white-space:pre-wrap;line-height:1.7;background:var(--sf2);border-bottom:1px solid var(--border)">${r.gym.replace(/\n/g,'<br>')}</td></tr>` : '');
+    </tr>` + (r.gym ? `<tr class="gym-detail" style="display:none"><td colspan="19" style="padding:.25rem .6rem .5rem 1.2rem;font-size:.72rem;color:var(--text3);white-space:pre-wrap;line-height:1.7;background:var(--sf2);border-bottom:1px solid var(--border)">${r.gym.replace(/\n/g,'<br>')}</td></tr>` : '');
   }).join('');
 
   // 渲染月度统计
@@ -1757,6 +1780,7 @@ function renderHistStats(records) {
 
   let lateNight=0, greenSleep=0, alertSleep=0, earlyRise=0, newYearDays=0;
   let totalRun=0, totalCycling=0, runDays=0;
+  let scoreSum=0, scoreDays=0, deepMinSum=0, deepDays=0;
 
   records.forEach(r => {
     const dur = parseFloat(r.sleep_hours) || 0;
@@ -1766,6 +1790,8 @@ function renderHistStats(records) {
     if (dur >= 8) greenSleep++;
     else if (dur > 0 && dur <= 6) alertSleep++;
     if (wh !== null && wh < 8) earlyRise++;
+    if (r.sleep_score != null && +r.sleep_score > 0) { scoreSum += +r.sleep_score; scoreDays++; }
+    if (r.deep_sleep) { const p = r.deep_sleep.split(':'); deepMinSum += (+p[0]||0)*60 + (+p[1]||0); deepDays++; }
     totalRun     += parseFloat(r.running)  || 0;
     totalCycling += parseFloat(r.cycling) || 0;
     if ((parseFloat(r.running)||0) > 0) runDays++;
@@ -1789,6 +1815,14 @@ function renderHistStats(records) {
       <div class="hstat-val" style="color:var(--bad)">${alertSleep}</div>
       <div class="hstat-lbl">睡眠报警<small>≤6小时</small></div>
     </div>
+    ${scoreDays ? `<div class="hstat-card" style="border-top:3px solid #8b5cf6">
+      <div class="hstat-val" style="color:#8b5cf6">${(scoreSum/scoreDays).toFixed(1)}</div>
+      <div class="hstat-lbl">睡眠得分<small>手环均值·${scoreDays}天</small></div>
+    </div>` : ''}
+    ${deepDays ? `<div class="hstat-card" style="border-top:3px solid #06b6d4">
+      <div class="hstat-val" style="color:#06b6d4">${Math.floor(deepMinSum/deepDays/60)}h${String(Math.round(deepMinSum/deepDays%60)).padStart(2,'0')}'</div>
+      <div class="hstat-lbl">平均深睡<small>手环均值·${deepDays}天</small></div>
+    </div>` : ''}
     <div class="hstat-card" style="border-top:3px solid var(--ok)">
       <div class="hstat-val" style="color:var(--ok)">${earlyRise}</div>
       <div class="hstat-lbl">早起天数<small>本月累计</small></div>
@@ -2887,6 +2921,12 @@ function toast(msg) {
       <div class="form-group"><label class="form-label">夜间时长(h)</label><input type="number" id="add_sleep_hours" class="form-input" step="0.1" min="0" max="24"></div>
       <div class="form-group"><label class="form-label">午休时长(h)</label><input type="number" id="add_nap_hours" class="form-input" step="0.1" min="0" max="5"></div>
     </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:.6rem;margin-top:.6rem">
+      <div class="form-group"><label class="form-label">睡眠得分</label><input type="number" id="add_sleep_score" class="form-input" min="0" max="100" placeholder="83"></div>
+      <div class="form-group"><label class="form-label">深睡</label><input type="time" id="add_deep_sleep" class="form-input"></div>
+      <div class="form-group"><label class="form-label">浅睡</label><input type="time" id="add_light_sleep" class="form-input"></div>
+      <div class="form-group"><label class="form-label">REM</label><input type="time" id="add_rem_sleep" class="form-input"></div>
+    </div>
 
     <!-- 健身数据 -->
     <div class="card-head" style="margin:.8rem 0 .5rem">健身数据</div>
@@ -2961,6 +3001,10 @@ function toast(msg) {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
       <div><label style="font-size:.7rem;color:var(--text3)">入睡</label><input id="eh_sleep" type="time" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
       <div><label style="font-size:.7rem;color:var(--text3)">起床</label><input id="eh_wake" type="time" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">睡眠得分</label><input id="eh_sleep_score" type="number" min="0" max="100" placeholder="83" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">深睡</label><input id="eh_deep_sleep" type="time" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">浅睡</label><input id="eh_light_sleep" type="time" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">REM</label><input id="eh_rem_sleep" type="time" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
       <div><label style="font-size:.7rem;color:var(--text3)">俯卧撑</label><input id="eh_pushup" type="number" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
       <div><label style="font-size:.7rem;color:var(--text3)">深蹲</label><input id="eh_squat" type="number" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
       <div><label style="font-size:.7rem;color:var(--text3)">引体向上</label><input id="eh_pullup" type="number" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
@@ -2999,7 +3043,7 @@ function setAddMood(v) {
 function openAddRecord() {
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date());
   document.getElementById('add_date').value = today;
-  ['add_sleep_time','add_wake','add_sleep_hours','add_nap_hours','add_pushup','add_squat',
+  ['add_sleep_time','add_wake','add_sleep_hours','add_nap_hours','add_sleep_score','add_deep_sleep','add_light_sleep','add_rem_sleep','add_pushup','add_squat',
    'add_pullup','add_dips','add_running','add_ru_pace','add_cycling','add_cy_pace',
    'add_note','add_gym','add_weight','add_body_fat'].forEach(id => {
     const el = document.getElementById(id);
@@ -3029,6 +3073,10 @@ async function submitAddRecord() {
     wake_time: document.getElementById('add_wake').value || null,
     sleep_hours: parseFloat(document.getElementById('add_sleep_hours').value) || null,
     nap_hours: parseFloat(document.getElementById('add_nap_hours').value) || null,
+    sleep_score: parseInt(document.getElementById('add_sleep_score').value) || null,
+    deep_sleep:  document.getElementById('add_deep_sleep').value  || null,
+    light_sleep: document.getElementById('add_light_sleep').value || null,
+    rem_sleep:   document.getElementById('add_rem_sleep').value   || null,
     pushup: parseInt(document.getElementById('add_pushup').value) || 0,
     squat: parseInt(document.getElementById('add_squat').value) || 0,
     pullup: parseInt(document.getElementById('add_pullup').value) || 0,
@@ -3065,6 +3113,10 @@ function editHistRecord(r) {
   document.getElementById('editHistDate').textContent = r.date;
   document.getElementById('eh_sleep').value = r.sleep_time ? r.sleep_time.slice(0,5) : '';
   document.getElementById('eh_wake').value = r.wake_time ? r.wake_time.slice(0,5) : '';
+  document.getElementById('eh_sleep_score').value = r.sleep_score != null ? r.sleep_score : '';
+  document.getElementById('eh_deep_sleep').value = r.deep_sleep ? r.deep_sleep.slice(0,5) : '';
+  document.getElementById('eh_light_sleep').value = r.light_sleep ? r.light_sleep.slice(0,5) : '';
+  document.getElementById('eh_rem_sleep').value = r.rem_sleep ? r.rem_sleep.slice(0,5) : '';
   document.getElementById('eh_pushup').value = r.pushup || 0;
   document.getElementById('eh_squat').value = r.squat || 0;
   document.getElementById('eh_pullup').value = r.pullup || 0;
@@ -3124,6 +3176,10 @@ async function saveEditHist() {
     sleep_time:  sleepT || null,
     wake_time:   wakeT  || null,
     sleep_hours: sleepH,
+    sleep_score: parseInt(document.getElementById('eh_sleep_score').value) || null,
+    deep_sleep:  document.getElementById('eh_deep_sleep').value  || null,
+    light_sleep: document.getElementById('eh_light_sleep').value || null,
+    rem_sleep:   document.getElementById('eh_rem_sleep').value   || null,
     pushup:  +document.getElementById('eh_pushup').value  || 0,
     squat:   +document.getElementById('eh_squat').value   || 0,
     pullup:  +document.getElementById('eh_pullup').value  || 0,
