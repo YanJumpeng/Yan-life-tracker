@@ -365,7 +365,6 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 .nav-icon{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0;background:var(--bg2);transition:all .18s}
 .nav-item.active .nav-icon{background:rgba(255,255,255,.2)}
 .nav-item[data-mod="checkin"].active{background:var(--c-checkin)}
-.nav-item[data-mod="todo"].active{background:var(--c-todo)}
 .nav-item[data-mod="history"].active{background:var(--c-history)}
 .nav-item[data-mod="journal"].active{background:var(--c-journal)}
 .nav-item[data-mod="reading"].active{background:var(--c-reading)}
@@ -386,7 +385,6 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 .ph-sub{font-family:'Crimson Pro',serif;font-size:.8rem;color:var(--text3);font-style:italic;margin-top:3px}
 .ph-actions{display:flex;gap:.6rem;align-items:center;flex-shrink:0;margin-top:.2rem}
 [data-page="checkin"] .page-header{border-color:var(--c-checkin)}
-[data-page="todo"] .page-header{border-color:var(--c-todo)}
 [data-page="history"] .page-header{border-color:var(--c-history)}
 [data-page="journal"] .page-header{border-color:var(--c-journal)}
 [data-page="reading"] .page-header{border-color:var(--c-reading)}
@@ -395,7 +393,6 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 .nav-item[data-mod="fiveyear"].active{background:#3C3489}
 .nav-item[data-mod="english"].active{background:#1a7f5a}
 [data-page="checkin"] .ph-title{color:var(--c-checkin)}
-[data-page="todo"] .ph-title{color:var(--c-todo)}
 [data-page="history"] .ph-title{color:var(--c-history)}
 [data-page="journal"] .ph-title{color:var(--c-journal)}
 [data-page="reading"] .ph-title{color:var(--c-reading)}
@@ -474,25 +471,6 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 .htable tr:last-child td{border-bottom:none}
 .c-ok{color:var(--ok)!important}.c-bad{color:var(--bad)!important}
 .c-warn{color:var(--warn)!important}.c-txt{color:var(--text)!important;font-weight:400}
-
-/* ─── TODO ─── */
-.todo-scroll{overflow-x:auto;padding-bottom:.5rem}
-.todo-tbl{border-collapse:collapse;min-width:100%}
-.todo-tbl th{padding:.6rem .85rem;background:var(--c-todo-l);border:1px solid #cce0f0;font-size:.72rem;color:var(--c-todo);font-weight:500;white-space:nowrap;text-align:center;min-width:118px}
-.todo-tbl th.cat-head{background:linear-gradient(135deg,var(--c-todo),#3a7aa5);color:#fff;text-align:left;width:86px;min-width:86px}
-.todo-tbl td{padding:.45rem .7rem;border:1px solid var(--border);vertical-align:top;min-width:118px}
-.todo-tbl td.cat-cell{background:var(--c-todo-l);font-size:.7rem;color:var(--c-todo);font-weight:500;letter-spacing:.05em;vertical-align:middle;min-width:86px;width:86px}
-.todo-tbl tr.cat-sep td{background:linear-gradient(135deg,#f0f7fd,var(--c-todo-l));padding:.45rem 1rem;font-size:.68rem;color:var(--c-todo);font-weight:600;letter-spacing:.12em;text-transform:uppercase;border-color:#cce0f0}
-.todo-cell{display:flex;flex-direction:column;gap:3px}
-.t-item{display:flex;align-items:flex-start;gap:.38rem;padding:3px 6px;border-radius:6px;cursor:pointer;transition:background .15s;font-size:.74rem;color:var(--text2);line-height:1.4}
-.t-item:hover{background:var(--c-todo-l)}
-.t-item.done{text-decoration:line-through;color:var(--text3)}
-.t-cb{width:13px;height:13px;border:1.5px solid var(--bdr2);border-radius:3px;flex-shrink:0;margin-top:1px;transition:all .15s;display:flex;align-items:center;justify-content:center;background:var(--surface);font-size:9px;color:#fff}
-.t-item.done .t-cb{background:var(--c-todo);border-color:var(--c-todo)}
-.t-add{font-size:.68rem;color:var(--text3);cursor:pointer;padding:3px 6px;border-radius:4px;border:1px dashed transparent;transition:all .15s;margin-top:1px}
-.t-add:hover{border-color:var(--c-todo);color:var(--c-todo);background:var(--c-todo-l)}
-.today-col{background:rgba(78,138,181,.04)!important}
-.today-head{color:var(--c-todo)!important;background:rgba(78,138,181,.12)!important}
 
 /* ─── JOURNAL ─── */
 .j-tabs{display:flex;gap:.45rem;margin-bottom:1.2rem;flex-wrap:wrap}
@@ -675,8 +653,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
     <div class="nav-sec">
       <div class="nav-sec-lbl">记录</div>
       <div class="nav-item active" data-mod="checkin" onclick="go('checkin',this)"><span class="nav-icon">☀</span>今日打卡</div>
-      <div class="nav-item" data-mod="todo" onclick="go('todo',this)"><span class="nav-icon">☑</span>Todo 看板</div>
-      <div class="nav-item" data-mod="history" onclick="go('history',this)"><span class="nav-icon">≡</span>历史数据</div>
+      <div class="nav-item" data-mod="history" onclick="go('history',this)"><span class="nav-icon">📅</span>历史数据</div>
     </div>
     <div class="nav-sec">
       <div class="nav-sec-lbl">笔记</div>
@@ -767,7 +744,8 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
       <div style="display:flex;flex-direction:column;gap:.7rem">
         <div>
           <label class="form-label" style="font-size:.7rem">书名</label>
-          <input type="text" id="todayBook" class="form-input" placeholder="在读的书…" style="width:100%">
+          <input type="text" id="todayBook" class="form-input" placeholder="在读的书…" list="bookDatalist" style="width:100%">
+          <datalist id="bookDatalist"></datalist>
         </div>
         <div style="display:flex;gap:.7rem">
           <div style="flex:1">
@@ -851,20 +829,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
   <div style="display:flex;gap:.7rem">
     <button class="btn btn-primary" id="saveCheckinBtn" onclick="saveCheckin()">✓ 保存打卡</button>
     <button class="btn btn-ghost" onclick="copyYesterdayValues()" title="一键带入昨天的起床时间、体重体脂和习惯打卡（只填空缺项）">⤴ 沿用昨天</button>
-    <button class="btn btn-ghost" onclick="go('todo',document.querySelector('[data-mod=todo]'))">跳转 Todo →</button>
   </div>
-</div>
-
-<!-- Todo -->
-<div class="page" id="page-todo" data-page="todo">
-  <div class="page-header">
-    <div><div class="ph-title">Todo 看板</div><div class="ph-sub">按日期追踪任务进度</div></div>
-    <div class="ph-actions">
-      <button class="btn btn-ghost btn-sm" onclick="addTodoCol()">＋ 日期</button>
-      <button class="btn btn-blue btn-sm" onclick="addTodoRow()">＋ 分类</button>
-    </div>
-  </div>
-  <div class="card" style="padding:0;overflow:hidden"><div class="todo-scroll"><table class="todo-tbl" id="todoTbl"></table></div></div>
 </div>
 
 <!-- 历史 -->
@@ -919,6 +884,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 <!-- 读书 -->
 <div class="page" id="page-reading" data-page="reading">
   <div class="page-header"><div><div class="ph-title">读书记录</div></div><div class="ph-actions"><button class="btn btn-red btn-sm" onclick="addBook()">＋ 添加</button></div></div>
+  <div id="readingSummary" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;margin-bottom:1.2rem"></div>
   <div class="book-grid" id="bookGrid"></div>
   <!-- 打卡阅读统计 -->
   <div id="reading-stats-section" style="margin-top:1.5rem;display:none">
@@ -1412,17 +1378,8 @@ let dashMonth = new Date().getMonth();
 let jTabCur     = 'all';
 let jEditId     = null;
 let cachedRecords = [];
-let cachedTodos   = [];
 let cachedJournals = [];
 let cachedBooks   = [];
-
-// Todo local structure
-const todoCols = [
-  {date:'3/1',day:'周日'},{date:'3/2',day:'周一'},
-  {date:'3/3',day:'周二'},{date:'3/4',day:'周三'},
-  {date:'3/5',day:'周四'},{date:'3/6',day:'周五'},
-  {date:'3/7',day:'周六'},
-];
 
 // ── AUTH ──
 function switchAuthTab(mode) {
@@ -1534,7 +1491,6 @@ function go(id, el) {
   if(id==='history')   loadAndRenderHistory();
   if(id==='journal')   loadAndRenderJournals();
   if(id==='reading')   loadAndRenderBooks();
-  if(id==='todo')      loadAndRenderTodo();
   if(id==='english')   loadAndRenderEnglish();
 }
 
@@ -1551,6 +1507,13 @@ function hideLoading() { document.getElementById('loadingOverlay').classList.rem
 async function loadTodayCheckin() {
   if (!currentUser) return;
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date());
+  // 书名输入联想：书架未加载时静默拉取
+  (async () => {
+    if (cachedBooks.length) { refreshBookDatalist(); return; }
+    const { data: bl } = await db.from('books').select('title,author,status').eq('user_id', currentUser.id);
+    cachedBooks = bl || [];
+    refreshBookDatalist();
+  })();
   const { data } = await db.from('daily_records').select('*').eq('user_id', currentUser.id).eq('date', today).maybeSingle();
   if (data) {
     if(data.sleep_time) document.getElementById('sleepT').value = data.sleep_time.slice(0,5);
@@ -1722,6 +1685,16 @@ async function saveCheckin() {
     + (!document.getElementById('dailyNote').value.trim() ? 1 : 0)
     + (!document.getElementById('gymRecord').value.trim() ? 1 : 0);
   toast(_emptyN > 0 ? `✓ 已保存！还有 ${_emptyN} 项未填，随时回来补` : '✓ 打卡完成，今日记录完整 🎉');
+  // 填了书名而书架没有这本书 → 自动建档为「在读」
+  const _tb = document.getElementById('todayBook')?.value?.trim();
+  if (_tb && !cachedBooks.some(b => b.title === _tb)) {
+    try {
+      const { data: nb, error: ne } = await db.from('books')
+        .insert({ user_id: currentUser.id, title: _tb, author: '', status: 'reading', progress: 0, rating: 0 })
+        .select().single();
+      if (!ne && nb) { cachedBooks.unshift(nb); refreshBookDatalist(); }
+    } catch(e) { console.warn('自动建档失败', e); }
+  }
   updateStreak();
 }
 
@@ -1909,107 +1882,6 @@ function histChangeMonth(delta) {
   if (histMonth < 0)  { histMonth = 11; histYear--; }
   if (histMonth > 11) { histMonth = 0;  histYear++; }
   loadAndRenderHistory();
-}
-
-// ══════════════════════════
-//  TODO
-// ══════════════════════════
-async function loadAndRenderTodo() {
-  showLoading('加载 Todo…');
-  // Load current week todos
-  const dates = todoCols.map(c => {
-    const [m,d] = c.date.split('/');
-    return `2026-0${m}-${d.padStart(2,'0')}`;
-  });
-  const { data } = await db.from('todos').select('*').eq('user_id', currentUser.id).in('date', dates);
-  hideLoading();
-  cachedTodos = data || [];
-  renderTodoTable();
-}
-
-function renderTodoTable() {
-  const tbl = document.getElementById('todoTbl');
-  const today = '3/7';
-  // Build category structure from DB data
-  const catMap = {};
-  cachedTodos.forEach(t => {
-    const d = new Date(t.date);
-    const key = `${d.getMonth()+1}/${d.getDate()}`;
-    if (!catMap[t.category]) catMap[t.category] = {};
-    if (!catMap[t.category][t.label]) catMap[t.category][t.label] = {};
-    if (!catMap[t.category][t.label][key]) catMap[t.category][t.label][key] = [];
-    catMap[t.category][t.label][key].push(t);
-  });
-  // Ensure default categories exist
-  ['工作','个人'].forEach(cat => { if (!catMap[cat]) catMap[cat] = {}; });
-  if (!catMap['工作']['日常']) catMap['工作']['日常'] = {};
-  if (!catMap['工作']['今日']) catMap['工作']['今日'] = {};
-  if (!catMap['个人']['每日']) catMap['个人']['每日'] = {};
-  if (!catMap['个人']['AI成长']) catMap['个人']['AI成长'] = {};
-
-  let h = `<thead><tr><th class="cat-head">分类</th>`;
-  todoCols.forEach(c => {
-    const isTd = c.date === today;
-    h += `<th class="${isTd?'today-head':''}">${c.date}<br><span style="font-size:.6rem;font-weight:300;opacity:.75">${c.day}</span></th>`;
-  });
-  h += `</tr></thead><tbody>`;
-  Object.entries(catMap).forEach(([cat, rows]) => {
-    h += `<tr class="cat-sep"><td colspan="${todoCols.length+1}">${cat}</td></tr>`;
-    Object.entries(rows).forEach(([label, dateItems]) => {
-      h += `<tr><td class="cat-cell">${label}</td>`;
-      todoCols.forEach(col => {
-        const isTd = col.date === today;
-        const items = dateItems[col.date] || [];
-        h += `<td class="${isTd?'today-col':''}"><div class="todo-cell">`;
-        items.forEach(item => {
-          h += `<div class="t-item${item.done?' done':''}" onclick="toggleTodoItem('${item.id}',this)">
-            <div class="t-cb">${item.done?'✓':''}</div><span>${item.title}</span>
-          </div>`;
-        });
-        h += `<div class="t-add" onclick="addTodoItem('${cat}','${label}','${col.date}')">＋</div>`;
-        h += `</div></td>`;
-      });
-      h += `</tr>`;
-    });
-  });
-  h += `</tbody>`;
-  tbl.innerHTML = h;
-}
-
-async function toggleTodoItem(id, el) {
-  const item = cachedTodos.find(t => t.id === id);
-  if (!item) return;
-  const newDone = !item.done;
-  el.classList.toggle('done', newDone);
-  el.querySelector('.t-cb').textContent = newDone ? '✓' : '';
-  item.done = newDone;
-  await db.from('todos').update({ done: newDone }).eq('id', id);
-}
-
-async function addTodoItem(cat, label, dateStr) {
-  const title = prompt('添加任务：'); if (!title) return;
-  const [m, d] = dateStr.split('/');
-  const date = `2026-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
-  const payload = { user_id: currentUser.id, date, category: cat, label, title, done: false };
-  const { data } = await db.from('todos').insert(payload).select().single();
-  if (data) cachedTodos.push(data);
-  renderTodoTable();
-}
-
-function addTodoCol() {
-  const d = prompt('日期（如 3/15）：'); if (!d) return;
-  const days = ['周日','周一','周二','周三','周四','周五','周六'];
-  const p = d.split('/');
-  const dt = new Date(2026, +p[0]-1, +p[1]);
-  if (!todoCols.find(c => c.date === d)) todoCols.push({ date: d, day: days[dt.getDay()] });
-  loadAndRenderTodo();
-}
-
-function addTodoRow() {
-  const cat = prompt('所属分类（如 工作 / 个人）：'); if (!cat) return;
-  const label = prompt('行标签：'); if (!label) return;
-  toast(`分类「${cat} · ${label}」已创建，点击 ＋ 添加任务`);
-  loadAndRenderTodo();
 }
 
 // ══════════════════════════
@@ -2283,6 +2155,41 @@ async function loadAndRenderBooks() {
   hideLoading();
   cachedBooks = data || [];
   renderBookGrid();
+  renderReadingSummary();
+  refreshBookDatalist();
+}
+
+// 书名输入联想：优先在读书目
+function refreshBookDatalist() {
+  const dl = document.getElementById('bookDatalist');
+  if (!dl) return;
+  const rank = { reading: 0, want: 1, done: 2 };
+  const sorted = [...cachedBooks].sort((a,b) => (rank[a.status]??9) - (rank[b.status]??9));
+  dl.innerHTML = sorted.map(b => `<option value="${String(b.title).replace(/"/g,'&quot;')}">${b.author||''}</option>`).join('');
+}
+
+// 读书页顶部汇总卡
+async function renderReadingSummary() {
+  const box = document.getElementById('readingSummary');
+  if (!box) return;
+  const n = s => cachedBooks.filter(b => b.status === s).length;
+  // 本月阅读打卡统计
+  const now = new Date();
+  const start = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-01';
+  const { data } = await db.from('daily_records').select('date,habits')
+    .eq('user_id', currentUser.id).gte('date', start).order('date', {ascending:false}).limit(62);
+  const readDays = (data||[]).filter(r => r.habits && r.habits['今日书名']);
+  const monthPages = readDays.reduce((s,r) => s + (+r.habits['读了页数']||0), 0);
+  const card = (v,l,c) => `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.7rem .5rem;text-align:center;box-shadow:var(--shadow)">
+      <div style="font-size:1.15rem;font-weight:600;color:${c}">${v}</div>
+      <div style="font-size:.68rem;color:var(--text3);margin-top:2px">${l}</div>
+    </div>`;
+  box.innerHTML =
+    card(n('reading'), '在读', 'var(--c-reading)') +
+    card(n('done'), '已读', 'var(--ok)') +
+    card(n('want'), '想读', 'var(--warn)') +
+    card(readDays.length + ' 天', '本月阅读打卡', 'var(--c-reading)') +
+    card(monthPages || '—', '本月累计页数', 'var(--c-reading)');
 }
 
 function renderBookGrid() {
@@ -2444,13 +2351,7 @@ async function showBookStats(bookId, bookTitle) {
   section.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 
-async function addBook() {
-  const title = prompt('书名：'); if (!title) return;
-  const author = prompt('作者：') || '';
-  const payload = { user_id: currentUser.id, title, author, status:'want', progress:0, rating:0 };
-  const { data } = await db.from('books').insert(payload).select().single();
-  if (data) { cachedBooks.unshift(data); renderBookGrid(); toast('✓ 已添加书籍'); }
-}
+// 添加书籍：见下方「添加书籍弹窗」（addBook/submitAddBook）
 
 // ══════════════════════════
 //  DASHBOARD
@@ -3177,7 +3078,7 @@ function toast(msg) {
     <!-- 今日读书 -->
     <div class="card-head" style="margin:.8rem 0 .5rem">今日读书</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem">
-      <div class="form-group" style="grid-column:1/-1"><label class="form-label">书名</label><input type="text" id="add_book" class="form-input" placeholder="在读的书…"></div>
+      <div class="form-group" style="grid-column:1/-1"><label class="form-label">书名</label><input type="text" id="add_book" class="form-input" placeholder="在读的书…" list="bookDatalist"></div>
       <div class="form-group"><label class="form-label">读了多少页</label><input type="number" id="add_book_pages" class="form-input" min="0" value="0"></div>
       <div class="form-group" style="grid-column:1/-1"><label class="form-label">今日摘记</label><textarea id="add_book_note" rows="2" class="form-input" placeholder="一句话感悟…"></textarea></div>
     </div>
@@ -3301,6 +3202,13 @@ async function submitAddRecord() {
   const ruPaceAdd = document.getElementById('add_ru_pace').value;
   if (ruPaceAdd) habits['跑步配速'] = ruPaceAdd;
   if (_addMood > 0) habits['mood'] = _addMood;
+  const addBookName = document.getElementById('add_book')?.value?.trim();
+  if (addBookName) {
+    habits['今日书名'] = addBookName;
+    habits['读了页数'] = +document.getElementById('add_book_pages')?.value || 0;
+    const abn = document.getElementById('add_book_note')?.value?.trim();
+    if (abn) habits['读书摘记'] = abn;
+  }
 
   const payload = {
     user_id: currentUser.id,
@@ -3447,10 +3355,61 @@ async function saveEditHist() {
   }
 }
 
-// 点击弹窗外部关闭
+<!-- 点击弹窗外部关闭 -->
 document.getElementById('editHistModal').addEventListener('click', function(e) {
   if (e.target === this) closeEditHist();
 });
+
+// ════════════════════════════════════════
+// 添加书籍弹窗
+// ════════════════════════════════════════
+document.body.insertAdjacentHTML('beforeend', `
+<div id="bookModal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.45);align-items:center;justify-content:center">
+  <div style="background:var(--surface);border-radius:16px;padding:1.6rem;width:90%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+    <div style="font-size:1rem;font-weight:500;margin-bottom:1.1rem;color:var(--text)">添加书籍</div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:.6rem;margin-bottom:.6rem">
+      <div><label style="font-size:.7rem;color:var(--text3)">书名 *</label><input id="bm_title" autocomplete="off" list="bookDatalist" style="width:100%;padding:.45rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">作者</label><input id="bm_author" autocomplete="off" style="width:100%;padding:.45rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem;margin-bottom:.6rem">
+      <div><label style="font-size:.7rem;color:var(--text3)">状态</label>
+        <select id="bm_status" style="width:100%;padding:.45rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)">
+          <option value="want">想读</option><option value="reading" selected>在读</option><option value="done">已读</option>
+        </select></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">进度%</label><input id="bm_progress" type="number" min="0" max="100" value="0" style="width:100%;padding:.45rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">评分 0-5</label><input id="bm_rating" type="number" min="0" max="5" value="0" style="width:100%;padding:.45rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+    </div>
+    <div style="margin-bottom:.4rem"><label style="font-size:.7rem;color:var(--text3)">备注</label><input id="bm_note" autocomplete="off" style="width:100%;padding:.45rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+    <div style="display:flex;justify-content:flex-end;gap:.6rem;margin-top:1rem">
+      <button onclick="closeBookModal()" style="padding:.42rem 1rem;border:1px solid var(--border);background:none;color:var(--text2);border-radius:8px;cursor:pointer;font-size:.8rem">取消</button>
+      <button onclick="submitAddBook()" style="padding:.42rem 1rem;background:var(--c-reading);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.8rem;font-weight:500">保存</button>
+    </div>
+  </div>
+</div>`);
+document.getElementById('bookModal').addEventListener('click', function(e) { if (e.target === this) closeBookModal(); });
+
+function addBook() { if (!currentUser) { alert('请先登录'); return; } document.getElementById('bookModal').style.display = 'flex'; document.getElementById('bm_title').focus(); }
+function closeBookModal() { document.getElementById('bookModal').style.display = 'none'; }
+async function submitAddBook() {
+  if (!currentUser) { alert('请先登录'); return; }
+  const title = document.getElementById('bm_title').value.trim();
+  if (!title) { toast('书名不能为空'); return; }
+  if (cachedBooks.some(b => b.title === title)) { toast('书架已有《' + title + '》，可在书卡上点 ✏️ 修改'); return; }
+  const payload = { user_id: currentUser.id, title,
+    author:  document.getElementById('bm_author').value.trim(),
+    status:  document.getElementById('bm_status').value,
+    progress: Math.min(100, Math.max(0, +document.getElementById('bm_progress').value || 0)),
+    rating:  Math.min(5,   Math.max(0, +document.getElementById('bm_rating').value   || 0)),
+    note:    document.getElementById('bm_note').value.trim() };
+  const { data, error } = await db.from('books').insert(payload).select().single();
+  if (error) { toast('保存失败: ' + (error.message||'')); return; }
+  cachedBooks.unshift(data);
+  renderBookGrid(); renderReadingSummary(); refreshBookDatalist();
+  closeBookModal();
+  ['bm_title','bm_author','bm_note'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('bm_progress').value = 0; document.getElementById('bm_rating').value = 0;
+  toast('✓ 已添加《' + title + '》');
+}
 
 // ════════════════════════════════════════
 // 五年计划打卡 JS — Supabase 存储版
