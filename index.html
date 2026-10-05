@@ -7,6 +7,7 @@
 <title>日迹 · 生活记录</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@300;400;500;600&family=Noto+Sans+SC:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
 <script>
 // Minimal Supabase client - no eval, no external dependencies
 const supabase = (() => {
@@ -23,6 +24,14 @@ const supabase = (() => {
       // Stored session with user object
       if (d.access_token && d.user) return d.user;
       return null;
+    }
+
+    // Helper: 读取 JWT 过期时间（毫秒），失败返回 0
+    function jwtExpMs(t) {
+      try {
+        const p = JSON.parse(atob(String(t).split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        return (p.exp || 0) * 1000;
+      } catch (e) { return 0; }
     }
 
     const headers = () => ({
@@ -95,6 +104,23 @@ const supabase = (() => {
         _session = null;
         localStorage.removeItem('sb_session');
         auth._notify('SIGNED_OUT', null);
+      },
+      // 用 refresh_token 静默换新 access_token（不触发 UI 事件）
+      async refresh() {
+        if (!_session || !_session.refresh_token) return { data: null, error: { message: 'no refresh_token' } };
+        try {
+          const r = await fetch(`${url}/auth/v1/token?grant_type=refresh_token`, {
+            method: 'POST',
+            headers: { 'apikey': key, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token: _session.refresh_token })
+          });
+          const d = await r.json();
+          if (!r.ok || !d.access_token) return { data: null, error: d };
+          d.user = d.user || _session.user;
+          _session = d;
+          localStorage.setItem('sb_session', JSON.stringify(d));
+          return { data: d, error: null };
+        } catch (e) { return { data: null, error: e }; }
       }
     };
 
@@ -126,6 +152,8 @@ const supabase = (() => {
         if (parsed.user && parsed.user.id) {
           // 先立即恢复让页面快速显示，再后台验证 token 是否仍有效
           setTimeout(() => auth._notify('SIGNED_IN', _session), 50);
+          // token 快过期（<10分钟）时用 refresh_token 静默续期
+          if (Date.now() > jwtExpMs(parsed.access_token) - 10 * 60 * 1000) auth.refresh();
           fetch(`${url}/auth/v1/user`, { headers: { 'apikey': key, 'Authorization': `Bearer ${parsed.access_token}` } })
             .then(r => r.ok ? r.json() : null)
             .then(user => {
@@ -187,8 +215,13 @@ const supabase = (() => {
           if (_single || _maybeSingle) endpoint += '&limit=1';
           const h = { ...headers(), 'Prefer': 'return=representation' };
           if (_single) h['Accept'] = 'application/vnd.pgrst.object+json';
-          const r = await fetch(endpoint, { headers: h });
-          const d = await r.json();
+          let r, d;
+          try {
+            r = await fetch(endpoint, { headers: h });
+            d = await r.json();
+          } catch (e) {
+            return { data: null, error: { message: '网络请求失败，请检查网络后重试', code: 'NETWORK' } };
+          }
           if (!r.ok) return { data: null, error: d };
           if (_single) return { data: d, error: null };
           if (_maybeSingle) return { data: Array.isArray(d) ? (d[0] || null) : d, error: null };
@@ -861,6 +894,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
     <button class="j-tab active" onclick="histTab(this,'daily')">每日记录</button>
     <button class="j-tab" onclick="histTab(this,'weekly')">周度记录</button>
     <button class="j-tab" onclick="histTab(this,'monthly')">月度记录</button>
+    <button class="j-tab" onclick="histTab(this,'trend')">趋势分析</button>
   </div>
   <div id="histDailyView">
     <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
@@ -877,6 +911,28 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
   </div>
   <div id="histWeeklyView" style="display:none"></div>
   <div id="histMonthlyView" style="display:none"></div>
+  <div id="histTrendView" style="display:none">
+    <div class="g2" style="gap:1rem">
+      <div class="card">
+        <div class="card-head">身体指标趋势
+          <span style="font-weight:400;color:var(--text3);font-size:.63rem">近90天 · 体重 kg / 体脂 %</span>
+        </div>
+        <div id="trendBodyChart" style="width:100%;height:260px"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">运动趋势
+          <span style="font-weight:400;color:var(--text3);font-size:.63rem">近90天 · 跑步/骑行 km · 健身次</span>
+        </div>
+        <div id="trendSportChart" style="width:100%;height:260px"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1rem">
+      <div class="card-head">睡眠得分趋势
+        <span style="font-weight:400;color:var(--text3);font-size:.63rem">近90天 · 分</span>
+      </div>
+      <div id="trendScoreChart" style="width:100%;height:220px"></div>
+    </div>
+  </div>
 </div>
 
 <!-- 日记 -->
@@ -1448,6 +1504,9 @@ async function signOut() {
 db.auth.onAuthStateChange(async (event, session) => {
   if (session?.user) {
     currentUser = session.user;
+    // 定时静默续期 access token（45 分钟一次，避免 1 小时过期被登出）
+    if (window.__yltRefreshTimer) clearInterval(window.__yltRefreshTimer);
+    window.__yltRefreshTimer = setInterval(() => { if (currentUser) db.auth.refresh(); }, 45 * 60 * 1000);
     document.getElementById('authScreen').classList.remove('show');
     document.getElementById('appWrap').style.display = 'flex';
     document.getElementById('configBanner').classList.add('hide');
@@ -1959,7 +2018,8 @@ const MONTH_FIELDS = [
 function histRefresh() {
   if (histView === 'daily') loadAndRenderHistory();
   else if (histView === 'weekly') loadWeeklyRecords();
-  else loadMonthlyRecords();
+  else if (histView === 'monthly') loadMonthlyRecords();
+  else loadTrendView();
 }
 
 function histTab(el, t) {
@@ -1969,12 +2029,99 @@ function histTab(el, t) {
   document.getElementById('histDailyView').style.display   = t === 'daily'   ? '' : 'none';
   document.getElementById('histWeeklyView').style.display  = t === 'weekly'  ? '' : 'none';
   document.getElementById('histMonthlyView').style.display = t === 'monthly' ? '' : 'none';
+  document.getElementById('histTrendView').style.display   = t === 'trend'   ? '' : 'none';
   document.getElementById('histActionsDaily').style.display = t === 'daily'   ? '' : 'none';
   document.getElementById('histActionsWeek').style.display  = t === 'weekly'  ? '' : 'none';
   document.getElementById('histActionsMonth').style.display = t === 'monthly' ? '' : 'none';
   if (t === 'daily') loadAndRenderHistory();
   else if (t === 'weekly') loadWeeklyRecords();
-  else loadMonthlyRecords();
+  else if (t === 'monthly') loadMonthlyRecords();
+  else loadTrendView();
+}
+
+// ── 趋势分析（近90天）──
+async function loadTrendView() {
+  const f = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const now = new Date(); const s = new Date(now); s.setDate(now.getDate() - 89);
+  showLoading('加载趋势数据…');
+  const { data } = await db.from('daily_records').select('*')
+    .eq('user_id', currentUser.id).gte('date', f(s)).lte('date', f(now)).order('date', { ascending: true });
+  hideLoading();
+  const recs = data || [];
+  const dates = recs.map(r => r.date.slice(5));
+
+  // ① 身体指标：体重 / 体脂 双轴
+  const cBody = ecInit('trendBodyChart', 260);
+  if (cBody) {
+    const w = recs.map(r => +r.weight > 0 ? +(+r.weight).toFixed(1) : null);
+    const bf = recs.map(r => +r.body_fat > 0 ? +(+r.body_fat).toFixed(1) : null);
+    if (!w.some(v => v) && !bf.some(v => v)) ecEmpty(cBody, '暂无体重/体脂数据');
+    else cBody.setOption({
+      grid: { left: 40, right: 40, top: 30, bottom: 24 },
+      legend: { top: 0, textStyle: { color: cssv('--text3'), fontSize: 10 }, itemWidth: 14, itemHeight: 8 },
+      tooltip: { trigger: 'axis' },
+      xAxis: { type: 'category', data: dates, axisLabel: { color: cssv('--text3'), fontSize: 9, interval: 14 }, axisLine: { lineStyle: { color: cssv('--border') } }, axisTick: { show: false } },
+      yAxis: [
+        { type: 'value', scale: true, name: 'kg', nameTextStyle: { color: cssv('--text3'), fontSize: 9 }, axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { lineStyle: { color: cssv('--border'), opacity: .5 } } },
+        { type: 'value', scale: true, name: '%', nameTextStyle: { color: cssv('--text3'), fontSize: 9 }, axisLabel: { color: cssv('--text3'), fontSize: 9, formatter: '{value}%' }, splitLine: { show: false } }
+      ],
+      series: [
+        { name: '体重 kg', type: 'line', smooth: .3, data: w, connectNulls: true, symbolSize: 5, lineStyle: { width: 2.5, color: '#a78bfa' }, itemStyle: { color: '#a78bfa' },
+          areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: hexA('#a78bfa', .2) }, { offset: 1, color: hexA('#a78bfa', 0) }] } } },
+        { name: '体脂 %', type: 'line', yAxisIndex: 1, smooth: .3, data: bf, connectNulls: true, symbolSize: 5, lineStyle: { width: 2, color: '#f472b6', type: 'dashed' }, itemStyle: { color: '#f472b6' } }
+      ]
+    });
+  }
+
+  // ② 运动：跑步/骑行 堆叠柱 + 健身散点
+  const cSport = ecInit('trendSportChart', 260);
+  if (cSport) {
+    const run = recs.map(r => +r.running > 0 ? +(+r.running).toFixed(2) : 0);
+    const cyc = recs.map(r => +r.cycling > 0 ? +(+r.cycling).toFixed(2) : 0);
+    const gym = recs.map(r => (r.gym && String(r.gym).trim()) ? 1 : 0);
+    if (!run.some(v => v > 0) && !cyc.some(v => v > 0) && !gym.some(v => v > 0)) ecEmpty(cSport, '暂无运动数据');
+    else cSport.setOption({
+      grid: { left: 36, right: 12, top: 30, bottom: 24 },
+      legend: { top: 0, textStyle: { color: cssv('--text3'), fontSize: 10 }, itemWidth: 14, itemHeight: 8 },
+      tooltip: {
+        trigger: 'axis', axisPointer: { type: 'shadow' },
+        formatter: ps => {
+          const i = ps[0].dataIndex;
+          let out = recs[i].date;
+          if (run[i]) out += `<br/>跑步 ${run[i]} km`;
+          if (cyc[i]) out += `<br/>骑行 ${cyc[i]} km`;
+          if (gym[i]) out += '<br/>健身房 ✅';
+          return out;
+        }
+      },
+      xAxis: { type: 'category', data: dates, axisLabel: { color: cssv('--text3'), fontSize: 9, interval: 14 }, axisLine: { lineStyle: { color: cssv('--border') } }, axisTick: { show: false } },
+      yAxis: { type: 'value', name: 'km', nameTextStyle: { color: cssv('--text3'), fontSize: 9 }, axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { lineStyle: { color: cssv('--border'), opacity: .5 } } },
+      series: [
+        { name: '跑步 km', type: 'bar', stack: 'sport', barMaxWidth: 10, itemStyle: { color: cssv('--c-journal'), borderRadius: [3, 3, 0, 0] }, data: run },
+        { name: '骑行 km', type: 'bar', stack: 'sport', barMaxWidth: 10, itemStyle: { color: '#38bdf8' }, data: cyc },
+        { name: '健身', type: 'scatter', symbolSize: 6, itemStyle: { color: cssv('--c-checkin') }, data: gym.map((v, i) => v ? 0.15 : null), tooltip: { show: false } }
+      ]
+    });
+  }
+
+  // ③ 睡眠得分趋势
+  const cScore = ecInit('trendScoreChart', 220);
+  if (cScore) {
+    const sc = recs.map(r => +r.sleep_score > 0 ? Math.round(+r.sleep_score) : null);
+    if (!sc.some(v => v)) ecEmpty(cScore, '暂无睡眠得分数据');
+    else cScore.setOption({
+      grid: { left: 36, right: 12, top: 26, bottom: 24 },
+      tooltip: { trigger: 'axis', formatter: ps => +ps[0].value > 0 ? `${recs[ps[0].dataIndex].date}<br/>得分 ${ps[0].value}` : '' },
+      xAxis: { type: 'category', data: dates, axisLabel: { color: cssv('--text3'), fontSize: 9, interval: 14 }, axisLine: { lineStyle: { color: cssv('--border') } }, axisTick: { show: false } },
+      yAxis: { type: 'value', min: 0, max: 100, axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { lineStyle: { color: cssv('--border'), opacity: .5 } } },
+      series: [{
+        name: '睡眠得分', type: 'line', smooth: .4, data: sc, connectNulls: true, symbolSize: 5,
+        lineStyle: { width: 2.5, color: '#f59e0b' }, itemStyle: { color: '#f59e0b' },
+        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: hexA('#f59e0b', .22) }, { offset: 1, color: hexA('#f59e0b', 0) }] } },
+        markLine: { symbol: 'none', silent: true, lineStyle: { color: cssv('--ok'), type: 'dashed', width: 1.2 }, label: { fontSize: 9, color: cssv('--text3'), formatter: '80分' }, data: [{ yAxis: 80 }] }
+      }]
+    });
+  }
 }
 
 // 第 N 周的起止日期（周一~周日，W1 = 含 1 月 1 日的那一周）
@@ -3028,6 +3175,30 @@ function getSleepParts(r) {
 }
 
 function renderBedBar(data) {
+  const ch = ecInit('bedBar', 110);
+  if (!ch) { renderBedBarFallback(data); return; }
+  const C = { border: cssv('--border'), text3: cssv('--text3'), ok: cssv('--ok'), warn: cssv('--warn'), bad: cssv('--bad') };
+  const items = data.map(r => {
+    if (!r.sleep_time) return { d: r.date, day: +r.date.split('-')[2], v: null, t: '' };
+    const p = String(r.sleep_time).split(':'); let v = (+p[0]) + (+p[1]) / 60; if (v < 12) v += 24;
+    return { d: r.date, day: +r.date.split('-')[2], v: +v.toFixed(2), t: String(r.sleep_time).slice(0, 5) };
+  });
+  const vals = items.filter(x => x.v != null).map(x => x.v);
+  if (!vals.length) { ecEmpty(ch, '暂无入睡时间'); return; }
+  const mn = Math.floor(Math.min(...vals)) - .5, mx = Math.ceil(Math.max(...vals)) + .5;
+  ch.setOption({
+    grid: { left: 30, right: 8, top: 10, bottom: 18 },
+    tooltip: { trigger: 'axis', formatter: ps => { const it = items[ps[0].dataIndex]; return it.v == null ? '' : `${it.d}<br/>入睡 ${it.t}`; } },
+    xAxis: { type: 'category', data: items.map(x => x.day), axisLabel: { color: C.text3, fontSize: 8, interval: 4 }, axisLine: { lineStyle: { color: C.border } }, axisTick: { show: false } },
+    yAxis: { type: 'value', min: mn, max: mx, axisLabel: { color: C.text3, fontSize: 8, formatter: v => { const h = Math.floor(v) % 24, m = Math.round((v % 1) * 60); return `${h}:${String(m).padStart(2, '0')}`; } }, splitLine: { lineStyle: { color: C.border, opacity: .5 } } },
+    series: [{
+      name: '入睡时间', type: 'bar', data: items.map(x => ({ value: x.v, itemStyle: { color: x.v == null ? 'transparent' : x.v <= 23.5 ? C.ok : x.v <= 24.5 ? C.warn : C.bad, borderRadius: [3, 3, 0, 0] } })),
+      barMaxWidth: 12
+    }]
+  });
+}
+
+function renderBedBarFallback(data) {
   const c = document.getElementById('bedBar'); if (!c) return;
   const H = 72;
   const vals = data.map(r => { if (!r.sleep_time) return null; const p = String(r.sleep_time).split(':'); let v = (+p[0]) + (+p[1]) / 60; if (v < 12) v += 24; return v; });
@@ -3044,6 +3215,31 @@ function renderBedBar(data) {
 }
 
 function renderCompBar(data) {
+  const ch = ecInit('compBar', 110);
+  if (!ch) { renderCompBarFallback(data); return; }
+  const C = { border: cssv('--border'), text3: cssv('--text3') };
+  const days = data.map(r => +r.date.split('-')[2]);
+  const parts = data.map(r => { const p = getSleepParts(r); return { deep: +(p.deep / 60).toFixed(2), light: +(p.light / 60).toFixed(2), rem: +(p.rem / 60).toFixed(2) }; });
+  if (!parts.some(p => p.deep + p.light + p.rem > 0)) { ecEmpty(ch, '暂无深睡/浅睡/REM 数据'); return; }
+  const mk = (key, name, color) => ({ name, type: 'bar', stack: 'sleep', barMaxWidth: 12, itemStyle: { color, borderRadius: key === 'rem' ? [3, 3, 0, 0] : 0 }, data: parts.map(p => p[key]) });
+  ch.setOption({
+    grid: { left: 28, right: 8, top: 10, bottom: 18 },
+    tooltip: {
+      trigger: 'axis', axisPointer: { type: 'shadow' },
+      formatter: ps => {
+        const i = ps[0].dataIndex, p = parts[i];
+        if (!(p.deep + p.light + p.rem)) return '';
+        const hm = h => `${Math.floor(h)}h${String(Math.round((h % 1) * 60)).padStart(2, '0')}'`;
+        return `${data[i].date}<br/>深睡 ${hm(p.deep)}<br/>浅睡 ${hm(p.light)}<br/>REM ${hm(p.rem)}`;
+      }
+    },
+    xAxis: { type: 'category', data: days, axisLabel: { color: C.text3, fontSize: 8, interval: 4 }, axisLine: { lineStyle: { color: C.border } }, axisTick: { show: false } },
+    yAxis: { type: 'value', name: 'h', nameTextStyle: { color: C.text3, fontSize: 8 }, axisLabel: { color: C.text3, fontSize: 8 }, splitLine: { lineStyle: { color: C.border, opacity: .5 } } },
+    series: [mk('deep', '深睡', '#6366f1'), mk('light', '浅睡', '#7dd3fc'), mk('rem', 'REM', '#fbbf24')]
+  });
+}
+
+function renderCompBarFallback(data) {
   const c = document.getElementById('compBar'); if (!c) return;
   const H = 72;
   let any = false;
@@ -3144,7 +3340,78 @@ async function renderInsights() {
   box.innerHTML = items.map(it => `<details style="background:var(--sf);border-radius:10px;padding:.55rem .85rem"><summary style="cursor:pointer;font-size:.78rem;color:${it.color}">${it.icon} ${it.text}</summary><div style="font-size:.68rem;color:var(--text3);margin-top:.45rem;line-height:1.8;padding-left:1.3rem">${it.ev}</div></details>`).join('');
 }
 
+// ═══ ECharts 公共工具（CDN 加载失败时自动降级为原有 SVG/条形图）═══
+const ecCache = {};
+function cssv(n, fb) { const v = getComputedStyle(document.documentElement).getPropertyValue(n).trim(); return v || fb || '#666'; }
+function hexA(c, a) { const s = String(c || '#888').trim(); if (s[0] !== '#') return s; let h = s.slice(1); if (h.length === 3) h = h.split('').map(x => x + x).join(''); const n = parseInt(h, 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
+function ecInit(id, h) {
+  if (!window.echarts) return null;
+  let c = document.getElementById(id);
+  if (!c) return null;
+  if (c.tagName === 'svg') {                      // SVG 容器换成 div
+    const d = document.createElement('div');
+    d.id = id; d.style.width = '100%'; d.style.height = h + 'px';
+    c.parentNode.replaceChild(d, c);
+    c = d;
+  }
+  if (ecCache[id]) { try { ecCache[id].dispose(); } catch (e) {} }
+  c.innerHTML = '';
+  c.style.height = h + 'px';
+  ecCache[id] = echarts.init(c);
+  return ecCache[id];
+}
+function ecEmpty(ch, msg) { if (!ch) return; ch.clear(); ch.setOption({ title: { text: msg || '数据不足', left: 'center', top: 'middle', textStyle: { color: cssv('--text3'), fontSize: 12, fontWeight: 400 } } }); }
+window.addEventListener('resize', () => Object.values(ecCache).forEach(c => { try { c.resize(); } catch (e) {} }));
+
 function renderSleepSvg(data) {
+  const ch = ecInit('sleepSvg', 145);
+  if (!ch) { renderSleepSvgFallback(data); return; }
+  const goal = getSleepGoal(), warnH = Math.max(4, goal - 2);
+  const C = { border: cssv('--border'), text3: cssv('--text3'), ok: cssv('--ok'), warn: cssv('--warn'), main: cssv('--c-todo') };
+  const dates = data.map(r => r.date.slice(5));
+  const hours = data.map(r => +r.sleep_hours > 0 ? +(+r.sleep_hours).toFixed(2) : null);
+  const scores = data.map(r => +r.sleep_score > 0 ? Math.round(+r.sleep_score) : null);
+  if (!hours.some(v => v)) { ecEmpty(ch, '数据不足'); return; }
+  ch.setOption({
+    grid: { left: 34, right: 36, top: 16, bottom: 24 },
+    tooltip: {
+      trigger: 'axis',
+      formatter: ps => {
+        let s = ps[0].axisValue;
+        ps.forEach(p => {
+          if (p.value == null) return;
+          s += `<br/>${p.marker}${p.seriesName}：${p.seriesName === '睡眠时长' ? p.value + ' h' : p.value + ' 分'}`;
+        });
+        return s;
+      }
+    },
+    xAxis: { type: 'category', data: dates, axisLabel: { color: C.text3, fontSize: 9, interval: 4 }, axisLine: { lineStyle: { color: C.border } }, axisTick: { show: false } },
+    yAxis: [
+      { type: 'value', min: 3, max: 11, name: 'h', nameTextStyle: { color: C.text3, fontSize: 9 }, axisLabel: { color: C.text3, fontSize: 9 }, splitLine: { lineStyle: { color: C.border, opacity: .6 } } },
+      { type: 'value', min: 0, max: 100, name: '分', show: scores.some(s => s != null), nameTextStyle: { color: C.text3, fontSize: 9 }, axisLabel: { color: C.text3, fontSize: 9 }, splitLine: { show: false } }
+    ],
+    series: [
+      {
+        name: '睡眠时长', type: 'line', smooth: .4, data: hours, connectNulls: true,
+        lineStyle: { width: 2.5, color: C.main }, itemStyle: { color: C.main }, symbolSize: 5,
+        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: hexA(C.main, .25) }, { offset: 1, color: hexA(C.main, 0) }] } },
+        markLine: {
+          symbol: 'none', silent: true, label: { fontSize: 9, color: C.text3, position: 'insideStartTop' },
+          data: [
+            { yAxis: goal, lineStyle: { color: C.ok, type: 'dashed', width: 1.5 }, label: { formatter: '目标 ' + goal + 'h' } },
+            { yAxis: warnH, lineStyle: { color: C.warn, type: 'dashed', width: 1.5 }, label: { formatter: '警戒 ' + warnH + 'h' } }
+          ]
+        }
+      },
+      {
+        name: '睡眠得分', type: 'line', yAxisIndex: 1, smooth: .4, data: scores, connectNulls: true,
+        lineStyle: { width: 1.8, color: '#f59e0b' }, itemStyle: { color: '#f59e0b' }, symbol: 'circle', symbolSize: 4
+      }
+    ]
+  });
+}
+
+function renderSleepSvgFallback(data) {
   const svg = document.getElementById('sleepSvg');
   const vals = data.map(r => +r.sleep_hours || 0);
   const validPts = vals.filter(v=>v>0);
@@ -3207,6 +3474,36 @@ function renderSleepSvg(data) {
 }
 
 function renderMoodSvg(data) {
+  const ch = ecInit('moodSvg', 70);
+  if (!ch) { renderMoodSvgFallback(data); return; }
+  const C = { border: cssv('--border'), text3: cssv('--text3'), bad: cssv('--bad'), warn: cssv('--warn'), ok: cssv('--ok') };
+  const moodColors = ['', C.bad, cssv('--c-reading'), C.warn, C.ok, cssv('--c-journal')];
+  const moodLabels = ['', '很差', '较差', '一般', '不错', '很棒'];
+  const dates = data.map(r => r.date.slice(5));
+  const moods = data.map(r => (r.habits || {}).mood ? +(r.habits || {}).mood : null);
+  if (!moods.some(v => v)) { ecEmpty(ch, '暂无心情数据'); return; }
+  ch.setOption({
+    grid: { left: 20, right: 12, top: 10, bottom: 18 },
+    tooltip: {
+      trigger: 'axis',
+      formatter: ps => {
+        const p = ps.find(x => x.value != null);
+        return p ? `${p.axisValue}<br/>${p.marker}心情：${moodLabels[p.value] || p.value}` : '';
+      }
+    },
+    xAxis: { type: 'category', data: dates, axisLabel: { color: C.text3, fontSize: 8, interval: 9 }, axisLine: { lineStyle: { color: C.border } }, axisTick: { show: false } },
+    yAxis: { type: 'value', min: .5, max: 5.5, interval: 1, axisLabel: { color: C.text3, fontSize: 8, formatter: v => moodLabels[v] ? moodLabels[v].slice(0, 1) : '' }, splitLine: { lineStyle: { color: C.border, opacity: .5 } } },
+    series: [{
+      name: '心情', type: 'line', smooth: .5, data: moods, connectNulls: true,
+      lineStyle: { width: 2.5, color: cssv('--c-history') }, symbolSize: 6,
+      itemStyle: { color: p => moodColors[p.value] || C.warn },
+      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: hexA(cssv('--c-history'), .22) }, { offset: 1, color: hexA(cssv('--c-history'), 0) }] } },
+      markLine: { symbol: 'none', silent: true, lineStyle: { type: 'dashed', color: C.text3, width: 1, opacity: .5 }, label: { show: false }, data: [{ yAxis: 3 }] }
+    }]
+  });
+}
+
+function renderMoodSvgFallback(data) {
   const svg = document.getElementById('moodSvg');
   if (!svg) return;
   const pts = data.map((r,i) => {
@@ -3250,6 +3547,31 @@ function renderMoodSvg(data) {
 }
 
 function renderWakeBar(data) {
+  const ch = ecInit('wakeBar', 110);
+  if (!ch) { renderWakeBarFallback(data); return; }
+  const C = { border: cssv('--border'), text3: cssv('--text3'), ok: cssv('--ok'), warn: cssv('--warn'), bad: cssv('--bad') };
+  const wg = getWakeGoalH();
+  const items = data.map(r => {
+    if (!r.wake_time) return { d: r.date, day: +r.date.split('-')[2], v: null, t: '' };
+    const [h, m] = r.wake_time.split(':').map(Number);
+    return { d: r.date, day: +r.date.split('-')[2], v: +(h + m / 60).toFixed(2), t: String(r.wake_time).slice(0, 5) };
+  });
+  const vals = items.filter(x => x.v != null).map(x => x.v);
+  if (!vals.length) { ecEmpty(ch, '暂无起床时间'); return; }
+  ch.setOption({
+    grid: { left: 30, right: 8, top: 10, bottom: 18 },
+    tooltip: { trigger: 'axis', formatter: ps => { const it = items[ps[0].dataIndex]; return it.v == null ? '' : `${it.d}<br/>起床 ${it.t}`; } },
+    xAxis: { type: 'category', data: items.map(x => x.day), axisLabel: { color: C.text3, fontSize: 8, interval: 4 }, axisLine: { lineStyle: { color: C.border } }, axisTick: { show: false } },
+    yAxis: { type: 'value', min: v => Math.floor(v.min) - .5, max: v => Math.ceil(v.max) + .5, axisLabel: { color: C.text3, fontSize: 8, formatter: v => `${Math.floor(v)}:${String(Math.round((v % 1) * 60)).padStart(2, '0')}` }, splitLine: { lineStyle: { color: C.border, opacity: .5 } } },
+    series: [{
+      name: '起床时间', type: 'bar', barMaxWidth: 12,
+      data: items.map(x => ({ value: x.v, itemStyle: { color: x.v == null ? 'transparent' : x.v < wg ? C.ok : x.v < wg + 1 ? C.warn : C.bad, borderRadius: [3, 3, 0, 0] } })),
+      markLine: { symbol: 'none', silent: true, lineStyle: { color: C.ok, type: 'dashed', width: 1.2 }, label: { fontSize: 8, color: C.text3, formatter: '目标' }, data: [{ yAxis: wg }] }
+    }]
+  });
+}
+
+function renderWakeBarFallback(data) {
   const c = document.getElementById('wakeBar');
   const H = 72; // px
   const vals = data.map(r=>{ if(!r.wake_time)return null; const[h,m]=r.wake_time.split(':').map(Number); return h+m/60; });
@@ -3267,6 +3589,26 @@ function renderWakeBar(data) {
 }
 
 function renderRunBar(data) {
+  const ch = ecInit('runBar', 110);
+  if (!ch) { renderRunBarFallback(data); return; }
+  const C = { border: cssv('--border'), text3: cssv('--text3'), journal: cssv('--c-journal') };
+  const days = data.map(r => +r.date.split('-')[2]);
+  const km = data.map(r => +r.running > 0 ? +(+r.running).toFixed(2) : 0);
+  if (!km.some(v => v > 0)) { ecEmpty(ch, '本月暂无跑步'); return; }
+  ch.setOption({
+    grid: { left: 28, right: 8, top: 10, bottom: 18 },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: ps => +ps[0].value > 0 ? `${data[ps[0].dataIndex].date}<br/>跑步 ${ps[0].value} km` : '' },
+    xAxis: { type: 'category', data: days, axisLabel: { color: C.text3, fontSize: 8, interval: 4 }, axisLine: { lineStyle: { color: C.border } }, axisTick: { show: false } },
+    yAxis: { type: 'value', name: 'km', nameTextStyle: { color: C.text3, fontSize: 8 }, axisLabel: { color: C.text3, fontSize: 8 }, splitLine: { lineStyle: { color: C.border, opacity: .5 } } },
+    series: [{
+      name: '跑步里程', type: 'bar', barMaxWidth: 12,
+      itemStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: C.journal }, { offset: 1, color: hexA(C.journal, .55) }] }, borderRadius: [3, 3, 0, 0] },
+      data: km
+    }]
+  });
+}
+
+function renderRunBarFallback(data) {
   const c = document.getElementById('runBar');
   if(!c)return;
   const H = 72; // px
