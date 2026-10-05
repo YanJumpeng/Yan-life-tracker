@@ -477,6 +477,12 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 .j-tab{padding:.33rem .88rem;border:1.5px solid var(--bdr2);border-radius:16px;font-size:.77rem;color:var(--text2);cursor:pointer;transition:all .18s;background:transparent}
 .j-tab.active{border-color:var(--c-journal);color:var(--c-journal);background:var(--c-journal-l)}
 .j-list{display:flex;flex-direction:column;gap:.75rem}
+.j-month{display:flex;align-items:center;gap:.5rem;padding:.55rem .2rem;font-size:.8rem;font-weight:600;color:var(--text2);cursor:pointer;border-bottom:1px solid var(--border);margin-bottom:.6rem;user-select:none;letter-spacing:.04em}
+.j-month:hover{color:var(--c-journal)}
+.j-month-n{font-size:.68rem;color:var(--text3);font-weight:400}
+.j-month-arrow{margin-left:auto;color:var(--text3);font-size:.72rem;transition:transform .15s}
+.j-del{background:transparent;border:none;color:var(--text3);cursor:pointer;font-size:.8rem;padding:.18rem .45rem;border-radius:6px;transition:all .15s;flex-shrink:0}
+.j-del:hover{background:rgba(220,38,38,.12);color:var(--bad)}
 .j-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem 1.4rem;cursor:pointer;transition:all .18s;box-shadow:var(--shadow);border-left:4px solid transparent}
 .j-card[data-type="daily"]{border-left-color:var(--info)}
 .j-card[data-type="weekly"]{border-left-color:var(--warn)}
@@ -595,11 +601,6 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 .time-star{cursor:pointer;transition:transform .15s;line-height:0}
 .time-star:hover{transform:scale(1.2)}
 .time-star.on svg polygon{fill:var(--c-dash);stroke:var(--c-dash)}
-
-.j-drag-handle { cursor: grab; margin-right: .4rem; color: var(--text3); font-size: 1rem; user-select: none; }
-.j-drag-handle:active { cursor: grabbing; }
-.j-card[draggable] { transition: opacity .2s; }
-.j-card.j-drag-over { border: 2px dashed var(--c-checkin); background: var(--sf2); }
 </style>
 </head>
 <body>
@@ -858,8 +859,9 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 
 <!-- 日记 -->
 <div class="page" id="page-journal" data-page="journal">
-  <div class="page-header"><div><div class="ph-title">笔记</div></div><div class="ph-actions"><button class="btn btn-green btn-sm" id="newJBtn" onclick="newJ()">＋ 新建</button></div></div>
+  <div class="page-header"><div><div class="ph-title">日记 / 周记</div></div><div class="ph-actions"><button class="btn btn-green btn-sm" id="newJBtn" onclick="newJ()">＋ 新建</button></div></div>
   <div id="jListWrap">
+    <input type="text" id="jSearch" class="form-input" placeholder="🔎 搜索标题或正文关键字…" oninput="renderJournalList()" style="width:100%;margin-bottom:.8rem">
     <div class="j-tabs">
       <button class="j-tab active" onclick="jTab(this,'all')">全部</button>
       <button class="j-tab" onclick="jTab(this,'daily')">日记</button>
@@ -872,7 +874,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
     <div class="ed-hd">
       <button class="ed-back" onclick="backJ()">← 返回</button>
       <input class="ed-title-inp" id="edT" placeholder="标题……">
-      <select class="form-select" id="edType" style="width:78px;font-size:.72rem">
+      <select class="form-select" id="edType" style="width:78px;font-size:.72rem" onchange="handleJTypeChange()">
         <option value="daily">日记</option><option value="weekly">周记</option><option value="monthly">月记</option>
       </select>
       <button class="btn btn-green btn-sm" id="saveJBtn" onclick="saveJ()">保存</button>
@@ -1889,78 +1891,73 @@ function histChangeMonth(delta) {
 // ══════════════════════════
 async function loadAndRenderJournals() {
   showLoading('加载笔记…');
-  const { data } = await db.from('journal_entries').select('*').eq('user_id', currentUser.id).order('entry_date', {ascending:false}).limit(50);
+  const { data } = await db.from('journal_entries').select('*').eq('user_id', currentUser.id).order('entry_date', {ascending:false});
   hideLoading();
-  cachedJournals = data || [];
+  cachedJournals = (data || []).filter(j => j.type !== 'english');
   renderJournalList();
 }
 
+let _jCollapsed = {}; // 按月折叠状态
+
+function toggleJMonth(key) { _jCollapsed[key] = !_jCollapsed[key]; renderJournalList(); }
+
 function renderJournalList() {
+  const qEl = document.getElementById('jSearch');
+  const q = qEl ? (qEl.value || '').trim().toLowerCase() : '';
   const sorted = [...cachedJournals].sort((a, b) => {
-    // entry_date 是 YYYY-MM-DD 格式，字符串比较即可正确排序
     const da = (a.entry_date || '').substring(0, 10);
     const db2 = (b.entry_date || '').substring(0, 10);
     if (da !== db2) return db2.localeCompare(da);
     // 日期相同再按 created_at
     return (b.created_at||'').localeCompare(a.created_at||'');
   });
-  const filtered = jTabCur === 'all' ? sorted : sorted.filter(j => j.type === jTabCur);
-  const tl = {daily:'日记', weekly:'周记', monthly:'月记'};
-  const bc = {daily:'jb-d', weekly:'jb-w', monthly:'jb-m'};
+  let filtered = jTabCur === 'all' ? sorted : sorted.filter(j => j.type === jTabCur);
+  if (q) filtered = filtered.filter(j =>
+    (j.title||'').toLowerCase().includes(q) || (j.body||'').toLowerCase().includes(q));
   if (!filtered.length) {
-    document.getElementById('jList').innerHTML = `<div class="empty-state"><div class="empty-icon">✦</div><div class="empty-text">还没有笔记<br>点击右上角新建一篇</div></div>`;
+    const msg = q ? `没有匹配「${q}」的笔记` : '还没有笔记<br>点击右上角新建一篇';
+    document.getElementById('jList').innerHTML = `<div class="empty-state"><div class="empty-icon">✦</div><div class="empty-text">${msg}</div></div>`;
     return;
   }
-  document.getElementById('jList').innerHTML = filtered.map(j => `
-    <div class="j-card" data-id="${j.id}" data-type="${j.type}"
-      ondragover="jDragOver(event)" ondrop="jDrop(event)">
+  const tl = {daily:'日记', weekly:'周记', monthly:'月记'};
+  const bc = {daily:'jb-d', weekly:'jb-w', monthly:'jb-m'};
+  // 按月分组（entry_date 现已是真实日期）
+  const groups = {};
+  filtered.forEach(j => {
+    const key = ((j.entry_date || j.created_at || '').slice(0, 7)) || '未知';
+    (groups[key] = groups[key] || []).push(j);
+  });
+  let h = '';
+  Object.keys(groups).sort((a, b) => b.localeCompare(a)).forEach(key => {
+    const p = key.split('-');
+    const label = key === '未知' ? '未知日期' : `${p[0]}年${+p[1]}月`;
+    h += `<div class="j-month" onclick="toggleJMonth('${key}')">${label}
+      <span class="j-month-n">${groups[key].length} 篇</span>
+      <span class="j-month-arrow">${_jCollapsed[key] ? '▸' : '▾'}</span></div>`;
+    if (!_jCollapsed[key]) {
+      h += groups[key].map(j => `
+    <div class="j-card" data-id="${j.id}" data-type="${j.type}">
       <div class="j-top" onclick="openJ('${j.id}')">
-        <div class="j-title">
-          <span class="j-drag-handle" draggable="true"
-            ondragstart="jDragStart(event,this.closest('.j-card'))"
-            ondragend="jDragEnd(event,this.closest('.j-card'))"
-            onclick="event.stopPropagation()" title="拖动排序">⠿</span>
-          <span class="j-badge ${bc[j.type]}">${tl[j.type]}</span>${j.title}
+        <div class="j-title"><span class="j-badge ${bc[j.type]}">${tl[j.type]}</span>${j.title}</div>
+        <div style="display:flex;align-items:center;gap:.4rem">
+          <div class="j-meta">${j.entry_date || (j.created_at ? j.created_at.slice(0,10) : '')}</div>
+          <button class="j-del" onclick="event.stopPropagation();deleteJ('${j.id}')" title="删除此篇">✕</button>
         </div>
-        <div class="j-meta">${j.entry_date || (j.created_at ? j.created_at.slice(0,10) : '')}</div>
       </div>
       <div class="j-prev" onclick="openJ('${j.id}')">${j.body||''}</div>
     </div>`).join('');
-
+    }
+  });
+  document.getElementById('jList').innerHTML = h;
 }
 
-
-// ── 日记拖拽排序 ──
-let _jDragSrcId = null;
-
-function jDragStart(e, card) {
-  card = card || e.currentTarget;
-  _jDragSrcId = card.dataset.id;
-  card.style.opacity = '0.4';
-  e.dataTransfer.effectAllowed = 'move';
-}
-function jDragOver(e) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-  document.querySelectorAll('.j-card').forEach(c => c.classList.remove('j-drag-over'));
-  e.currentTarget.classList.add('j-drag-over');
-}
-function jDrop(e) {
-  e.preventDefault();
-  const targetId = e.currentTarget.dataset.id;
-  if (!_jDragSrcId || _jDragSrcId === targetId) return;
-  const srcIdx = cachedJournals.findIndex(j => j.id === _jDragSrcId);
-  const tgtIdx = cachedJournals.findIndex(j => j.id === targetId);
-  if (srcIdx < 0 || tgtIdx < 0) return;
-  const [moved] = cachedJournals.splice(srcIdx, 1);
-  cachedJournals.splice(tgtIdx, 0, moved);
-  renderJournalList();
-}
-function jDragEnd(e, card) {
-  card = card || e.currentTarget;
-  card.style.opacity = '';
-  document.querySelectorAll('.j-card').forEach(c => c.classList.remove('j-drag-over'));
-  _jDragSrcId = null;
+async function deleteJ(id) {
+  const j = cachedJournals.find(x => x.id === id); if (!j) return;
+  if (!confirm(`删除《${j.title}》？\n此操作不可撤销。`)) return;
+  const { error } = await db.from('journal_entries').delete().eq('id', id);
+  if (error) { toast('删除失败：' + (error.message || '')); return; }
+  cachedJournals = cachedJournals.filter(x => x.id !== id);
+  renderJournalList(); toast('✓ 已删除');
 }
 
 function jTab(el, t) {
@@ -1987,7 +1984,77 @@ function newJ() {
   document.getElementById('jListWrap').style.display = 'none';
   document.getElementById('jEditor').classList.add('on');
   document.getElementById('newJBtn').style.display = 'none';
-  setTimeout(() => document.getElementById('edT').focus(), 50);
+  autoJTitle('daily');
+  setTimeout(() => document.getElementById('edB').focus(), 50);
+}
+
+// 自动生成标题（不覆盖已填内容）
+function autoJTitle(type) {
+  const t = document.getElementById('edT');
+  if (t.value.trim()) return;
+  const sh = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date());
+  const [y, mo, d] = sh.split('-').map(Number);
+  const wd = ['周日','周一','周二','周三','周四','周五','周六'][new Date(y, mo-1, d).getDay()];
+  if (type === 'daily') {
+    t.value = `${mo}月${d}日 · ${wd}`;
+  } else if (type === 'weekly') {
+    const monday = new Date(y, mo-1, d);
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+    t.value = `${monday.getMonth()+1}月${monday.getDate()}日 - ${sunday.getMonth()+1}月${sunday.getDate()}日 周记`;
+  } else if (type === 'monthly') {
+    t.value = `${mo}月月记`;
+  }
+}
+
+// 类型切换：自动补标题；周记带入本周打卡摘要模板
+function handleJTypeChange() {
+  const type = document.getElementById('edType').value;
+  if (jEditId) return; // 编辑已有笔记时不自动改
+  autoJTitle(type);
+  if (type === 'weekly') fillWeeklyTemplate();
+}
+
+async function fillWeeklyTemplate() {
+  const b = document.getElementById('edB');
+  if ((b.value || '').trim()) return; // 已有内容不覆盖
+  if (!currentUser || !currentUser.id) return;
+  try {
+    const sh = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date());
+    const [y, mo, d] = sh.split('-').map(Number);
+    const monday = new Date(y, mo-1, d);
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    const monStr = `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
+    const { data } = await db.from('daily_records').select('date,sleep_hours,running,cycling,habits,gym')
+      .eq('user_id', currentUser.id).order('date', {ascending:false}).limit(30);
+    const week = (data || []).filter(r => r.date >= monStr);
+    if (!week.length) return;
+    const n = week.length;
+    const sleeps = week.map(r => parseFloat(r.sleep_hours)).filter(v => v > 0);
+    const sl = sleeps.length ? `平均 ${(sleeps.reduce((a,c)=>a+c,0)/sleeps.length).toFixed(1)}h（最好 ${Math.max(...sleeps).toFixed(1)}h，最短 ${Math.min(...sleeps).toFixed(1)}h）` : '无记录';
+    const gymN = week.filter(r => (r.gym || '').trim()).length;
+    const run = week.reduce((a,r) => a + (parseFloat(r.running) || 0), 0);
+    const cyc = week.reduce((a,r) => a + (parseFloat(r.cycling) || 0), 0);
+    const books = {};
+    let pages = 0;
+    week.forEach(r => {
+      const h = r.habits || {};
+      const t = h['今日书名'];
+      if (t) { books[t] = true; pages += parseInt(h['读了页数']) || 0; }
+    });
+    const moods = week.map(r => r.habits && r.habits.mood).filter(v => v > 0);
+    const mood = moods.length ? `${(moods.reduce((a,c)=>a+c,0)/moods.length).toFixed(1)} / 5` : '无记录';
+    b.value = `【本周概况】（自动带入，可修改）
+· 记录天数：${n} / 7
+· 睡眠：${sl}
+· 健身房：${gymN} 次
+· 跑步：${run.toFixed(1)} km ｜ 骑行：${cyc.toFixed(1)} km
+· 读书：${Object.keys(books).length ? Object.keys(books).map(t => `《${t}》`).join('、') + `，累计 ${pages} 页` : '无记录'}
+· 心情均值：${mood}
+
+【本周回顾】
+（收获、反思、下周计划……）`;
+  } catch (e) { /* 模板失败不阻塞写作 */ }
 }
 
 function backJ() {
@@ -2013,7 +2080,13 @@ async function saveJ() {
       if (j) { j.title = title; j.body = body; j.type = type; }
     }
   } else {
-    const payload = { user_id: currentUser.id, type, title, body, entry_date: today };
+    // 标题若以「N月N日」开头（日记），用该日期作为 entry_date，支持补写往日
+    let entryDate = today;
+    const m = title.match(/^(\d{1,2})月(\d{1,2})日/);
+    if (m && type === 'daily') {
+      entryDate = `${new Date().getFullYear()}-${String(+m[1]).padStart(2,'0')}-${String(+m[2]).padStart(2,'0')}`;
+    }
+    const payload = { user_id: currentUser.id, type, title, body, entry_date: entryDate };
     const { data, error: e } = await db.from('journal_entries').insert(payload);
     error = e;
     if (data) {
