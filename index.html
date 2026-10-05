@@ -469,6 +469,9 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 .htable td{padding:.62rem .8rem;border-bottom:1px solid var(--border);font-size:.78rem;color:var(--text2);font-family:'JetBrains Mono',monospace}
 .htable tr:hover td{background:var(--c-history-l)}
 .htable tr:last-child td{border-bottom:none}
+.htable tr.wm-has td{background:rgba(99,102,241,.055)}
+.htable tr.wm-has td:first-child{color:#818cf8}
+.wm-note{font-size:.68rem;color:var(--text3);margin-top:.6rem;line-height:1.8}
 .c-ok{color:var(--ok)!important}.c-bad{color:var(--bad)!important}
 .c-warn{color:var(--warn)!important}.c-txt{color:var(--text)!important;font-weight:400}
 
@@ -837,24 +840,43 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 <div class="page" id="page-history" data-page="history">
   <div class="page-header">
     <div><div class="ph-title">历史数据</div><div class="ph-sub" id="histSub"></div></div>
-    <div class="ph-actions">
+    <div class="ph-actions" id="histActionsDaily">
       <button class="btn btn-ghost btn-sm" onclick="histChangeMonth(-1)">← 上月</button>
       <span id="histMonthLabel" style="font-size:.8rem;color:var(--text2);min-width:80px;text-align:center"></span>
       <button class="btn btn-ghost btn-sm" onclick="histChangeMonth(1)">下月 →</button>
       <button class="btn btn-sm" style="background:var(--c-checkin);color:#fff;margin-left:.5rem" onclick="openAddRecord()">＋ 补录</button>
     </div>
+    <div class="ph-actions" id="histActionsWeek" style="display:none">
+      <button class="btn btn-ghost btn-sm" onclick="wmChangeYear('weekly',-1)">← 上一年</button>
+      <span id="weeklyYearLabel" style="font-size:.8rem;color:var(--text2);min-width:70px;text-align:center"></span>
+      <button class="btn btn-ghost btn-sm" onclick="wmChangeYear('weekly',1)">下一年 →</button>
+    </div>
+    <div class="ph-actions" id="histActionsMonth" style="display:none">
+      <button class="btn btn-ghost btn-sm" onclick="wmChangeYear('monthly',-1)">← 上一年</button>
+      <span id="monthlyYearLabel" style="font-size:.8rem;color:var(--text2);min-width:70px;text-align:center"></span>
+      <button class="btn btn-ghost btn-sm" onclick="wmChangeYear('monthly',1)">下一年 →</button>
+    </div>
   </div>
-  <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
-    <table class="htable">
-      <thead><tr>
-        <th>日期</th><th>入睡</th><th>起床</th><th>睡眠</th><th>得分</th><th>深睡</th><th>浅睡</th><th>REM</th>
-        <th>俯卧撑</th><th>深蹲</th><th>引体</th><th>臂曲伸</th><th>卷腹</th><th>跑步</th><th>配速</th><th>骑行</th><th style="color:var(--c-checkin)">健身房</th><th style="color:#a78bfa">体重</th><th style="color:#f472b6">体脂%</th>
-      </tr></thead>
-      <tbody id="histBody"></tbody>
-    </table>
-  </div></div>
-  <!-- 月度统计面板 -->
-  <div id="histStats" style="display:none;grid-template-columns:repeat(4,1fr);gap:1rem;margin-top:1.2rem;padding:0 .2rem"></div>
+  <div class="j-tabs" style="margin-bottom:1rem">
+    <button class="j-tab active" onclick="histTab(this,'daily')">每日记录</button>
+    <button class="j-tab" onclick="histTab(this,'weekly')">周度记录</button>
+    <button class="j-tab" onclick="histTab(this,'monthly')">月度记录</button>
+  </div>
+  <div id="histDailyView">
+    <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
+      <table class="htable">
+        <thead><tr>
+          <th>日期</th><th>入睡</th><th>起床</th><th>睡眠</th><th>得分</th><th>深睡</th><th>浅睡</th><th>REM</th>
+          <th>俯卧撑</th><th>深蹲</th><th>引体</th><th>臂曲伸</th><th>卷腹</th><th>跑步</th><th>配速</th><th>骑行</th><th style="color:var(--c-checkin)">健身房</th><th style="color:#a78bfa">体重</th><th style="color:#f472b6">体脂%</th>
+        </tr></thead>
+        <tbody id="histBody"></tbody>
+      </table>
+    </div></div>
+    <!-- 月度统计面板 -->
+    <div id="histStats" style="display:none;grid-template-columns:repeat(4,1fr);gap:1rem;margin-top:1.2rem;padding:0 .2rem"></div>
+  </div>
+  <div id="histWeeklyView" style="display:none"></div>
+  <div id="histMonthlyView" style="display:none"></div>
 </div>
 
 <!-- 日记 -->
@@ -1382,6 +1404,11 @@ let jEditId     = null;
 let cachedRecords = [];
 let cachedJournals = [];
 let cachedBooks   = [];
+// ── 历史页三视图（每日/周度/月度）──
+let histView = 'daily';
+let weeklyYear = 2026, monthlyYear = 2026;   // 2026 年的 W1 从 2025-12-29 开始
+let cachedWeekly = [], cachedMonthly = [];
+let wmEdit = null;  // 当前编辑中的周/月 {type:'weekly'|'monthly', key:周次或月份}
 
 // ── AUTH ──
 function switchAuthTab(mode) {
@@ -1490,7 +1517,7 @@ function go(id, el) {
   document.getElementById('page-'+id).classList.add('active');
   if(el) el.classList.add('active');
   if(id==='dashboard') { renderDash(); renderWeeklySummary(); renderMonthlySummary(); renderQuarterAndYear(); }
-  if(id==='history')   loadAndRenderHistory();
+  if(id==='history')   histRefresh();
   if(id==='journal')   loadAndRenderJournals();
   if(id==='reading')   loadAndRenderBooks();
   if(id==='english')   loadAndRenderEnglish();
@@ -1884,6 +1911,247 @@ function histChangeMonth(delta) {
   if (histMonth < 0)  { histMonth = 11; histYear--; }
   if (histMonth > 11) { histMonth = 0;  histYear++; }
   loadAndRenderHistory();
+}
+
+// ══════════════════════════
+//  周度 / 月度记录（Google Sheet 迁入）
+// ══════════════════════════
+const WEEK_FIELDS = [
+  {k:'early',   l:'早起天数',   hint:'7:30前'},
+  {k:'head',    l:'抬头日',     hint:'6:30前'},
+  {k:'read',    l:'读书天数'},
+  {k:'focus',   l:'1小时专注'},
+  {k:'sleep',   l:'夜间睡眠(周均)', type:'text', ph:'6小时30分钟'},
+  {k:'run',     l:'跑步天数'},
+  {k:'gym',     l:'出勤(次)'},
+  {k:'wt',      l:'体重(kg)'},
+  {k:'bf',      l:'体脂',   suffix:'%'},
+  {k:'fm',      l:'脂肪量(kg)'},
+  {k:'lm',      l:'去脂体重(kg)'},
+  {k:'waist',   l:'腰围(cm)'},
+  {k:'fatigue', l:'主观疲劳',   hint:'1–5'},
+  {k:'perf',    l:'训练表现',   hint:'1–5'},
+  {k:'nap',     l:'午睡天数'},
+  {k:'value',   l:'价值动作(次)'},
+  {k:'sober',   l:'清醒选择天数'},
+  {k:'tw',      l:'原创推文(条)'},
+  {k:'disc',    l:'交易纪律',   type:'text'},
+  {k:'status',  l:'本周状态',   type:'text', ph:'写状态不写成绩'},
+  {k:'next',    l:'下周最重要一件事', type:'text'},
+];
+const MONTH_FIELDS = [
+  {k:'early',  l:'早起天数',  hint:'7:30前'},
+  {k:'run',    l:'跑步天数'},
+  {k:'km',     l:'跑步距离(km)'},
+  {k:'gym',    l:'健身房天数'},
+  {k:'rt',     l:'骑行次数'},
+  {k:'rkm',    l:'骑行距离(km)'},
+  {k:'books',  l:'读书(本)'},
+  {k:'titles', l:'读书书目', type:'text'},
+  {k:'art',    l:'公众号文章(篇)'},
+  {k:'tw',     l:'原创推文(条)'},
+  {k:'leads',  l:'潜在客户向(条)'},
+  {k:'fans',   l:'月底粉丝数'},
+  {k:'oc',     l:'OpenClaw(小时)'},
+  {k:'note',   l:'本月一句话', type:'text', ph:'状态，不是成绩'},
+];
+
+function histRefresh() {
+  if (histView === 'daily') loadAndRenderHistory();
+  else if (histView === 'weekly') loadWeeklyRecords();
+  else loadMonthlyRecords();
+}
+
+function histTab(el, t) {
+  document.querySelectorAll('#page-history .j-tab').forEach(x => x.classList.remove('active'));
+  el.classList.add('active');
+  histView = t;
+  document.getElementById('histDailyView').style.display   = t === 'daily'   ? '' : 'none';
+  document.getElementById('histWeeklyView').style.display  = t === 'weekly'  ? '' : 'none';
+  document.getElementById('histMonthlyView').style.display = t === 'monthly' ? '' : 'none';
+  document.getElementById('histActionsDaily').style.display = t === 'daily'   ? '' : 'none';
+  document.getElementById('histActionsWeek').style.display  = t === 'weekly'  ? '' : 'none';
+  document.getElementById('histActionsMonth').style.display = t === 'monthly' ? '' : 'none';
+  if (t === 'daily') loadAndRenderHistory();
+  else if (t === 'weekly') loadWeeklyRecords();
+  else loadMonthlyRecords();
+}
+
+// 第 N 周的起止日期（周一~周日，W1 = 含 1 月 1 日的那一周）
+function wmWeekRange(year, wk) {
+  const jan1 = new Date(year, 0, 1);
+  const dow = (jan1.getDay() + 6) % 7;   // 0 = 周一
+  const s = new Date(year, 0, 1 - dow + (wk - 1) * 7);
+  const e = new Date(s); e.setDate(e.getDate() + 6);
+  const f = d => `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return f(s) + ' ~ ' + f(e);
+}
+
+function wmChangeYear(type, delta) {
+  if (type === 'weekly') weeklyYear += delta; else monthlyYear += delta;
+  type === 'weekly' ? loadWeeklyRecords() : loadMonthlyRecords();
+}
+
+async function loadWeeklyRecords() {
+  showLoading('加载周度记录…');
+  document.getElementById('weeklyYearLabel').textContent = weeklyYear + '年';
+  const { data, error } = await db.from('weekly_records').select('*')
+    .eq('user_id', currentUser.id).eq('year', weeklyYear);
+  hideLoading();
+  const wrap = document.getElementById('histWeeklyView');
+  if (error) {
+    wrap.innerHTML = (error.code === '42P01' || /does not exist|不存在/i.test(error.message || ''))
+      ? `<div class="empty-state" style="padding:2.5rem"><div class="empty-icon">📋</div><div class="empty-text">周度记录表还未创建<br>请在 Supabase SQL Editor 执行「周度月度记录-建表.sql」后刷新本页</div></div>`
+      : `<div class="empty-state" style="padding:2.5rem"><div class="empty-text">加载失败：${error.message || ''}</div></div>`;
+    return;
+  }
+  cachedWeekly = data || [];
+  renderWeeklyTable();
+}
+
+function renderWeeklyTable() {
+  const byWk = {};
+  cachedWeekly.forEach(r => byWk[r.wk] = r.data || {});
+  const thead = '<tr><th>周次</th><th>起 ~ 止</th>' +
+    WEEK_FIELDS.map(f => `<th>${f.l}</th>`).join('') + '</tr>';
+  let rows = '';
+  for (let wk = 1; wk <= 53; wk++) {
+    const d = byWk[wk];
+    const has = d && Object.keys(d).length > 0;
+    const cells = WEEK_FIELDS.map(f => {
+      const v = d ? d[f.k] : undefined;
+      const shown = (v !== undefined && v !== null && v !== '') ? (f.suffix ? v + f.suffix : v) : '/';
+      const txtStyle = f.type === 'text' ? 'max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + shown : '';
+      return `<td${txtStyle ? ' style="' + txtStyle + '"' : ''}>${shown}</td>`;
+    }).join('');
+    rows += `<tr class="${has ? 'wm-has' : ''}" style="cursor:pointer" onclick="openWmEditor('weekly',${wk})">
+      <td style="font-weight:600">W${wk}</td>
+      <td style="color:var(--text3);font-size:.72rem;white-space:nowrap">${wmWeekRange(weeklyYear, wk)}</td>${cells}</tr>`;
+  }
+  document.getElementById('histWeeklyView').innerHTML = `
+    <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
+      <table class="htable"><thead>${thead}</thead><tbody>${rows}</tbody></table>
+    </div></div>
+    <div class="wm-note">💡 点击任意一行填写该周数据 · 有数据的周次会淡紫高亮 · 保存后自动更新</div>`;
+}
+
+async function loadMonthlyRecords() {
+  showLoading('加载月度记录…');
+  document.getElementById('monthlyYearLabel').textContent = monthlyYear + '年';
+  const { data, error } = await db.from('monthly_records').select('*')
+    .eq('user_id', currentUser.id).eq('year', monthlyYear);
+  hideLoading();
+  const wrap = document.getElementById('histMonthlyView');
+  if (error) {
+    wrap.innerHTML = (error.code === '42P01' || /does not exist|不存在/i.test(error.message || ''))
+      ? `<div class="empty-state" style="padding:2.5rem"><div class="empty-icon">📋</div><div class="empty-text">月度记录表还未创建<br>请在 Supabase SQL Editor 执行「周度月度记录-建表.sql」后刷新本页</div></div>`
+      : `<div class="empty-state" style="padding:2.5rem"><div class="empty-text">加载失败：${error.message || ''}</div></div>`;
+    return;
+  }
+  cachedMonthly = data || [];
+  renderMonthlyTable();
+}
+
+function renderMonthlyTable() {
+  const byM = {};
+  cachedMonthly.forEach(r => byM[r.month] = r.data || {});
+  const thead = '<tr><th>月份</th>' + MONTH_FIELDS.map(f => `<th>${f.l}</th>`).join('') + '</tr>';
+  let rows = '';
+  for (let m = 1; m <= 12; m++) {
+    const d = byM[m];
+    const has = d && Object.keys(d).length > 0;
+    const cells = MONTH_FIELDS.map(f => {
+      const v = d ? d[f.k] : undefined;
+      const shown = (v !== undefined && v !== null && v !== '') ? v : '/';
+      const txtStyle = f.type === 'text' ? 'max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + shown : '';
+      return `<td${txtStyle ? ' style="' + txtStyle + '"' : ''}>${shown}</td>`;
+    }).join('');
+    rows += `<tr class="${has ? 'wm-has' : ''}" style="cursor:pointer" onclick="openWmEditor('monthly',${m})">
+      <td style="font-weight:600">${m}月</td>${cells}</tr>`;
+  }
+  // 合计 / 月均（数值字段动态计算）
+  const sum = {}, cnt = {};
+  MONTH_FIELDS.forEach(f => { if (f.type !== 'text') { sum[f.k] = 0; cnt[f.k] = 0; } });
+  cachedMonthly.forEach(r => {
+    const d = r.data || {};
+    MONTH_FIELDS.forEach(f => {
+      if (f.type !== 'text' && typeof d[f.k] === 'number') { sum[f.k] += d[f.k]; cnt[f.k]++; }
+    });
+  });
+  const fmt = x => Math.round(x * 100) / 100;
+  const totalRow = '<tr style="background:var(--sf2);font-weight:600"><td>全年合计</td>' +
+    MONTH_FIELDS.map(f => f.type === 'text' || !cnt[f.k] ? '<td>—</td>' : `<td>${fmt(sum[f.k])}</td>`).join('') + '</tr>';
+  const avgRow = '<tr style="background:var(--sf2)"><td style="color:var(--text3)">月均</td>' +
+    MONTH_FIELDS.map(f => f.type === 'text' || !cnt[f.k] ? '<td>—</td>' : `<td>${fmt(sum[f.k] / cnt[f.k])}</td>`).join('') + '</tr>';
+  document.getElementById('histMonthlyView').innerHTML = `
+    <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
+      <table class="htable"><thead>${thead}</thead><tbody>${rows}${totalRow}${avgRow}</tbody></table>
+    </div></div>
+    <div class="wm-note">💡 点击某一行填写该月数据 · 合计/月均自动计算<br>🎯 年度基准（来自 JUMP_2026.md）：读书 ≥ 每月 1 本 · 推文原创 ≥ 每月 15 条 · 粉丝年底目标 1000 · OpenClaw 每天 1 小时 ≈ 每月 30 小时</div>`;
+}
+
+function openWmEditor(type, key) {
+  wmEdit = { type, key };
+  const fields = type === 'weekly' ? WEEK_FIELDS : MONTH_FIELDS;
+  const cur = type === 'weekly'
+    ? cachedWeekly.find(r => r.wk === key && r.year === weeklyYear)
+    : cachedMonthly.find(r => r.month === key && r.year === monthlyYear);
+  const d = (cur && cur.data) || {};
+  document.getElementById('wmTitle').textContent = type === 'weekly'
+    ? `${weeklyYear} 年第 ${key} 周 · ${wmWeekRange(weeklyYear, key)}`
+    : `${monthlyYear} 年 ${key} 月`;
+  document.getElementById('wmForm').innerHTML = fields.map(f => {
+    const val = d[f.k] != null ? String(d[f.k]) : '';
+    const wide = f.type === 'text' ? 'grid-column:1/-1;' : '';
+    return `<div style="${wide}">
+      <label style="font-size:.7rem;color:var(--text3)">${f.l}${f.hint ? `<span style="opacity:.6"> · ${f.hint}</span>` : ''}</label>
+      <input id="wm_f_${f.k}" type="${f.type === 'text' ? 'text' : 'number'}" ${f.type !== 'text' ? 'step="any"' : ''}
+        value="${val.replace(/"/g, '&quot;')}" placeholder="${f.ph || ''}"
+        style="width:100%;padding:.4rem .6rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text);font-size:.82rem;margin-top:.2rem">
+    </div>`;
+  }).join('');
+  document.getElementById('wmModal').style.display = 'flex';
+  setTimeout(() => {
+    const first = document.querySelector('#wmForm input');
+    if (first) first.focus();
+  }, 60);
+}
+
+function closeWmEditor() {
+  document.getElementById('wmModal').style.display = 'none';
+  wmEdit = null;
+}
+
+async function saveWmRecord() {
+  if (!wmEdit) return;
+  const { type, key } = wmEdit;
+  const fields = type === 'weekly' ? WEEK_FIELDS : MONTH_FIELDS;
+  const data = {};
+  fields.forEach(f => {
+    const el = document.getElementById('wm_f_' + f.k);
+    if (!el) return;
+    let v = (el.value || '').trim();
+    if (v === '') return;
+    if (f.type !== 'text') {
+      const n = parseFloat(v);
+      if (isNaN(n)) return;
+      v = n;
+    }
+    data[f.k] = v;
+  });
+  const payload = {
+    user_id: currentUser.id,
+    year: type === 'weekly' ? weeklyYear : monthlyYear,
+    data,
+    updated_at: new Date().toISOString()
+  };
+  if (type === 'weekly') payload.wk = key; else payload.month = key;
+  const { error } = await db.from(type === 'weekly' ? 'weekly_records' : 'monthly_records')
+    .upsert(payload, { onConflict: type === 'weekly' ? 'user_id,year,wk' : 'user_id,year,month' });
+  if (error) { toast('保存失败：' + (error.message || '')); return; }
+  closeWmEditor();
+  toast('✓ 已保存');
+  type === 'weekly' ? loadWeeklyRecords() : loadMonthlyRecords();
 }
 
 // ══════════════════════════
@@ -3096,6 +3364,18 @@ function toast(msg) {
   setTimeout(()=>t.classList.remove('show'),2600);
 }
 </script>
+<!-- 周度/月度记录编辑弹窗 -->
+<div id="wmModal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.45);align-items:center;justify-content:center" onclick="if(event.target===this)closeWmEditor()">
+  <div style="background:var(--surface);border-radius:20px;padding:1.8rem;width:min(680px,95vw);max-height:90vh;overflow-y:auto">
+    <div style="font-size:1rem;font-weight:600;margin-bottom:1.2rem;color:var(--text)">📊 <span id="wmTitle"></span></div>
+    <div id="wmForm" style="display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem .6rem"></div>
+    <div style="display:flex;gap:.6rem;justify-content:flex-end;margin-top:1.4rem">
+      <button class="btn btn-ghost btn-sm" onclick="closeWmEditor()">取消</button>
+      <button class="btn btn-sm" style="background:var(--c-checkin);color:#fff" onclick="saveWmRecord()">保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- 补录历史记录弹窗 -->
 <div id="addRecordModal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.45);align-items:center;justify-content:center">
   <div style="background:var(--surface);border-radius:20px;padding:1.8rem;width:min(560px,95vw);max-height:90vh;overflow-y:auto">
