@@ -2175,11 +2175,123 @@ function renderWeeklyTable() {
       <td style="font-weight:600">W${wk}</td>
       <td style="color:var(--text3);font-size:.72rem;white-space:nowrap">${wmWeekRange(weeklyYear, wk)}</td>${cells}</tr>`;
   }
-  document.getElementById('histWeeklyView').innerHTML = `
+  const wkCharts = !window.echarts ? '' : `
+    <div class="g2" style="gap:1rem;margin-bottom:1rem">
+      <div class="card">
+        <div class="card-head">周均夜间睡眠
+          <span style="font-weight:400;color:var(--text3);font-size:.63rem">小时 · 虚线为 7h 基准</span>
+        </div>
+        <div id="wcSleepChart" style="width:100%;height:230px"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">体重 / 体脂趋势
+          <span style="font-weight:400;color:var(--text3);font-size:.63rem">kg · %</span>
+        </div>
+        <div id="wcBodyChart" style="width:100%;height:230px"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-head">习惯与运动
+        <span style="font-weight:400;color:var(--text3);font-size:.63rem">早起 / 跑步 / 读书天数（天） · 出勤（次）</span>
+      </div>
+      <div id="wcHabitChart" style="width:100%;height:240px"></div>
+    </div>`;
+  document.getElementById('histWeeklyView').innerHTML = wkCharts + `
     <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
       <table class="htable"><thead>${thead}</thead><tbody>${rows}</tbody></table>
     </div></div>
     <div class="wm-note">💡 点击任意一行填写该周数据 · 有数据的周次会淡紫高亮 · 保存后自动更新</div>`;
+  renderWeeklyCharts();
+}
+
+// "5小时30分钟" → 5.5
+function parseWkSleep(s) {
+  if (s == null || s === '') return null;
+  if (typeof s === 'number') return s;
+  const m = String(s).match(/(\d+)\s*小时\s*(\d+)?\s*分?/);
+  if (m) return +((+m[1]) + (m[2] ? +m[2] / 60 : 0)).toFixed(2);
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+
+function renderWeeklyCharts() {
+  if (!window.echarts) return;
+  const byWk = {};
+  cachedWeekly.forEach(r => byWk[r.wk] = r.data || {});
+  const labels = [], sl = [], wt = [], bf = [], early = [], run = [], read = [], gym = [];
+  for (let wk = 1; wk <= 53; wk++) {
+    const d = byWk[wk];
+    if (!d || !Object.keys(d).length) continue;
+    labels.push('W' + wk);
+    sl.push(parseWkSleep(d.sleep));
+    wt.push(+d.wt > 0 ? +d.wt : null);
+    bf.push(+d.bf > 0 ? +d.bf : null);
+    early.push(typeof d.early === 'number' ? d.early : null);
+    run.push(typeof d.run === 'number' ? d.run : null);
+    read.push(typeof d.read === 'number' ? d.read : null);
+    gym.push(typeof d.gym === 'number' ? d.gym : null);
+  }
+  const num = v => typeof v === 'number' ? v : null;
+
+  // ① 周均睡眠趋势
+  const c1 = ecInit('wcSleepChart', 230);
+  if (c1) {
+    if (!sl.some(v => v != null)) ecEmpty(c1, '暂无睡眠数据');
+    else c1.setOption({
+      grid: { left: 34, right: 12, top: 26, bottom: 24 },
+      tooltip: { trigger: 'axis', valueFormatter: v => v == null ? '-' : v + ' h' },
+      xAxis: { type: 'category', data: labels, axisLabel: { color: cssv('--text3'), fontSize: 9, interval: 4 }, axisLine: { lineStyle: { color: cssv('--border') } }, axisTick: { show: false } },
+      yAxis: { type: 'value', min: v => Math.floor(Math.min(5, v.min - 0.5)), axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { lineStyle: { color: cssv('--border'), opacity: .5 } } },
+      series: [{
+        name: '周均睡眠', type: 'line', smooth: .4, data: sl, connectNulls: true, symbolSize: 4,
+        lineStyle: { width: 2.5, color: '#60a5fa' }, itemStyle: { color: '#60a5fa' },
+        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: hexA('#60a5fa', .25) }, { offset: 1, color: hexA('#60a5fa', 0) }] } },
+        markLine: { symbol: 'none', silent: true, lineStyle: { color: cssv('--ok'), type: 'dashed', width: 1.2 }, label: { fontSize: 9, color: cssv('--text3'), formatter: '7h' }, data: [{ yAxis: 7 }] }
+      }]
+    });
+  }
+
+  // ② 体重 / 体脂双轴
+  const c2 = ecInit('wcBodyChart', 230);
+  if (c2) {
+    if (!wt.some(v => v) && !bf.some(v => v)) ecEmpty(c2, '暂无体重/体脂数据');
+    else c2.setOption({
+      grid: { left: 38, right: 36, top: 30, bottom: 24 },
+      tooltip: { trigger: 'axis' },
+      legend: { top: 0, right: 0, itemWidth: 12, itemHeight: 8, textStyle: { color: cssv('--text3'), fontSize: 9 } },
+      xAxis: { type: 'category', data: labels, axisLabel: { color: cssv('--text3'), fontSize: 9, interval: 4 }, axisLine: { lineStyle: { color: cssv('--border') } }, axisTick: { show: false } },
+      yAxis: [
+        { type: 'value', scale: true, name: 'kg', nameTextStyle: { fontSize: 9, color: cssv('--text3') }, axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { lineStyle: { color: cssv('--border'), opacity: .5 } } },
+        { type: 'value', scale: true, name: '%', nameTextStyle: { fontSize: 9, color: cssv('--text3') }, axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { show: false } }
+      ],
+      series: [
+        { name: '体重', type: 'line', smooth: .4, data: wt, connectNulls: true, symbolSize: 4, lineStyle: { width: 2.5, color: '#a78bfa' }, itemStyle: { color: '#a78bfa' } },
+        { name: '体脂', type: 'line', smooth: .4, yAxisIndex: 1, data: bf, connectNulls: true, symbolSize: 4, lineStyle: { width: 2.5, color: '#f472b6' }, itemStyle: { color: '#f472b6' } }
+      ]
+    });
+  }
+
+  // ③ 习惯与运动组合图
+  const c3 = ecInit('wcHabitChart', 240);
+  if (c3) {
+    if (!early.some(num) && !run.some(num) && !read.some(num) && !gym.some(num)) ecEmpty(c3, '暂无习惯数据');
+    else c3.setOption({
+      grid: { left: 34, right: 34, top: 30, bottom: 24 },
+      tooltip: { trigger: 'axis' },
+      legend: { top: 0, right: 0, itemWidth: 12, itemHeight: 8, textStyle: { color: cssv('--text3'), fontSize: 9 } },
+      xAxis: { type: 'category', data: labels, axisLabel: { color: cssv('--text3'), fontSize: 9, interval: 4 }, axisLine: { lineStyle: { color: cssv('--border') } }, axisTick: { show: false } },
+      yAxis: [
+        { type: 'value', max: 7, name: '天', nameTextStyle: { fontSize: 9, color: cssv('--text3') }, axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { lineStyle: { color: cssv('--border'), opacity: .5 } } },
+        { type: 'value', max: 7, name: '次', nameTextStyle: { fontSize: 9, color: cssv('--text3') }, axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { show: false } }
+      ],
+      series: [
+        { name: '早起天数', type: 'bar', barMaxWidth: 10, itemStyle: { color: hexA('#fbbf24', .85), borderRadius: [3, 3, 0, 0] }, data: early },
+        { name: '跑步天数', type: 'bar', barMaxWidth: 10, itemStyle: { color: cssv('--c-journal'), borderRadius: [3, 3, 0, 0] }, data: run },
+        { name: '读书天数', type: 'bar', barMaxWidth: 10, itemStyle: { color: hexA('#38bdf8', .85), borderRadius: [3, 3, 0, 0] }, data: read },
+        { name: '出勤', type: 'line', yAxisIndex: 1, smooth: .3, symbolSize: 4, connectNulls: true, lineStyle: { width: 2, color: cssv('--c-checkin') }, itemStyle: { color: cssv('--c-checkin') }, data: gym }
+      ]
+    });
+  }
 }
 
 async function loadMonthlyRecords() {
@@ -2230,11 +2342,117 @@ function renderMonthlyTable() {
     MONTH_FIELDS.map(f => f.type === 'text' || !cnt[f.k] ? '<td>—</td>' : `<td>${fmt(sum[f.k])}</td>`).join('') + '</tr>';
   const avgRow = '<tr style="background:var(--sf2)"><td style="color:var(--text3)">月均</td>' +
     MONTH_FIELDS.map(f => f.type === 'text' || !cnt[f.k] ? '<td>—</td>' : `<td>${fmt(sum[f.k] / cnt[f.k])}</td>`).join('') + '</tr>';
-  document.getElementById('histMonthlyView').innerHTML = `
+  const moCharts = !window.echarts ? '' : `
+    <div class="g2" style="gap:1rem;margin-bottom:1rem">
+      <div class="card">
+        <div class="card-head">运动量
+          <span style="font-weight:400;color:var(--text3);font-size:.63rem">跑步 / 骑行 km · 健身房天数</span>
+        </div>
+        <div id="mcSportChart" style="width:100%;height:230px"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">习惯达成
+          <span style="font-weight:400;color:var(--text3);font-size:.63rem">早起天数（天） · 读书本数</span>
+        </div>
+        <div id="mcHabitChart" style="width:100%;height:230px"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-head">产出与粉丝增长
+        <span style="font-weight:400;color:var(--text3);font-size:.63rem">公众号 / 原创推文（条） · 粉丝数 · 虚线为年底 1000 目标</span>
+      </div>
+      <div id="mcOutChart" style="width:100%;height:240px"></div>
+    </div>`;
+  document.getElementById('histMonthlyView').innerHTML = moCharts + `
     <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
       <table class="htable"><thead>${thead}</thead><tbody>${rows}${totalRow}${avgRow}</tbody></table>
     </div></div>
     <div class="wm-note">💡 点击某一行填写该月数据 · 合计/月均自动计算<br>🎯 年度基准（来自 JUMP_2026.md）：读书 ≥ 每月 1 本 · 推文原创 ≥ 每月 15 条 · 粉丝年底目标 1000 · OpenClaw 每天 1 小时 ≈ 每月 30 小时</div>`;
+  renderMonthlyCharts();
+}
+
+function renderMonthlyCharts() {
+  if (!window.echarts) return;
+  const byM = {};
+  cachedMonthly.forEach(r => byM[r.month] = r.data || {});
+  const labels = [], km = [], rkm = [], gymD = [], early = [], books = [], art = [], tw = [], fans = [];
+  for (let m = 1; m <= 12; m++) {
+    const d = byM[m];
+    if (!d || !Object.keys(d).length) continue;
+    labels.push(m + '月');
+    km.push(+d.km > 0 ? +d.km : null);
+    rkm.push(+d.rkm > 0 ? +d.rkm : null);
+    gymD.push(typeof d.gym === 'number' ? d.gym : null);
+    early.push(typeof d.early === 'number' ? d.early : null);
+    books.push(typeof d.books === 'number' ? d.books : null);
+    art.push(typeof d.art === 'number' ? d.art : null);
+    tw.push(typeof d.tw === 'number' ? d.tw : null);
+    fans.push(+d.fans > 0 ? +d.fans : null);
+  }
+  const num = v => typeof v === 'number' ? v : null;
+
+  // ① 运动量
+  const c1 = ecInit('mcSportChart', 230);
+  if (c1) {
+    if (!km.some(num) && !rkm.some(num) && !gymD.some(num)) ecEmpty(c1, '暂无运动数据');
+    else c1.setOption({
+      grid: { left: 38, right: 36, top: 30, bottom: 24 },
+      tooltip: { trigger: 'axis' },
+      legend: { top: 0, right: 0, itemWidth: 12, itemHeight: 8, textStyle: { color: cssv('--text3'), fontSize: 9 } },
+      xAxis: { type: 'category', data: labels, axisLabel: { color: cssv('--text3'), fontSize: 9 }, axisLine: { lineStyle: { color: cssv('--border') } }, axisTick: { show: false } },
+      yAxis: [
+        { type: 'value', name: 'km', nameTextStyle: { fontSize: 9, color: cssv('--text3') }, axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { lineStyle: { color: cssv('--border'), opacity: .5 } } },
+        { type: 'value', name: '天', nameTextStyle: { fontSize: 9, color: cssv('--text3') }, axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { show: false } }
+      ],
+      series: [
+        { name: '跑步 km', type: 'bar', barMaxWidth: 14, itemStyle: { color: cssv('--c-journal'), borderRadius: [3, 3, 0, 0] }, data: km },
+        { name: '骑行 km', type: 'bar', barMaxWidth: 14, itemStyle: { color: '#38bdf8', borderRadius: [3, 3, 0, 0] }, data: rkm },
+        { name: '健身房天数', type: 'line', yAxisIndex: 1, smooth: .3, symbolSize: 5, connectNulls: true, lineStyle: { width: 2, color: cssv('--c-checkin') }, itemStyle: { color: cssv('--c-checkin') }, data: gymD }
+      ]
+    });
+  }
+
+  // ② 习惯达成
+  const c2 = ecInit('mcHabitChart', 230);
+  if (c2) {
+    if (!early.some(num) && !books.some(num)) ecEmpty(c2, '暂无习惯数据');
+    else c2.setOption({
+      grid: { left: 34, right: 34, top: 30, bottom: 24 },
+      tooltip: { trigger: 'axis' },
+      legend: { top: 0, right: 0, itemWidth: 12, itemHeight: 8, textStyle: { color: cssv('--text3'), fontSize: 9 } },
+      xAxis: { type: 'category', data: labels, axisLabel: { color: cssv('--text3'), fontSize: 9 }, axisLine: { lineStyle: { color: cssv('--border') } }, axisTick: { show: false } },
+      yAxis: [
+        { type: 'value', max: 31, name: '天', nameTextStyle: { fontSize: 9, color: cssv('--text3') }, axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { lineStyle: { color: cssv('--border'), opacity: .5 } } },
+        { type: 'value', name: '本', minInterval: 1, nameTextStyle: { fontSize: 9, color: cssv('--text3') }, axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { show: false } }
+      ],
+      series: [
+        { name: '早起天数', type: 'bar', barMaxWidth: 14, itemStyle: { color: hexA('#fbbf24', .85), borderRadius: [3, 3, 0, 0] }, data: early },
+        { name: '读书本数', type: 'line', yAxisIndex: 1, smooth: .3, symbolSize: 5, connectNulls: true, lineStyle: { width: 2, color: '#38bdf8' }, itemStyle: { color: '#38bdf8' }, data: books }
+      ]
+    });
+  }
+
+  // ③ 产出与粉丝增长
+  const c3 = ecInit('mcOutChart', 240);
+  if (c3) {
+    if (!art.some(num) && !tw.some(num) && !fans.some(num)) ecEmpty(c3, '暂无产出数据');
+    else c3.setOption({
+      grid: { left: 38, right: 44, top: 30, bottom: 24 },
+      tooltip: { trigger: 'axis' },
+      legend: { top: 0, right: 0, itemWidth: 12, itemHeight: 8, textStyle: { color: cssv('--text3'), fontSize: 9 } },
+      xAxis: { type: 'category', data: labels, axisLabel: { color: cssv('--text3'), fontSize: 9 }, axisLine: { lineStyle: { color: cssv('--border') } }, axisTick: { show: false } },
+      yAxis: [
+        { type: 'value', name: '条', minInterval: 1, nameTextStyle: { fontSize: 9, color: cssv('--text3') }, axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { lineStyle: { color: cssv('--border'), opacity: .5 } } },
+        { type: 'value', name: '粉丝', nameTextStyle: { fontSize: 9, color: cssv('--text3') }, axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { show: false } }
+      ],
+      series: [
+        { name: '公众号文章', type: 'bar', barMaxWidth: 14, itemStyle: { color: '#a78bfa', borderRadius: [3, 3, 0, 0] }, data: art },
+        { name: '原创推文', type: 'bar', barMaxWidth: 14, itemStyle: { color: cssv('--c-journal'), borderRadius: [3, 3, 0, 0] }, data: tw },
+        { name: '月底粉丝数', type: 'line', yAxisIndex: 1, smooth: .3, symbolSize: 5, connectNulls: true, lineStyle: { width: 2, color: '#f472b6' }, itemStyle: { color: '#f472b6' },
+          markLine: { symbol: 'none', silent: true, lineStyle: { color: cssv('--ok'), type: 'dashed', width: 1.2 }, label: { fontSize: 9, color: cssv('--text3'), formatter: '1000' }, data: [{ yAxis: 1000 }] }, data: fans }
+      ]
+    });
+  }
 }
 
 function openWmEditor(type, key) {
