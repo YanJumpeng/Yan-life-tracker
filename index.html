@@ -502,6 +502,12 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 .htable td{padding:.62rem .8rem;border-bottom:1px solid var(--border);font-size:.78rem;color:var(--text2);font-family:'JetBrains Mono',monospace}
 .htable tr:hover td{background:var(--c-history-l)}
 .htable tr:last-child td{border-bottom:none}
+/* 异常标注 */
+.anom-dot{display:inline-block;margin-left:5px;padding:0 4px;border-radius:8px;background:var(--warn-l);color:var(--warn);font-size:.68rem;font-weight:700;cursor:help}
+td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
+.wm-anom td{background:rgba(220,60,60,.06) !important}
+.wm-anom:hover td{background:rgba(220,60,60,.12) !important}
+.wm-anom-badge{display:inline-block;margin-left:5px;padding:0 5px;border-radius:8px;background:rgba(220,60,60,.12);color:var(--bad);font-size:.65rem;font-weight:700;cursor:help}
 .htable tr.wm-has td{background:rgba(99,102,241,.055)}
 .htable tr.wm-has td:first-child{color:#818cf8}
 .wm-note{font-size:.68rem;color:var(--text3);margin-top:.6rem;line-height:1.8}
@@ -1153,7 +1159,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
         </div>
       </div>
     </div>
-    <div class="card mb"><div class="card-head">B · 推特周数据</div>
+    <div class="card mb"><div class="card-head">B · 推特周数据<span style="font-weight:400;color:var(--text3);font-size:.7rem"> · 目标：原创 ≥3 条/周</span></div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem;margin-bottom:.6rem">
         <div><label style="font-size:.72rem;color:var(--text3)">原创推文（条）</label><input type="number" id="fy-tw-total" class="form-input" min="0" placeholder="0"></div>
         <div><label style="font-size:.72rem;color:var(--text3)">感触类</label><input type="number" id="fy-tw-feel" class="form-input" min="0" placeholder="0"></div>
@@ -1336,7 +1342,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 
   <div id="fy-panel-milestones" style="display:none">
     <p style="font-size:.8rem;color:var(--text3);margin-bottom:1rem">每月1号打开读一遍，对照自己现在的位置。</p>
-    <div class="card mb" style="border-left:3px solid #3C3489"><div style="font-size:.72rem;font-weight:500;color:var(--text3);margin-bottom:.3rem">2026 年底 · 打基础·打标签</div><div style="font-size:.85rem;line-height:1.6;margin-bottom:.5rem">推特粉丝稳步增长；Web3×AI标签建立；交易守纪律不犯大错；AI工作流能展示给潜在客户看</div><div style="font-size:.75rem;color:var(--text3);font-style:italic">检验：有没有潜在客户主动找过我？交易账户比年初更接近回本？</div></div>
+    <div class="card mb" style="border-left:3px solid #3C3489"><div style="font-size:.72rem;font-weight:500;color:var(--text3);margin-bottom:.3rem">2026 年底 · 打基础·打标签</div><div style="font-size:.85rem;line-height:1.6;margin-bottom:.5rem">推特粉丝稳步增长（年底1000）；Web3×AI标签建立；交易守纪律不犯大错；AI工作流能展示给潜在客户看；原创推文 ≥每周3条；体脂 ≤17%（身体是底盘）</div><div style="font-size:.75rem;color:var(--text3);font-style:italic">检验：有没有潜在客户主动找过我？交易账户比年初更接近回本？体脂回到17%以下了吗？</div></div>
     <div class="card mb" style="border-left:3px solid #3C3489"><div style="font-size:.72rem;font-weight:500;color:var(--text3);margin-bottom:.3rem">2027 年底 · 开始变现</div><div style="font-size:.85rem;line-height:1.6;margin-bottom:.5rem">粉丝2000-3000；接到第一个咨询单；副业月收入>5000元；交易账户回本</div><div style="font-size:.75rem;color:var(--text3);font-style:italic">检验：副业月收入超过5000了吗？交易账户回本了吗？</div></div>
     <div class="card mb" style="border-left:3px solid #3C3489"><div style="font-size:.72rem;font-weight:500;color:var(--text3);margin-bottom:.3rem">2028 年底 · 收入结构成型</div><div style="font-size:.85rem;line-height:1.6;margin-bottom:.5rem">大树12万 + 副业咨询10万 + 交易10万 = 32万/年；三条腿稳定运转</div><div style="font-size:.75rem;color:var(--text3);font-style:italic">检验：收入结构从一份工资变成三条腿了吗？</div></div>
     <div class="card mb" style="border-left:3px solid var(--bad)"><div class="card-head">反愿景</div><div style="font-size:.82rem;color:var(--text3);line-height:1.7">依然在出租屋醒来，节奏是被动的，被工作推着走。晚上10点，感受是麻木的。只是某个深夜，突然想起之前的生活，觉得无趣，想要改变，但什么都没有改变。</div></div>
@@ -1364,7 +1370,8 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
   </div>
 
   <div id="fy-panel-warnings" style="display:none">
-    <p style="font-size:.8rem;color:var(--text3);margin-bottom:1rem">每月1号对照检查，有❌立刻行动。</p>
+    <p style="font-size:.8rem;color:var(--text3);margin-bottom:1rem">每月1号对照检查，有❌立刻行动。上方为真实数据自动体检，下方为手动打标。</p>
+    <div class="card mb" id="fy-autocheck" style="display:none"></div>
     <div class="card mb" style="padding:0;overflow:hidden">
       <table style="width:100%;border-collapse:collapse;font-size:.8rem">
         <thead><tr style="background:var(--sf2)">
@@ -1820,17 +1827,48 @@ async function updateStreak() {
 // ══════════════════════════
 //  HISTORY
 // ══════════════════════════
+// 异常检测：返回 {date -> {flags:[原因], dev:相对前7天均值的偏移}}
+function detectDailyAnomalies(recs) {
+  const asc = [...recs].sort((a, b) => a.date < b.date ? -1 : 1);
+  const map = {};
+  for (let i = 0; i < asc.length; i++) {
+    const r = asc[i];
+    const flags = [];
+    const dur = parseFloat(r.sleep_hours) || 0;
+    if (dur > 0 && dur < 6) flags.push(`睡眠仅${dur}h（不足6小时）`);
+    const prev = asc.slice(Math.max(0, i - 7), i).map(x => parseFloat(x.sleep_hours) || 0).filter(v => v > 0);
+    let dev = null;
+    if (dur > 0 && prev.length >= 3) {
+      const mu = prev.reduce((s, v) => s + v, 0) / prev.length;
+      dev = dur - mu;
+      if (Math.abs(dev) > 1.5) flags.push(`睡眠${dev > 0 ? '多' : '少'}了${Math.abs(dev).toFixed(1)}h（相对前7天均值）`);
+    }
+    if (r.sleep_score != null && +r.sleep_score > 0 && +r.sleep_score < 70) flags.push(`睡眠得分${r.sleep_score}（<70）`);
+    const mood = r.habits && r.habits.mood ? +r.habits.mood : null;
+    if (mood && mood <= 2) {
+      let low = 1;
+      for (let j = i - 1; j >= 0 && asc[j].habits && +asc[j].habits.mood > 0 && +asc[j].habits.mood <= 2; j--) low++;
+      if (low >= 3) flags.push(`心情连续${low}天低落`);
+    }
+    map[r.date] = { flags, dev };
+  }
+  return map;
+}
+
 async function loadAndRenderHistory() {
   showLoading('加载历史数据…');
-  const start = (d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)(new Date(histYear, histMonth, 1));
-  const end   = (d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)(new Date(histYear, histMonth+1, 0));
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const start = fmt(new Date(histYear, histMonth, 1));
+  const end   = fmt(new Date(histYear, histMonth+1, 0));
+  const baseStart = fmt(new Date(histYear, histMonth, -9));   // 多拉前9天做异常基线
   document.getElementById('histMonthLabel').textContent = `${histYear}年${histMonth+1}月`;
   document.getElementById('histSub').textContent = `${histYear}年${histMonth+1}月`;
   const { data, error } = await db.from('daily_records').select('*')
-    .eq('user_id', currentUser.id).gte('date', start).lte('date', end).order('date', {ascending:false});
+    .eq('user_id', currentUser.id).gte('date', baseStart).lte('date', end).order('date', {ascending:false});
   hideLoading();
   if (error) { toast('加载失败'); return; }
-  cachedRecords = data || [];
+  cachedRecords = (data || []).filter(r => r.date >= start && r.date <= end);
+  const anomMap = detectDailyAnomalies(data || []);
   const tbody = document.getElementById('histBody');
   if (!cachedRecords.length) {
     tbody.innerHTML = `<tr><td colspan="19" style="text-align:center;padding:2rem;color:var(--text3)">${histYear}年${histMonth+1}月暂无记录</td></tr>`;
@@ -1838,8 +1876,14 @@ async function loadAndRenderHistory() {
   }
   tbody.innerHTML = cachedRecords.map((r, idx) => {
     const dur = r.sleep_hours;
-    // 睡眠颜色：<6h 红色加粗，≥8h 绿色加粗，其余橙色
+    // 异常标记（相对个人基线的偏移，比单值阈值更有复盘价值）
+    const anom = anomMap[r.date] || {};
+    const anomBadge = anom.flags && anom.flags.length
+      ? `<span class="anom-dot" title="${anom.flags.join('；')}">⚠</span>` : '';
+    // 睡眠颜色：<6h 红色加粗，≥8h 绿色加粗，其余橙色；偏离前7天均值>1.5h 加下划线红标
     const sc = dur>=getSleepGoal() ? 'c-ok c-bold' : dur&&dur<Math.max(4,getSleepGoal()-2) ? 'c-bad c-bold' : dur ? 'c-warn' : '';
+    const devCls = anom.dev != null && Math.abs(anom.dev) > 1.5 ? ' c-dev' : '';
+    const devTip = devCls ? ` title="偏离前7天均值 ${anom.dev>0?'+':''}${anom.dev.toFixed(1)}h"` : '';
     // 睡眠得分颜色：≥85 绿色加粗，<70 红色加粗，其余橙色
     const ssc = r.sleep_score>=85 ? 'c-ok c-bold' : (r.sleep_score!=null&&r.sleep_score<70) ? 'c-bad c-bold' : r.sleep_score!=null ? 'c-warn' : '';
     // 深睡颜色：≥90min 绿色加粗，<60min 红色加粗，其余橙色
@@ -1854,10 +1898,10 @@ async function loadAndRenderHistory() {
     const [,dm,dd] = r.date.split('-');
     const dateStr = `${+dm}月${+dd}日`;
     return`<tr style='cursor:pointer;transition:background .15s' onclick='editHistRecord(cachedRecords[${idx}])'>
-      <td class="c-txt" style="font-weight:600">${dateStr}</td>
+      <td class="c-txt" style="font-weight:600">${dateStr}${anomBadge}</td>
       <td style="color:var(--text3)">${r.sleep_time?r.sleep_time.slice(0,5):'/'}</td>
       <td class="${wc}">${wk}</td>
-      <td class="${sc}">${dur||'/'}</td>
+      <td class="${sc}${devCls}"${devTip}>${dur||'/'}</td>
       <td class="${ssc}">${r.sleep_score!=null?r.sleep_score:'/'}</td>
       <td class="${dsc}">${r.deep_sleep?r.deep_sleep.slice(0,5):'/'}</td>
       <td style="color:var(--text3)">${r.light_sleep?r.light_sleep.slice(0,5):'/'}</td>
@@ -1877,7 +1921,7 @@ async function loadAndRenderHistory() {
   }).join('');
 
   // 渲染月度统计
-  renderHistStats(cachedRecords);
+  renderHistStats(cachedRecords, Object.keys(anomMap).filter(d => anomMap[d].flags.length && d >= start).length);
 }
 
 
@@ -1889,7 +1933,7 @@ function toggleGym(el) {
     el.textContent = hidden ? '🏋️▲' : '🏋️';
   }
 }
-function renderHistStats(records) {
+function renderHistStats(records, anomDays) {
   const el = document.getElementById('histStats');
   if (!el || !records.length) { if(el) el.style.display='none'; return; }
   el.style.display = 'grid';
@@ -1922,6 +1966,10 @@ function renderHistStats(records) {
   const goal = getSleepGoal(), warnH = Math.max(4, goal - 2);
 
   el.innerHTML = `
+    ${anomDays ? `<div class="hstat-card" style="border-top:3px solid var(--warn)">
+      <div class="hstat-val" style="color:var(--warn)">${anomDays}</div>
+      <div class="hstat-lbl">异常天数<small>⚠ 悬停看原因</small></div>
+    </div>` : ''}
     <div class="hstat-card" style="border-top:3px solid var(--bad)">
       <div class="hstat-val" style="color:var(--bad)">${lateNight}</div>
       <div class="hstat-lbl">入睡报警<small>2点后</small></div>
@@ -2119,6 +2167,11 @@ async function loadTrendView() {
         lineStyle: { width: 2.5, color: '#f59e0b' }, itemStyle: { color: '#f59e0b' },
         areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: hexA('#f59e0b', .22) }, { offset: 1, color: hexA('#f59e0b', 0) }] } },
         markLine: { symbol: 'none', silent: true, lineStyle: { color: cssv('--ok'), type: 'dashed', width: 1.2 }, label: { fontSize: 9, color: cssv('--text3'), formatter: '80分' }, data: [{ yAxis: 80 }] }
+      }, {
+        name: '低分(<70)', type: 'scatter', symbolSize: 7,
+        data: sc.map((v, i) => v != null && v < 70 ? v : null),
+        itemStyle: { color: 'rgba(220,60,60,.9)', borderColor: '#fff', borderWidth: 1 },
+        tooltip: { formatter: p => `得分 ${p.value}（<70）` }
       }]
     });
   }
@@ -2156,23 +2209,48 @@ async function loadWeeklyRecords() {
   renderWeeklyTable();
 }
 
+// 周异常：早起断档 / 节奏双断 / 体重骤变 / 体脂反弹 / 体脂超标（>17%身体基线）
+function detectWeeklyAnomalies(byWk) {
+  const wks = Object.keys(byWk).map(Number).filter(w => byWk[w] && Object.keys(byWk[w]).length).sort((a, b) => a - b);
+  const out = {};
+  let prevWt = null, prevBf = null;
+  wks.forEach(w => {
+    const d = byWk[w];
+    const flags = [];
+    if (d.early === 0) flags.push('早起0天（整周断档）');
+    if (d.run === 0 && (d.early == null || d.early <= 2)) flags.push('跑步0天且早起≤2天（节奏双断）');
+    if (typeof d.wt === 'number' && prevWt != null && Math.abs(d.wt - prevWt) > 1)
+      flags.push(`体重${d.wt > prevWt ? '涨' : '降'}${Math.abs(d.wt - prevWt).toFixed(1)}kg（周环比）`);
+    if (typeof d.bf === 'number' && prevBf != null && d.bf - prevBf > 1)
+      flags.push(`体脂反弹${(d.bf - prevBf).toFixed(1)}个百分点（周环比）`);
+    if (typeof d.bf === 'number' && d.bf > 17) flags.push(`体脂${d.bf}%（>17%身体基线）`);
+    if (flags.length) out[w] = flags;
+    if (typeof d.wt === 'number') prevWt = d.wt;
+    if (typeof d.bf === 'number') prevBf = d.bf;
+  });
+  return out;
+}
+
 function renderWeeklyTable() {
   const byWk = {};
   cachedWeekly.forEach(r => byWk[r.wk] = r.data || {});
+  // 周异常检测（相对上一个有数据的周）
+  const wkAnoms = detectWeeklyAnomalies(byWk);
   const thead = '<tr><th>周次</th><th>起 ~ 止</th>' +
     WEEK_FIELDS.map(f => `<th>${f.l}</th>`).join('') + '</tr>';
   let rows = '';
   for (let wk = 1; wk <= 53; wk++) {
     const d = byWk[wk];
     const has = d && Object.keys(d).length > 0;
+    const an = wkAnoms[wk];
     const cells = WEEK_FIELDS.map(f => {
       const v = d ? d[f.k] : undefined;
       const shown = (v !== undefined && v !== null && v !== '') ? (f.suffix ? v + f.suffix : v) : '/';
       const txtStyle = f.type === 'text' ? 'max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + shown : '';
       return `<td${txtStyle ? ' style="' + txtStyle + '"' : ''}>${shown}</td>`;
     }).join('');
-    rows += `<tr class="${has ? 'wm-has' : ''}" style="cursor:pointer" onclick="openWmEditor('weekly',${wk})">
-      <td style="font-weight:600">W${wk}</td>
+    rows += `<tr class="${has ? 'wm-has' : ''}${an ? ' wm-anom' : ''}" style="cursor:pointer" onclick="openWmEditor('weekly',${wk})">
+      <td style="font-weight:600">W${wk}${an ? `<span class="wm-anom-badge" title="${an.join('；')}">⚠${an.length}</span>` : ''}</td>
       <td style="color:var(--text3);font-size:.72rem;white-space:nowrap">${wmWeekRange(weeklyYear, wk)}</td>${cells}</tr>`;
   }
   const wkCharts = !window.echarts ? '' : `
@@ -2367,7 +2445,7 @@ function renderMonthlyTable() {
     <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
       <table class="htable"><thead>${thead}</thead><tbody>${rows}${totalRow}${avgRow}</tbody></table>
     </div></div>
-    <div class="wm-note">💡 点击某一行填写该月数据 · 合计/月均自动计算<br>🎯 年度基准（来自 JUMP_2026.md）：读书 ≥ 每月 1 本 · 推文原创 ≥ 每月 15 条 · 粉丝年底目标 1000 · OpenClaw 每天 1 小时 ≈ 每月 30 小时</div>`;
+    <div class="wm-note">💡 点击某一行填写该月数据 · 合计/月均自动计算<br>🎯 年度基准（JUMP_2026 修订版）：读书 ≥ 每月 1 本 · 原创推文 ≥ 每周 3 条（约12条/月）· 粉丝年底目标 1000（月底必记） · OpenClaw ≥ 每月 30 小时 · 体脂 ≤ 17%</div>`;
   renderMonthlyCharts();
 }
 
@@ -3624,6 +3702,11 @@ function renderSleepSvg(data) {
       {
         name: '睡眠得分', type: 'line', yAxisIndex: 1, smooth: .4, data: scores, connectNulls: true,
         lineStyle: { width: 1.8, color: '#f59e0b' }, itemStyle: { color: '#f59e0b' }, symbol: 'circle', symbolSize: 4
+      },
+      {
+        name: '异常(<6h)', type: 'scatter', data: hours.map((v, i) => v != null && v < 6 ? v : null), symbolSize: 7,
+        itemStyle: { color: 'rgba(220,60,60,.9)', borderColor: '#fff', borderWidth: 1 },
+        tooltip: { formatter: p => `${p.dataIndex >= 0 ? '' : ''}仅 ${p.value}h（不足6小时）` }
       }
     ]
   });
@@ -4336,11 +4419,12 @@ const FY_DIR = [
   {id:'side',  label:'副业 往前推了吗'},
 ];
 const FY_WARNS = [
-  {plate:'推特',  signal:'连续3天没发推',             action:'立刻发一条，哪怕很简单'},
+  {plate:'推特',  signal:'本周没发推 / 本周原创推文<3条',   action:'立刻发一条，哪怕很简单；本周补满3条'},
   {plate:'推特',  signal:'连续7天没有潜在客户向内容',   action:'这周补一条展示能力的推文'},
-  {plate:'推特',  signal:'本月原创推文<15条',           action:'找出是哪周断了，原因是什么'},
+  {plate:'推特',  signal:'月底粉丝数没有记录',          action:'月底最后一天把粉丝数填进月对照，否则年底1000无法跟踪'},
   {plate:'AI学习',signal:'连续5天未提到OpenClaw学习',  action:'今天做学习计划里的一个任务'},
   {plate:'AI学习',signal:'当前阶段结束标志未达到却想跳阶段', action:'重读AI学习计划，逐条确认结束标志'},
+  {plate:'AI学习',signal:'本月OpenClaw时长没记录',     action:'月底把AI学习时长填进月度快照'},
   {plate:'副业',  signal:'连续2个月副业方向填⚠️或❌',  action:'本月至少做一件具体的副业动作'},
   {plate:'交易',  signal:'本月有违纪操作（做短线/追涨）', action:'复盘这次违纪的触发原因'},
   {plate:'交易',  signal:'账户持续浮亏且没有复盘记录',  action:'写一段复盘，不要逃避'},
@@ -4348,6 +4432,7 @@ const FY_WARNS = [
   {plate:'方向',  signal:'成长证据连续2月写不出来',     action:'问自己：这个月我学到了什么具体能力？'},
   {plate:'费用',  signal:'阿璃日均费用>¥15',           action:'排查是否有脚本异常或模型配置问题'},
   {plate:'创造',  signal:'连续7天黄金3小时被维护任务占用',  action:'明天06:00-07:00关掉所有消息，只写作/输出'},
+  {plate:'身体',  signal:'体脂>17%（身体基线，5月曾到15%）', action:'连续两周超17%就列专项：恢复力量训练频率+控晚餐'},
 ];
 
 // ── Supabase 读写 ──
@@ -4391,7 +4476,7 @@ function fyTab(name) {
       b.className = n === name ? 'btn btn-blue btn-sm' : 'btn btn-ghost btn-sm';
     }
   });
-  if (name === 'warnings') fyBuildWarnings();
+  if (name === 'warnings') { fyBuildWarnings(); fyRunAutoCheck(); }
   if (name === 'hist-week') fyRenderHistory('week');
   if (name === 'hist-month') fyRenderHistory('month');
 }
@@ -4902,6 +4987,108 @@ async function fyAddMonth() {
 }
 
 // ── 漂移预警 ──
+// 数据自动体检：用真实打卡数据自动检测漂移（手动打标保留在下方）
+async function fyRunAutoCheck() {
+  const el = document.getElementById('fy-autocheck');
+  if (!el || !currentUser) return;
+  el.style.display = '';
+  el.innerHTML = `<div class="card-head">🩺 数据自动体检<span style="font-weight:400;color:var(--text3);font-size:.7rem"> · 基于真实打卡数据实时计算</span></div>
+    <div style="font-size:.8rem;color:var(--text3);padding:.6rem 0">检测中…</div>`;
+  const Y = new Date().getFullYear();
+  const d30 = new Date(Date.now() - 30 * 864e5);
+  const d30s = `${d30.getFullYear()}-${String(d30.getMonth()+1).padStart(2,'0')}-${String(d30.getDate()).padStart(2,'0')}`;
+  const [wr, mr, dr] = await Promise.all([
+    db.from('weekly_records').select('wk,data').eq('user_id', currentUser.id).eq('year', Y),
+    db.from('monthly_records').select('month,data').eq('user_id', currentUser.id).eq('year', Y),
+    db.from('daily_records').select('date,sleep_hours,sleep_score,weight,body_fat,habits')
+      .eq('user_id', currentUser.id).gte('date', d30s).order('date', {ascending:true})
+  ]);
+  const weeks = (wr.data || []).map(r => r.data || {}).filter(d => Object.keys(d).length);
+  const months = (mr.data || []).slice().sort((a, b) => a.month - b.month).map(r => r.data || {});
+  const days = dr.data || [];
+  const checks = [];
+  const add = (name, lv, txt) => checks.push({ name, lv, txt });   // lv: ok/warn/bad
+
+  // ① 早起节奏（最近4个有数据的周）
+  const w4 = weeks.slice(-4);
+  if (w4.length) {
+    const e4 = w4.filter(d => typeof d.early === 'number');
+    if (e4.length >= 2) {
+      const avg = e4.reduce((s, d) => s + d.early, 0) / e4.length;
+      add('早起节奏', avg < 3 ? 'bad' : avg < 5 ? 'warn' : 'ok',
+        avg < 3 ? `最近${e4.length}周平均仅${avg.toFixed(1)}天早起（3月曾达31天/月）` : avg < 5 ? `最近${e4.length}周平均${avg.toFixed(1)}天早起，在下滑` : `平均${avg.toFixed(1)}天/周，稳定`);
+    } else add('早起节奏', 'warn', '最近几周没填早起天数');
+  } else add('早起节奏', 'warn', '本年无周度数据');
+
+  // ② 体脂（身体基线 17%）
+  const bfW = weeks.filter(d => typeof d.bf === 'number').slice(-2);
+  if (bfW.length) {
+    const latest = bfW[bfW.length - 1].bf;
+    add('体脂基线', latest > 17 ? 'bad' : latest > 16 ? 'warn' : 'ok',
+      latest > 17 ? `最近记录体脂 ${latest}%，超 17% 基线（5月最低 15%）` : `最近记录体脂 ${latest}%，在基线内`);
+  } else add('体脂基线', 'warn', '最近几周没填体脂');
+
+  // ③ 体重漂移（4周环比）
+  const wtW = weeks.filter(d => typeof d.wt === 'number');
+  if (wtW.length >= 2) {
+    const diff = wtW[wtW.length - 1].wt - wtW[0].wt;
+    const span = wtW[wtW.length - 1].wt && wtW.length;
+    add('体重', Math.abs(diff) > 1 ? 'warn' : 'ok',
+      Math.abs(diff) > 1 ? `${wtW.length}周内体重${diff > 0 ? '涨' : '降'}了${Math.abs(diff).toFixed(1)}kg` : `${wtW.length}周内体重波动 ${Math.abs(diff).toFixed(1)}kg，正常`);
+  }
+
+  // ④ 推文（目标 ≥3条/周）
+  const twW = weeks.slice(-2);
+  if (twW.length) {
+    const tws = twW.map(d => d.tw).filter(v => typeof v === 'number');
+    if (!tws.length) add('原创推文', 'warn', '最近两周周度记录没填推文数，目标无从检验（目标≥3条/周）');
+    else {
+      const low = tws.filter(v => v < 3).length;
+      add('原创推文', low ? 'bad' : 'ok', low ? `最近${low}周推文不足3条` : '最近两周推文达标（≥3条/周）');
+    }
+  } else add('原创推文', 'warn', '本年无周度数据');
+
+  // ⑤ 睡眠（近7天）
+  const sl7 = days.slice(-7).map(d => parseFloat(d.sleep_hours)).filter(v => v > 0);
+  if (sl7.length >= 4) {
+    const avg = sl7.reduce((s, v) => s + v, 0) / sl7.length;
+    add('睡眠', avg < 6.5 ? 'warn' : 'ok', `近7天平均 ${avg.toFixed(1)}h`);
+  } else add('睡眠', 'warn', '近7天睡眠数据不足');
+
+  // ⑥ 读书（近2月 ≥1本/月）
+  const m2 = months.slice(-2);
+  if (m2.length) {
+    const noRec = m2.filter(d => typeof d.books !== 'number');
+    const low = m2.filter(d => typeof d.books === 'number' && d.books < 1);
+    if (noRec.length === m2.length) add('读书', 'warn', '最近两个月月度记录没填读书数');
+    else add('读书', low.length ? 'bad' : 'ok', low.length ? `最近${low.length}个月读书不足1本` : '读书达标（≥1本/月）');
+  }
+
+  // ⑦ 公众号 / 粉丝 / OpenClaw 记录情况
+  if (m2.length) {
+    const art0 = m2.every(d => !d.art);
+    add('公众号', art0 ? 'warn' : 'ok', art0 ? '最近两个月公众号未更新' : '公众号在更新');
+    const fansM = months.slice().reverse().find(d => typeof d.fans === 'number');
+    add('粉丝数', fansM ? 'ok' : 'bad', fansM ? `最近记录：${fansM.fans} 粉（年底目标 1000）` : '一次都没记录过月底粉丝数，年底1000无法跟踪');
+    const ocM = months.slice().reverse().find(d => typeof d.oc === 'number');
+    add('OpenClaw', ocM ? 'ok' : 'warn', ocM ? `最近记录：${ocM.oc}h（目标 ≥30h/月）` : '月度记录里没有 OpenClaw 时长，目标无法检验');
+  }
+
+  const color = lv => lv === 'bad' ? 'var(--bad)' : lv === 'warn' ? 'var(--warn)' : 'var(--ok)';
+  const icon  = lv => lv === 'bad' ? '❌' : lv === 'warn' ? '⚠️' : '✅';
+  const bads = checks.filter(c => c.lv === 'bad').length;
+  const warns = checks.filter(c => c.lv === 'warn').length;
+  el.innerHTML = `<div class="card-head">🩺 数据自动体检
+      <span style="font-weight:400;font-size:.72rem;color:${bads ? 'var(--bad)' : warns ? 'var(--warn)' : 'var(--ok)'}">
+        ${bads ? `❌ ${bads} 项漂移` : warns ? `⚠️ ${warns} 项需关注` : '✅ 全部正常'}</span>
+      <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="fyRunAutoCheck()">刷新</button></div>
+    ${checks.map(c => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.8rem">
+      <span style="min-width:64px;font-weight:500">${c.name}</span>
+      <span style="color:${color(c.lv)}">${icon(c.lv)}</span>
+      <span style="color:var(--text2);flex:1">${c.txt}</span>
+    </div>`).join('')}`;
+}
+
 function fyBuildWarnings() {
   const tbody = document.getElementById('fy-warn-body'); if (!tbody) return;
   tbody.innerHTML = '';
