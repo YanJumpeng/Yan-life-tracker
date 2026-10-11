@@ -416,6 +416,15 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 .page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.6rem;padding-bottom:1.2rem;border-bottom:3px solid transparent}
 .ph-title{font-size:1.55rem;font-weight:500;letter-spacing:.03em}
 .ph-sub{font-family:'Crimson Pro',serif;font-size:.8rem;color:var(--text3);font-style:italic;margin-top:3px}
+/* 打卡日期切换（支持补记任意一天） */
+.date-nav{display:flex;align-items:center;gap:.3rem;background:var(--sf2);border:1px solid var(--border);border-radius:10px;padding:.28rem .4rem;flex-shrink:0}
+.dn-btn{border:none;background:transparent;color:var(--text3);cursor:pointer;font-size:.72rem;padding:.28rem .5rem;border-radius:6px;line-height:1;transition:.15s}
+.dn-btn:hover:not(:disabled){background:var(--c-checkin-l);color:var(--c-checkin)}
+.dn-btn:disabled{opacity:.28;cursor:not-allowed}
+.dn-input{border:none;background:transparent;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.76rem;outline:none;cursor:pointer;width:118px}
+.dn-today{border:none;background:var(--c-checkin);color:#fff;border-radius:6px;font-size:.68rem;padding:.3rem .55rem;cursor:pointer;white-space:nowrap}
+.ci-banner{display:none;align-items:center;gap:.5rem;background:var(--c-checkin-l);border:1px solid rgba(224,123,57,.3);color:var(--c-checkin);border-radius:10px;padding:.5rem .8rem;font-size:.74rem;margin-bottom:-.6rem}
+.ci-banner.show{display:flex}
 .ph-actions{display:flex;gap:.6rem;align-items:center;flex-shrink:0;margin-top:.2rem}
 [data-page="checkin"] .page-header{border-color:var(--c-checkin)}
 [data-page="history"] .page-header{border-color:var(--c-history)}
@@ -732,7 +741,16 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
 <!-- 打卡 -->
 <div class="page active" id="page-checkin" data-page="checkin">
   <div class="page-header">
-    <div><div class="ph-title">今日打卡</div><div class="ph-sub" id="todayStr"></div></div>
+    <div><div class="ph-title" id="checkinTitle">今日打卡</div><div class="ph-sub" id="todayStr"></div></div>
+    <div class="date-nav">
+      <button class="dn-btn" onclick="shiftCheckinDate(-1)" title="前一天">◀</button>
+      <input type="date" id="checkinDate" class="dn-input" onchange="onCheckinDateChange()" title="选择要记录的日期">
+      <button class="dn-btn" id="dnNext" onclick="shiftCheckinDate(1)" title="后一天">▶</button>
+      <button class="dn-today" id="dnToday" onclick="resetCheckinDate()" style="display:none">回到今天</button>
+    </div>
+  </div>
+  <div class="ci-banner" id="ciBanner">
+    <span>📝</span><span id="ciBannerText"></span>
   </div>
   <div class="g2 mb">
     <div class="card">
@@ -871,7 +889,7 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
   <div class="card mb"><div class="card-head">今日备注</div><textarea class="form-textarea" id="dailyNote" placeholder="今天发生了什么？有什么感受……"></textarea></div>
   <div style="display:flex;gap:.7rem">
     <button class="btn btn-primary" id="saveCheckinBtn" onclick="saveCheckin()">✓ 保存打卡</button>
-    <button class="btn btn-ghost" onclick="copyYesterdayValues()" title="一键带入昨天的起床时间、体重体脂和习惯打卡（只填空缺项）">⤴ 沿用昨天</button>
+    <button class="btn btn-ghost" onclick="copyPrevDayValues()" title="带入所选日期的前一天：起床时间、体重体脂、习惯打卡（只填空缺项）">⤴ 沿用前一天</button>
   </div>
 </div>
 
@@ -1522,7 +1540,7 @@ db.auth.onAuthStateChange(async (event, session) => {
     document.getElementById('userAvatar').textContent = email.charAt(0).toUpperCase();
     initDate();
     calcSleep();
-    await loadTodayCheckin();
+    await loadCheckinFor(checkinDate);
     renderDash();
     await fyInit();
   } else {
@@ -1531,14 +1549,78 @@ db.auth.onAuthStateChange(async (event, session) => {
   }
 });
 
-// Date
-function initDate() {
-  const now = new Date();
-  const days = ['周日','周一','周二','周三','周四','周五','周六'];
-  document.getElementById('todayStr').textContent =
-    `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日　${days[now.getDay()]}`;
-  const mo = now.getMonth()+1;
-  // histSub and dashSub are now set by their respective load functions
+// ── DATE：打卡页支持补记任意一天 ──
+const WEEK_CN = ['周日','周一','周二','周三','周四','周五','周六'];
+let checkinDate = null;   // 当前正在记录的日期 YYYY-MM-DD
+
+function localDateStr(d) { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(d); }
+function todayLocal() { return localDateStr(new Date()); }
+function shiftDateStr(ds, n) { const d = new Date(ds + 'T12:00:00'); d.setDate(d.getDate() + n); return localDateStr(d); }
+// 8.82 → 8.82 h（保留精度，避免「未改动却因进位产生 1 分钟漂移」）
+function fmtDurH(h) {
+  const v = parseFloat(h) || 0;
+  return v > 0 ? (Math.round(v * 100) / 100) + ' h' : '';
+}
+// 设置当前记录日期并刷新界面（skipLoad：只更新 UI，不重新拉数据）
+function setCheckinDate(ds, opts = {}) {
+  const today = todayLocal();
+  checkinDate = ds;
+  const inp = document.getElementById('checkinDate');
+  if (inp) { inp.value = ds; inp.max = today; }
+  const d = new Date(ds + 'T12:00:00');
+  const isToday = ds === today;
+  const title = document.getElementById('checkinTitle');
+  if (title) title.textContent = isToday ? '今日打卡' : '补记记录';
+  const sub = document.getElementById('todayStr');
+  if (sub) sub.textContent = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日　${WEEK_CN[d.getDay()]}`;
+  const next = document.getElementById('dnNext');
+  if (next) next.disabled = isToday;
+  const back = document.getElementById('dnToday');
+  if (back) back.style.display = isToday ? 'none' : '';
+  const btn = document.getElementById('saveCheckinBtn');
+  if (btn && btn.textContent !== '保存中…') btn.textContent = isToday ? '✓ 保存打卡' : '✓ 保存补记';
+  const banner = document.getElementById('ciBanner');
+  const btext = document.getElementById('ciBannerText');
+  if (banner && btext) {
+    if (isToday) banner.classList.remove('show');
+    else { btext.textContent = `正在补记 ${d.getMonth()+1}月${d.getDate()}日 的记录，保存后将写入这一天`; banner.classList.add('show'); }
+  }
+  if (!opts.skipLoad) loadCheckinFor(ds);
+}
+function onCheckinDateChange() {
+  const ds = document.getElementById('checkinDate').value;
+  if (!ds) return;
+  if (ds > todayLocal()) { toast('不能记录未来日期'); setCheckinDate(todayLocal(), { skipLoad: true }); return; }
+  setCheckinDate(ds);
+}
+function shiftCheckinDate(n) {
+  const ds = shiftDateStr(checkinDate || todayLocal(), n);
+  if (ds > todayLocal()) return;
+  setCheckinDate(ds);
+}
+function resetCheckinDate() { setCheckinDate(todayLocal()); }
+function initDate() { setCheckinDate(todayLocal(), { skipLoad: true }); }
+
+// 清空打卡表单（切换日期/该日无记录时使用）
+function resetCheckinForm() {
+  ['sleepT','wakeT','durT','napT','sleepScore','deepT','lightT','remT',
+   'dailyNote','gymRecord','bodyWeight','bodyFat','todayBook','bookAt','bookNote',
+   'ru_pace','cy_pace','ru','cy'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const cy = document.getElementById('cy'); if (cy) cy.value = 0;
+  const ru = document.getElementById('ru'); if (ru) ru.value = 0;
+  const bp = document.getElementById('bookPages'); if (bp) bp.value = 0;
+  ['pu','sq','pu2','di','cr'].forEach(k => {
+    const h = document.getElementById(k); if (h) h.value = 0;
+    const e = document.getElementById(k + '_each'); if (e) e.value = 0;
+    const s = document.getElementById(k + '_sets'); if (s) s.value = 0;
+    const t = document.getElementById(k + '_total'); if (t) t.textContent = '= 0 个';
+  });
+  document.querySelectorAll('#habitsWrap .h-chip').forEach(c => c.classList.remove('on'));
+  setMood(0);
+  setTimeScore(0);
+  const bc = document.getElementById('bodyCardContent'); if (bc) bc.style.display = 'none';
+  const ba = document.getElementById('bodyCardArrow'); if (ba) ba.textContent = '▼';
+  const bh = document.getElementById('bodyCardHint'); if (bh) bh.textContent = '';
 }
 
 function calcSleep() {
@@ -1599,9 +1681,10 @@ function hideLoading() { document.getElementById('loadingOverlay').classList.rem
 // ══════════════════════════
 //  CHECKIN
 // ══════════════════════════
-async function loadTodayCheckin() {
+async function loadCheckinFor(ds) {
   if (!currentUser) return;
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date());
+  ds = ds || todayLocal();
+  resetCheckinForm();
   // 书名输入联想：书架未加载时静默拉取
   (async () => {
     if (cachedBooks.length) { refreshBookDatalist(); return; }
@@ -1609,15 +1692,23 @@ async function loadTodayCheckin() {
     cachedBooks = bl || [];
     refreshBookDatalist();
   })();
-  const { data } = await db.from('daily_records').select('*').eq('user_id', currentUser.id).eq('date', today).maybeSingle();
+  const { data } = await db.from('daily_records').select('*').eq('user_id', currentUser.id).eq('date', ds).maybeSingle();
   if (data) {
-    if(data.sleep_time) document.getElementById('sleepT').value = data.sleep_time.slice(0,5);
-    if(data.wake_time)  document.getElementById('wakeT').value  = data.wake_time.slice(0,5);
+    if(data.sleep_time) document.getElementById('sleepT').value = String(data.sleep_time).slice(0,5);
+    if(data.wake_time)  document.getElementById('wakeT').value  = String(data.wake_time).slice(0,5);
     if(data.sleep_score != null) document.getElementById('sleepScore').value = data.sleep_score;
-    if(data.deep_sleep)  document.getElementById('deepT').value  = data.deep_sleep.slice(0,5);
-    if(data.light_sleep) document.getElementById('lightT').value = data.light_sleep.slice(0,5);
-    if(data.rem_sleep)   document.getElementById('remT').value   = data.rem_sleep.slice(0,5);
-    calcSleep();
+    if(data.deep_sleep)  document.getElementById('deepT').value  = String(data.deep_sleep).slice(0,5);
+    if(data.light_sleep) document.getElementById('lightT').value = String(data.light_sleep).slice(0,5);
+    if(data.rem_sleep)   document.getElementById('remT').value   = String(data.rem_sleep).slice(0,5);
+    // 睡眠时长：优先保留手环真实时长；没有手环值时才按入睡→起床推算
+    if (data.sleep_hours != null && +data.sleep_hours > 0) {
+      document.getElementById('durT').value = fmtDurH(data.sleep_hours);
+    } else if (data.sleep_time && data.wake_time) {
+      calcDur();
+    }
+    // 午休/零星睡眠（此前遗漏回填 → 保存会把已有午休清零）
+    const _napRec = napOf(data);
+    if (_napRec > 0) document.getElementById('napT').value = _napRec + 'h';
     document.getElementById('pu').value  = data.pushup  || 0;
     document.getElementById('sq').value  = data.squat   || 0;
     document.getElementById('pu2').value = data.pullup  || 0;
@@ -1653,24 +1744,22 @@ async function loadTodayCheckin() {
 }
 
 function toggleStar(idx) {
-  const stars = document.querySelectorAll('.time-star');
-  const isOn = stars[idx].classList.contains('on');
-  // 点已亮的 → 灭掉；点空的 → 点亮
-  stars[idx].classList.toggle('on', !isOn);
+  const stars = document.querySelectorAll('#timeStars .time-star');
+  stars[idx].classList.toggle('on');
 }
 
 function getTimeScore() {
-  return document.querySelectorAll('.time-star.on').length;
+  return document.querySelectorAll('#timeStars .time-star.on').length;
 }
 
 function setTimeScore(v) {
-  document.querySelectorAll('.time-star').forEach((s,i) => {
+  document.querySelectorAll('#timeStars .time-star').forEach((s,i) => {
     i < v ? s.classList.add('on') : s.classList.remove('on');
   });
 }
 
 function setMood(v) {
-  document.querySelectorAll('.mood-btn').forEach(b => {
+  document.querySelectorAll('#moodWrap .mood-btn').forEach(b => {
     b.classList.toggle('active', +b.dataset.mood === v);
   });
 }
@@ -1713,16 +1802,17 @@ function calcEx(id){
 }
 async function saveCheckin() {
   if (!currentUser) return;
+  const date = checkinDate || todayLocal();
+  const isToday = date === todayLocal();
   const btn = document.getElementById('saveCheckinBtn');
   btn.disabled = true; btn.textContent = '保存中…';
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date());
   const habits = {};
   document.querySelectorAll('#habitsWrap .h-chip').forEach(c => { habits[c.dataset.habit] = c.classList.contains('on'); });
   const cyPace = document.getElementById('cy_pace').value;
   const ruPace = document.getElementById('ru_pace').value;
   if (cyPace && +cyPace > 0) habits['骑行配速'] = cyPace;
   if (ruPace) habits['跑步配速'] = ruPace;
-  const moodActive = document.querySelector('.mood-btn.active');
+  const moodActive = document.querySelector('#moodWrap .mood-btn.active');
   if (moodActive) habits['mood'] = +moodActive.dataset.mood;
   const timeScore = getTimeScore();
   if (timeScore > 0) habits['time'] = timeScore;
@@ -1734,13 +1824,13 @@ async function saveCheckin() {
   if (bookNote)  habits['读书摘记'] = bookNote;
   
   const payload = {
-    user_id: currentUser.id, date: today,
+    user_id: currentUser.id, date,
     sleep_time: document.getElementById('sleepT').value || null,
     wake_time:  document.getElementById('wakeT').value  || null,
     sleep_hours: (function(){
-      var v=document.getElementById('durT').value||'';
-      var hm=v.match(/(\d+)h(?:(\d+)')?/);
-      return hm ? parseFloat(hm[1])+(parseInt(hm[2]||0)/60) : null;
+      // durT 可能是 "8h49'"、"8.50 h" 等格式，统一按 parseDurInput 解析
+      const v = parseDurInput(document.getElementById('durT').value);
+      return v == null ? null : v;
     })(),
     nap_hours: (function(){
       // 午休/零星睡眠：支持 1h30'、1.5、90 等形式，统一换算成小时
@@ -1779,7 +1869,10 @@ async function saveCheckin() {
     + (!document.getElementById('bodyWeight').value ? 1 : 0)
     + (!document.getElementById('dailyNote').value.trim() ? 1 : 0)
     + (!document.getElementById('gymRecord').value.trim() ? 1 : 0);
-  toast(_emptyN > 0 ? `✓ 已保存！还有 ${_emptyN} 项未填，随时回来补` : '✓ 打卡完成，今日记录完整 🎉');
+  const _suf = _emptyN > 0 ? `还有 ${_emptyN} 项未填，随时回来补` : '记录完整 🎉';
+  const _dstr = `${+date.slice(5,7)}月${+date.slice(8,10)}日`;
+  toast(isToday ? `✓ 已保存！${_suf}` : `✓ 已补记 ${_dstr}！${_suf}`);
+  if (!isToday) { try { loadAndRenderHistory(); } catch(e) {} }
   // 填了书名而书架没有这本书 → 自动建档为「在读」
   const _tb = document.getElementById('todayBook')?.value?.trim();
   if (_tb && !cachedBooks.some(b => b.title === _tb)) {
@@ -1793,12 +1886,12 @@ async function saveCheckin() {
   updateStreak();
 }
 
-async function copyYesterdayValues() {
+async function copyPrevDayValues() {
   if (!currentUser) { toast('请先登录'); return; }
-  const y = new Date(); y.setDate(y.getDate() - 1);
-  const ds = `${y.getFullYear()}-${String(y.getMonth()+1).padStart(2,'0')}-${String(y.getDate()).padStart(2,'0')}`;
+  const cur = checkinDate || todayLocal();
+  const ds = shiftDateStr(cur, -1);
   const { data } = await db.from('daily_records').select('*').eq('user_id', currentUser.id).eq('date', ds).maybeSingle();
-  if (!data) { toast('昨天还没有打卡记录，暂无内容可沿用'); return; }
+  if (!data) { toast(`前一天（${ds.slice(5)}）还没有记录，暂无内容可沿用`); return; }
   let n = 0;
   if (data.wake_time && !document.getElementById('wakeT').value) { document.getElementById('wakeT').value = String(data.wake_time).slice(0,5); n++; }
   const bw = document.getElementById('bodyWeight'), bf = document.getElementById('bodyFat');
@@ -1807,7 +1900,7 @@ async function copyYesterdayValues() {
   document.querySelectorAll('#habitsWrap .h-chip').forEach(chip => {
     if (data.habits && data.habits[chip.dataset.habit] && !chip.classList.contains('on')) { chip.classList.add('on'); n++; }
   });
-  toast(n > 0 ? `已沿用昨天 ${n} 项（起床/体重/习惯），可继续修改` : '昨天的值都已带入或今天已填过');
+  toast(n > 0 ? `已沿用 ${ds.slice(5)} 的 ${n} 项（起床/体重/习惯），可继续修改` : '前一天的值都已带入或本日已填过');
 }
 
 async function updateStreak() {
@@ -4120,6 +4213,15 @@ function toast(msg) {
       <div class="mood-btn" data-mood="5" onclick="setAddMood(5)">🤩<span>很棒</span></div>
     </div>
 
+    <!-- Time -->
+    <div style="display:flex;align-items:center;gap:.8rem;margin-top:.7rem">
+      <label class="form-label" style="margin:0">Time</label>
+      <div id="addTimeStars" style="display:flex;gap:.35rem">
+        <div class="time-star" onclick="addToggleTime(0)"><svg viewBox="0 0 24 24" width="24" height="24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="none" stroke="var(--c-dash)" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+        <div class="time-star" onclick="addToggleTime(1)"><svg viewBox="0 0 24 24" width="24" height="24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="none" stroke="var(--c-dash)" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+      </div>
+    </div>
+
     <!-- 健身记录 -->
     <div class="form-group" style="margin-top:.8rem">
       <label class="form-label">健身内容</label>
@@ -4169,6 +4271,25 @@ function toast(msg) {
       <div><label style="font-size:.7rem;color:var(--text3)">体重 (kg)</label><input id="eh_weight" type="number" step="0.1" min="30" max="200" placeholder="72.5" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
       <div><label style="font-size:.7rem;color:var(--text3)">体脂率 (%)</label><input id="eh_body_fat" type="number" step="0.1" min="3" max="60" placeholder="18.5" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
     </div>
+    <div style="margin-top:.9rem;display:flex;gap:1.4rem;align-items:flex-end;flex-wrap:wrap">
+      <div>
+        <div style="font-size:.7rem;color:var(--text3);margin-bottom:.5rem">今日心情</div>
+        <div id="ehMoodWrap" style="display:flex;gap:.2rem">
+          <div class="mood-btn" data-mood="1" onclick="ehSetMood(1)" style="font-size:1.1rem;padding:.25rem .38rem;gap:2px">😫<span>很差</span></div>
+          <div class="mood-btn" data-mood="2" onclick="ehSetMood(2)" style="font-size:1.1rem;padding:.25rem .38rem;gap:2px">😕<span>较差</span></div>
+          <div class="mood-btn" data-mood="3" onclick="ehSetMood(3)" style="font-size:1.1rem;padding:.25rem .38rem;gap:2px">😐<span>一般</span></div>
+          <div class="mood-btn" data-mood="4" onclick="ehSetMood(4)" style="font-size:1.1rem;padding:.25rem .38rem;gap:2px">😊<span>不错</span></div>
+          <div class="mood-btn" data-mood="5" onclick="ehSetMood(5)" style="font-size:1.1rem;padding:.25rem .38rem;gap:2px">🤩<span>很棒</span></div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:.7rem;color:var(--text3);margin-bottom:.5rem">Time</div>
+        <div id="ehTimeStars" style="display:flex;gap:.3rem">
+          <div class="time-star" onclick="ehToggleTime(0)"><svg viewBox="0 0 24 24" width="24" height="24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="none" stroke="var(--c-dash)" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+          <div class="time-star" onclick="ehToggleTime(1)"><svg viewBox="0 0 24 24" width="24" height="24"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="none" stroke="var(--c-dash)" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+        </div>
+      </div>
+    </div>
     <div style="margin-top:.9rem">
       <div style="font-size:.7rem;color:var(--text3);margin-bottom:.5rem">习惯打卡</div>
       <div id="eh_habits" style="display:flex;flex-wrap:wrap;gap:.4rem"></div>
@@ -4188,6 +4309,9 @@ function setAddMood(v) {
   _addMood = v;
   document.querySelectorAll('#addMoodWrap .mood-btn').forEach(b => b.classList.toggle('active', +b.dataset.mood === v));
 }
+function addToggleTime(i) { const s = document.querySelectorAll('#addTimeStars .time-star')[i]; if (s) s.classList.toggle('on'); }
+function addGetTime() { return document.querySelectorAll('#addTimeStars .time-star.on').length; }
+function addSetTime(v) { document.querySelectorAll('#addTimeStars .time-star').forEach((s, i) => s.classList.toggle('on', i < v)); }
 function openAddRecord() {
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date());
   document.getElementById('add_date').value = today;
@@ -4199,6 +4323,7 @@ function openAddRecord() {
   });
   document.querySelectorAll('#addHabitsWrap .h-chip').forEach(c => c.classList.remove('on'));
   setAddMood(0);
+  addSetTime(0);
   checkAddDateExists();
   document.getElementById('addRecordModal').style.display = 'flex';
 }
@@ -4231,6 +4356,8 @@ async function submitAddRecord() {
   const ruPaceAdd = document.getElementById('add_ru_pace').value;
   if (ruPaceAdd) habits['跑步配速'] = ruPaceAdd;
   if (_addMood > 0) habits['mood'] = _addMood;
+  const _addTime = addGetTime();
+  if (_addTime > 0) habits['time'] = _addTime;
   const addBookName = document.getElementById('add_book')?.value?.trim();
   if (addBookName) {
     habits['今日书名'] = addBookName;
@@ -4281,6 +4408,13 @@ document.getElementById('addRecordModal').addEventListener('click', function(e) 
 
 let _editHistRecord = null;
 
+// 编辑弹窗：心情 / Time 控件
+function ehSetMood(v) { document.querySelectorAll('#ehMoodWrap .mood-btn').forEach(b => b.classList.toggle('active', +b.dataset.mood === v)); }
+function ehGetMood() { const b = document.querySelector('#ehMoodWrap .mood-btn.active'); return b ? +b.dataset.mood : 0; }
+function ehToggleTime(i) { const s = document.querySelectorAll('#ehTimeStars .time-star')[i]; if (s) s.classList.toggle('on'); }
+function ehGetTime() { return document.querySelectorAll('#ehTimeStars .time-star.on').length; }
+function ehSetTime(v) { document.querySelectorAll('#ehTimeStars .time-star').forEach((s, i) => s.classList.toggle('on', i < v)); }
+
 function editHistRecord(r) {
   _editHistRecord = r;
   const h = r.habits || {};
@@ -4315,6 +4449,9 @@ function editHistRecord(r) {
   document.getElementById('eh_habits').innerHTML = habitKeys.map(k =>
     `<div class="h-chip${h[k]?' on':''}" data-habit="${k}" onclick="this.classList.toggle('on')" style="font-size:.75rem;padding:.28rem .7rem">${k}</div>`
   ).join('');
+  // 心情 / Time 回填
+  ehSetMood(h['mood'] ? +h['mood'] : 0);
+  ehSetTime(h['time'] ? +h['time'] : 0);
   const modal = document.getElementById('editHistModal');
   modal.style.display = 'flex';
 }
@@ -4350,6 +4487,12 @@ async function saveEditHist() {
   const cyPaceEh = +document.getElementById('eh_cy_pace').value || 0;
   if (cyPaceEh > 0) habits['骑行配速'] = cyPaceEh;
   else delete habits['骑行配速'];
+
+  // 心情 / Time
+  const _mEh = ehGetMood();
+  if (_mEh > 0) habits['mood'] = _mEh; else delete habits['mood'];
+  const _tEh = ehGetTime();
+  if (_tEh > 0) habits['time'] = _tEh; else delete habits['time'];
 
   // 夜间时长：优先用手环真实时长（不因改别的字段而被「入睡→起床」估算值覆盖）
   const nightIn = parseFloat(document.getElementById('eh_night').value);
