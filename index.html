@@ -743,8 +743,8 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
         <div class="form-group"><label class="form-label">睡眠时长</label>
           <input type="text" class="form-input" id="durT" placeholder="6h30'" style="width:90px;text-align:center" readonly>
         </div>
-        <div class="form-group"><label class="form-label">午休时长</label>
-          <input type="text" class="form-input" id="napT" placeholder="1h30'" style="width:90px;text-align:center">
+        <div class="form-group"><label class="form-label">午休/零星睡眠</label>
+          <input type="text" class="form-input" id="napT" placeholder="1h30'" title="支持 1h30'、1.5、90 分钟等写法；会计入当日总睡眠" style="width:90px;text-align:center">
         </div>
       </div>
       <div class="time-row" style="margin-top:.75rem">
@@ -906,7 +906,7 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
     <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
       <table class="htable">
         <thead><tr>
-          <th>日期</th><th>入睡</th><th>起床</th><th>睡眠</th><th>得分</th><th>深睡</th><th>浅睡</th><th>REM</th>
+          <th>日期</th><th>入睡</th><th>起床</th><th style="color:#818cf8">午休</th><th title="总睡眠 = 夜间 + 午休/零星睡眠">总睡眠</th><th>得分</th><th>深睡</th><th>浅睡</th><th>REM</th>
           <th>俯卧撑</th><th>深蹲</th><th>引体</th><th>臂曲伸</th><th>卷腹</th><th>跑步</th><th>配速</th><th>骑行</th><th style="color:var(--c-checkin)">健身房</th><th style="color:#a78bfa">体重</th><th style="color:#f472b6">体脂%</th>
         </tr></thead>
         <tbody id="histBody"></tbody>
@@ -995,7 +995,7 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
 
   <!-- 睡眠趋势（大图） -->
   <div class="card mb">
-    <div class="card-head">睡眠时长趋势
+    <div class="card-head">睡眠时长趋势<span style="font-weight:400;color:var(--text3);font-size:.63rem"> · 总睡眠=夜间+午休/零星</span>
       <span style="font-size:.65rem;color:var(--text3);font-weight:400">近30天 · 单位: 小时</span>
       <span style="cursor:pointer;font-size:.68rem;color:var(--text2);font-weight:400;margin-left:auto" onclick="toggleGoalEditor()" title="设置自己的睡眠与起床目标">⚙ 目标</span>
     </div>
@@ -1081,7 +1081,7 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
       <div class="hm-legend" style="margin-top:.6rem"><span style="font-size:.62rem;color:var(--text3)">少</span><div class="hm-box hm-0"></div><div class="hm-box hm-1"></div><div class="hm-box hm-2"></div><div class="hm-box hm-3"></div><div class="hm-box hm-4"></div><span style="font-size:.62rem;color:var(--text3)">多</span></div>
     </div>
     <div class="card">
-      <div class="card-head">睡眠质量分布</div>
+      <div class="card-head">睡眠质量分布<span style="font-weight:400;color:var(--text3);font-size:.63rem"> · 按总睡眠（含午休）</span></div>
       <div class="sq-wrap" style="align-items:center;gap:1.2rem">
         <svg id="sqSvg" viewBox="0 0 160 150" style="width:130px;flex-shrink:0"></svg>
         <div class="sq-legend" id="sqLegend" style="flex:1"></div>
@@ -1743,9 +1743,9 @@ async function saveCheckin() {
       return hm ? parseFloat(hm[1])+(parseInt(hm[2]||0)/60) : null;
     })(),
     nap_hours: (function(){
-      var v=document.getElementById('napT').value||'';
-      var hm=v.match(/(\d+)h(?:(\d+)')?/);
-      return hm ? parseFloat(hm[1])+(parseInt(hm[2]||0)/60) : 0;
+      // 午休/零星睡眠：支持 1h30'、1.5、90 等形式，统一换算成小时
+      const v = parseDurInput(document.getElementById('napT').value);
+      return v == null ? 0 : v;
     })(),
     sleep_score: parseInt(document.getElementById('sleepScore').value) || null,
     deep_sleep:  document.getElementById('deepT').value.trim()  || null,
@@ -1834,14 +1834,14 @@ function detectDailyAnomalies(recs) {
   for (let i = 0; i < asc.length; i++) {
     const r = asc[i];
     const flags = [];
-    const dur = parseFloat(r.sleep_hours) || 0;
-    if (dur > 0 && dur < 6) flags.push(`睡眠仅${dur}h（不足6小时）`);
-    const prev = asc.slice(Math.max(0, i - 7), i).map(x => parseFloat(x.sleep_hours) || 0).filter(v => v > 0);
+    const dur = totalSleep(r);                                   // 总睡眠（含午休/零星睡眠）
+    if (dur > 0 && dur < 6) flags.push(`总睡眠仅${dur}h（不足6小时）`);
+    const prev = asc.slice(Math.max(0, i - 7), i).map(x => totalSleep(x)).filter(v => v > 0);
     let dev = null;
     if (dur > 0 && prev.length >= 3) {
       const mu = prev.reduce((s, v) => s + v, 0) / prev.length;
       dev = dur - mu;
-      if (Math.abs(dev) > 1.5) flags.push(`睡眠${dev > 0 ? '多' : '少'}了${Math.abs(dev).toFixed(1)}h（相对前7天均值）`);
+      if (Math.abs(dev) > 1.5) flags.push(`总睡眠${dev > 0 ? '多' : '少'}了${Math.abs(dev).toFixed(1)}h（相对前7天均值）`);
     }
     if (r.sleep_score != null && +r.sleep_score > 0 && +r.sleep_score < 70) flags.push(`睡眠得分${r.sleep_score}（<70）`);
     const mood = r.habits && r.habits.mood ? +r.habits.mood : null;
@@ -1871,11 +1871,13 @@ async function loadAndRenderHistory() {
   const anomMap = detectDailyAnomalies(data || []);
   const tbody = document.getElementById('histBody');
   if (!cachedRecords.length) {
-    tbody.innerHTML = `<tr><td colspan="19" style="text-align:center;padding:2rem;color:var(--text3)">${histYear}年${histMonth+1}月暂无记录</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="20" style="text-align:center;padding:2rem;color:var(--text3)">${histYear}年${histMonth+1}月暂无记录</td></tr>`;
     return;
   }
   tbody.innerHTML = cachedRecords.map((r, idx) => {
-    const dur = r.sleep_hours;
+    const dur = totalSleep(r);            // 总睡眠 = 夜间 + 午休
+    const nap = napOf(r);
+    const night = nightOf(r);
     // 异常标记（相对个人基线的偏移，比单值阈值更有复盘价值）
     const anom = anomMap[r.date] || {};
     const anomBadge = anom.flags && anom.flags.length
@@ -1883,7 +1885,8 @@ async function loadAndRenderHistory() {
     // 睡眠颜色：<6h 红色加粗，≥8h 绿色加粗，其余橙色；偏离前7天均值>1.5h 加下划线红标
     const sc = dur>=getSleepGoal() ? 'c-ok c-bold' : dur&&dur<Math.max(4,getSleepGoal()-2) ? 'c-bad c-bold' : dur ? 'c-warn' : '';
     const devCls = anom.dev != null && Math.abs(anom.dev) > 1.5 ? ' c-dev' : '';
-    const devTip = devCls ? ` title="偏离前7天均值 ${anom.dev>0?'+':''}${anom.dev.toFixed(1)}h"` : '';
+    const splitTip = `夜间 ${night || 0}h` + (nap ? ` + 午休/零星 ${nap}h` : '（无午休）');
+    const devTip = ` title="${splitTip}${devCls ? ` · 偏离前7天均值 ${anom.dev > 0 ? '+' : ''}${anom.dev.toFixed(1)}h` : ''}"`;
     // 睡眠得分颜色：≥85 绿色加粗，<70 红色加粗，其余橙色
     const ssc = r.sleep_score>=85 ? 'c-ok c-bold' : (r.sleep_score!=null&&r.sleep_score<70) ? 'c-bad c-bold' : r.sleep_score!=null ? 'c-warn' : '';
     // 深睡颜色：≥90min 绿色加粗，<60min 红色加粗，其余橙色
@@ -1901,7 +1904,8 @@ async function loadAndRenderHistory() {
       <td class="c-txt" style="font-weight:600">${dateStr}${anomBadge}</td>
       <td style="color:var(--text3)">${r.sleep_time?r.sleep_time.slice(0,5):'/'}</td>
       <td class="${wc}">${wk}</td>
-      <td class="${sc}${devCls}"${devTip}>${dur||'/'}</td>
+      <td style="color:#818cf8;font-weight:500">${nap ? (nap >= 1 ? nap.toFixed(1) + 'h' : Math.round(nap * 60) + '′') : '/'}</td>
+      <td class="${sc}${devCls}"${devTip}>${dur || '/'}${nap ? '<span style="font-size:.55rem;color:#818cf8;vertical-align:super">+</span>' : ''}</td>
       <td class="${ssc}">${r.sleep_score!=null?r.sleep_score:'/'}</td>
       <td class="${dsc}">${r.deep_sleep?r.deep_sleep.slice(0,5):'/'}</td>
       <td style="color:var(--text3)">${r.light_sleep?r.light_sleep.slice(0,5):'/'}</td>
@@ -1917,7 +1921,7 @@ async function loadAndRenderHistory() {
       <td style="color:var(--c-checkin);font-size:.75rem">${r.gym ? `<span class="gym-toggle" onclick="event.stopPropagation();toggleGym(this)" style="cursor:pointer;user-select:none">🏋️</span>` : '/'}</td>
       <td style="color:#a78bfa;font-weight:600">${r.weight ? r.weight+'kg' : '/'}</td>
       <td style="color:#f472b6;font-weight:600">${r.body_fat ? r.body_fat+'%' : '/'}</td>
-    </tr>` + (r.gym ? `<tr class="gym-detail" style="display:none"><td colspan="19" style="padding:.25rem .6rem .5rem 1.2rem;font-size:.72rem;color:var(--text3);white-space:pre-wrap;line-height:1.7;background:var(--sf2);border-bottom:1px solid var(--border)">${r.gym.replace(/\n/g,'<br>')}</td></tr>` : '');
+    </tr>` + (r.gym ? `<tr class="gym-detail" style="display:none"><td colspan="20" style="padding:.25rem .6rem .5rem 1.2rem;font-size:.72rem;color:var(--text3);white-space:pre-wrap;line-height:1.7;background:var(--sf2);border-bottom:1px solid var(--border)">${r.gym.replace(/\n/g,'<br>')}</td></tr>` : '');
   }).join('');
 
   // 渲染月度统计
@@ -1943,7 +1947,7 @@ function renderHistStats(records, anomDays) {
   let scoreSum=0, scoreDays=0, deepMinSum=0, deepDays=0;
 
   records.forEach(r => {
-    const dur = parseFloat(r.sleep_hours) || 0;
+    const dur = totalSleep(r);           // 总睡眠（夜间 + 午休）
     const sh = r.sleep_time ? parseInt(r.sleep_time.split(':')[0]) : null;
     const wh = r.wake_time  ? parseInt(r.wake_time.split(':')[0])  : null;
     if (sh !== null && (sh >= 2 && sh <= 11)) lateNight++;
@@ -1976,11 +1980,11 @@ function renderHistStats(records, anomDays) {
     </div>
     <div class="hstat-card" style="border-top:3px solid var(--ok)">
       <div class="hstat-val" style="color:var(--ok)">${greenSleep}</div>
-      <div class="hstat-lbl">优质睡眠<small>&gt;${goal}小时</small></div>
+      <div class="hstat-lbl">优质睡眠<small>&gt;${goal}小时·含午休</small></div>
     </div>
     <div class="hstat-card" style="border-top:3px solid var(--bad)">
       <div class="hstat-val" style="color:var(--bad)">${alertSleep}</div>
-      <div class="hstat-lbl">睡眠报警<small>≤${warnH}小时</small></div>
+      <div class="hstat-lbl">睡眠报警<small>≤${warnH}小时·含午休</small></div>
     </div>
     ${scoreDays ? `<div class="hstat-card" style="border-top:3px solid #8b5cf6">
       <div class="hstat-val" style="color:#8b5cf6">${(scoreSum/scoreDays).toFixed(1)}</div>
@@ -2736,13 +2740,13 @@ async function fillWeeklyTemplate() {
     const monday = new Date(y, mo-1, d);
     monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
     const monStr = `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
-    const { data } = await db.from('daily_records').select('date,sleep_hours,running,cycling,habits,gym')
+    const { data } = await db.from('daily_records').select('date,sleep_hours,nap_hours,running,cycling,habits,gym')
       .eq('user_id', currentUser.id).order('date', {ascending:false}).limit(30);
     const week = (data || []).filter(r => r.date >= monStr);
     if (!week.length) return;
     const n = week.length;
-    const sleeps = week.map(r => parseFloat(r.sleep_hours)).filter(v => v > 0);
-    const sl = sleeps.length ? `平均 ${(sleeps.reduce((a,c)=>a+c,0)/sleeps.length).toFixed(1)}h（最好 ${Math.max(...sleeps).toFixed(1)}h，最短 ${Math.min(...sleeps).toFixed(1)}h）` : '无记录';
+    const sleeps = week.map(r => totalSleep(r)).filter(v => v > 0);
+    const sl = sleeps.length ? `平均 ${(sleeps.reduce((a,c)=>a+c,0)/sleeps.length).toFixed(1)}h（最好 ${Math.max(...sleeps).toFixed(1)}h，最短 ${Math.min(...sleeps).toFixed(1)}h·含午休）` : '无记录';
     const gymN = week.filter(r => (r.gym || '').trim()).length;
     const run = week.reduce((a,r) => a + (parseFloat(r.running) || 0), 0);
     const cyc = week.reduce((a,r) => a + (parseFloat(r.cycling) || 0), 0);
@@ -3184,8 +3188,8 @@ async function renderWeeklySummary() {
   const totalPushup = records.reduce((a,r) => a+(parseInt(r.pushup)||0), 0);
   const totalDips = records.reduce((a,r) => a+(parseInt(r.dips)||0), 0);
   const totalPullup = records.reduce((a,r) => a+(parseInt(r.pullup)||0), 0);
-  const sleepList = records.filter(r => r.sleep_hours > 0);
-  const avgSleep = sleepList.length ? (sleepList.reduce((a,r)=>a+(+r.sleep_hours),0)/sleepList.length) : 0;
+  const sleepList = records.map(r => totalSleep(r)).filter(v => v > 0);
+  const avgSleep = sleepList.length ? (sleepList.reduce((a,v)=>a+v,0)/sleepList.length) : 0;
   const paces = records.map(r=>r.habits?.跑步配速).filter(Boolean);
 
   // 最快配速
@@ -3197,7 +3201,7 @@ async function renderWeeklySummary() {
     { icon:'🏃', label:'跑步', value:`${totalRun.toFixed(1)}km / ${runDays}天`, color:'var(--c-journal)' },
     { icon:'💪', label:'俯卧撑', value:`${totalPushup}个`, color:'var(--c-checkin)' },
     { icon:'🚴', label:'骑行', value:`${totalCycle.toFixed(1)}km`, color:'var(--c-todo)' },
-    { icon:'😴', label:'均睡眠', value:`${avgSleep.toFixed(1)}h`, color:'var(--ok)' },
+    { icon:'😴', label:'均睡眠·含午休', value:`${avgSleep.toFixed(1)}h`, color:'var(--ok)' },
     { icon:'⚡', label:'最快配速', value: bestPace || '—', color:'var(--c-dash)' },
   ];
 
@@ -3251,8 +3255,8 @@ async function renderMonthlySummary() {
   const totalPushup = records.reduce((a,r) => a+(parseInt(r.pushup)||0), 0);
   const totalDips = records.reduce((a,r) => a+(parseInt(r.dips)||0), 0);
   const totalPullup = records.reduce((a,r) => a+(parseInt(r.pullup)||0), 0);
-  const sleepList = records.filter(r => r.sleep_hours > 0);
-  const avgSleep = sleepList.length ? (sleepList.reduce((a,r)=>a+(+r.sleep_hours),0)/sleepList.length) : 0;
+  const sleepList = records.map(r => totalSleep(r)).filter(v => v > 0);
+  const avgSleep = sleepList.length ? (sleepList.reduce((a,v)=>a+v,0)/sleepList.length) : 0;
   const checkinDays = records.length;
 
   const paceToSec = p => { const m=p.match(/(\d+)'(\d+)/); return m ? parseInt(m[1])*60+parseInt(m[2]) : 9999; };
@@ -3265,7 +3269,7 @@ async function renderMonthlySummary() {
     { icon:'🏃', label:'跑步', value:`${totalRun.toFixed(1)}km`, color:'var(--c-journal)' },
     { icon:'🚴', label:'骑行', value:`${totalCycle.toFixed(1)}km`, color:'var(--c-todo)' },
     { icon:'💪', label:'俯卧撑', value:`${totalPushup}个`, color:'var(--c-checkin)' },
-    { icon:'😴', label:'均睡眠', value:`${avgSleep.toFixed(1)}h`, color:'var(--ok)' },
+    { icon:'😴', label:'均睡眠·含午休', value:`${avgSleep.toFixed(1)}h`, color:'var(--ok)' },
   ];
 
   document.getElementById('monthlyStats').innerHTML = statsData.map(s => `
@@ -3382,8 +3386,8 @@ async function renderDash() {
   updateStreak();
 
   // ── 核心指标 ──
-  const withSleep = records.filter(r=>r.sleep_hours>0);
-  const avgSleep = withSleep.length ? (withSleep.reduce((a,r)=>a+(+r.sleep_hours),0)/withSleep.length) : 0;
+  const withSleep = records.map(r=>totalSleep(r)).filter(v=>v>0);
+  const avgSleep = withSleep.length ? (withSleep.reduce((a,v)=>a+v,0)/withSleep.length) : 0;
   const totalRun  = records.reduce((a,r)=>a+(+r.running||0),0);
   const totalCycling = records.reduce((a,r)=>a+(+r.cycling||0),0);
   const _wg = getWakeGoalH();
@@ -3392,7 +3396,7 @@ async function renderDash() {
 
   const statsData = [
     {l:'平均睡眠',v:avgSleep.toFixed(1),u:'h',
-     sub: avgSleep>=8?'优质睡眠':avgSleep>=6?'尚可':avgSleep>0?'睡眠不足':'暂无数据',
+     sub: avgSleep>=8?'优质睡眠·含午休':avgSleep>=6?'尚可·含午休':avgSleep>0?'睡眠不足·含午休':'暂无数据',
      color: avgSleep>=8?'var(--ok)':avgSleep>=6?'var(--warn)':'var(--bad)',
      icon:`<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 10a7 7 0 0 1 11.9-5"/><path d="M17 10a7 7 0 0 1-11.9 5"/><path d="M8 10h4"/></svg>`},
     {l:'打卡天数',v:records.length,u:'天',
@@ -3437,6 +3441,33 @@ async function renderDash() {
 function getSleepGoal() { const v = parseFloat(localStorage.getItem('ylt_sleep_goal')); return (v >= 4 && v <= 12) ? v : 8; }
 function getWakeGoalStr() { const t = localStorage.getItem('ylt_wake_goal'); return /^\d{1,2}:\d{2}$/.test(t || '') ? t : '08:00'; }
 function getWakeGoalH() { const p = getWakeGoalStr().split(':').map(Number); const v = p[0] + p[1] / 60; return (v >= 4 && v <= 12) ? v : 8; }
+
+// ══════════════════════════
+//  睡眠口径：总睡眠 = 夜间睡眠 + 午休/零星睡眠（nap_hours）
+//  · 全站统计、趋势图、异常标注统一走 totalSleep()
+//  · nap 超过 6 小时视为误填（历史上出现过 39 这种值），忽略不计
+// ══════════════════════════
+function nightOf(r) { return parseFloat(r && r.sleep_hours) || 0; }
+function napOf(r) {
+  const v = parseFloat(r && r.nap_hours) || 0;
+  return (v > 0 && v <= 6) ? +(v.toFixed(2)) : 0;
+}
+function totalSleep(r) {
+  const t = nightOf(r) + napOf(r);
+  return t > 0 ? Math.round(t * 100) / 100 : 0;
+}
+// 把「1h30'」「1.5」「90min」「39」这类写法统一解析成小时
+function parseDurInput(v) {
+  if (v == null) return null;
+  const s = String(v).trim(); if (!s) return null;
+  let m = s.match(/^(\d+(?:\.\d+)?)\s*h\s*(?:(\d+(?:\.\d+)?)\s*['′分钟"]?)?/i);
+  if (m) return Math.round((parseFloat(m[1]) + (parseFloat(m[2] || 0) / 60)) * 100) / 100;
+  m = s.match(/^(\d+(?:\.\d+)?)\s*(?:min|m|分钟|分)/i);
+  if (m) return Math.round((parseFloat(m[1]) / 60) * 100) / 100;
+  m = s.match(/^(\d+(?:\.\d+)?)$/);
+  if (m) { const n = parseFloat(m[1]); return n > 4 ? Math.round((n / 60) * 100) / 100 : n; }  // 纯数字 >4 视为分钟
+  return null;
+}
 function updateGoalLegend() {
   const goal = getSleepGoal(), warn = Math.max(4, goal - 2);
   const sv = c => `<svg width="12" height="2"><line x1="0" y1="1" x2="12" y2="1" stroke="${c}" stroke-width="1.5" stroke-dasharray="3,2"/></svg>`;
@@ -3587,49 +3618,49 @@ async function renderInsights() {
   // ② 近7天 vs 前一周
   const c7  = f(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6));
   const c14 = f(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 13));
-  const cur7  = recs.filter(r => r.date >= c7  && +r.sleep_hours > 0);
-  const prev7 = recs.filter(r => r.date >= c14 && r.date < c7 && +r.sleep_hours > 0);
+  const cur7  = recs.filter(r => r.date >= c7  && totalSleep(r) > 0);
+  const prev7 = recs.filter(r => r.date >= c14 && r.date < c7 && totalSleep(r) > 0);
   if (cur7.length >= 3 && prev7.length >= 2) {
-    const a7 = cur7.reduce((a, r) => a + +r.sleep_hours, 0) / cur7.length;
-    const p7 = prev7.reduce((a, r) => a + +r.sleep_hours, 0) / prev7.length;
+    const a7 = cur7.reduce((a, r) => a + totalSleep(r), 0) / cur7.length;
+    const p7 = prev7.reduce((a, r) => a + totalSleep(r), 0) / prev7.length;
     const d7 = a7 - p7;
     items.push({
       color: d7 >= 0 ? 'var(--ok)' : 'var(--bad)',
       icon: '📊',
-      text: Math.abs(d7) < 0.2 ? `近7天平均睡眠 ${a7.toFixed(1)}h，与前一周基本持平`
+      text: Math.abs(d7) < 0.2 ? `近7天平均睡眠 ${a7.toFixed(1)}h（含午休），与前一周基本持平`
            : d7 > 0 ? `近7天比前一周平均多睡 ${d7.toFixed(1)}h，状态在变好 👍`
            : `近7天比前一周平均少睡 ${Math.abs(d7).toFixed(1)}h，找机会补一觉`,
-      ev: `近7天均值 ${a7.toFixed(2)}h（${cur7.length} 天有记录）/ 前一周均值 ${p7.toFixed(2)}h（${prev7.length} 天有记录）`
+      ev: `口径：夜间+午休/零星睡眠。近7天均值 ${a7.toFixed(2)}h（${cur7.length} 天有记录）/ 前一周均值 ${p7.toFixed(2)}h（${prev7.length} 天有记录）`
     });
   }
   // ③ 个人基线
-  const sl = recs.filter(r => +r.sleep_hours > 0);
+  const sl = recs.filter(r => totalSleep(r) > 0);
   if (sl.length >= 5) {
-    const base = sl.reduce((a, r) => a + +r.sleep_hours, 0) / sl.length;
-    const goalDays = sl.filter(r => +r.sleep_hours >= goal).length;
-    const l7 = cur7.length ? cur7.reduce((a, r) => a + +r.sleep_hours, 0) / cur7.length : null;
+    const base = sl.reduce((a, r) => a + totalSleep(r), 0) / sl.length;
+    const goalDays = sl.filter(r => totalSleep(r) >= goal).length;
+    const l7 = cur7.length ? cur7.reduce((a, r) => a + totalSleep(r), 0) / cur7.length : null;
     const cmp = l7 != null ? `，近7天${l7 >= base ? '高于' : '低于'}基线 ${Math.abs(l7 - base).toFixed(1)}h` : '';
     items.push({
       color: 'var(--text)',
       icon: '🎯',
-      text: `个人基线：近30天平均 ${base.toFixed(1)}h${cmp}`,
+      text: `个人基线：近30天平均 ${base.toFixed(1)}h（含午休）${cmp}`,
       ev: `目标 ${goal}h · 近30天达标 ${goalDays}/${sl.length} 天。单日分数高低不必过度解读，看趋势就好`
     });
   }
   // ④ 睡眠不足提醒（温和版）
   if (cur7.length) {
-    const lack = recs.filter(r => r.date >= c7 && +r.sleep_hours > 0 && +r.sleep_hours < warnH);
+    const lack = recs.filter(r => r.date >= c7 && totalSleep(r) > 0 && totalSleep(r) < warnH);
     if (lack.length >= 2) {
       items.push({
         color: 'var(--warn)', icon: '💤',
-        text: `近7天有 ${lack.length} 天睡眠不足 ${warnH}h，白天记得给自己留点恢复时间`,
-        ev: lack.map(r => `${dstr(r.date)} 睡了 ${r.sleep_hours}h`).join('、')
+        text: `近7天有 ${lack.length} 天总睡眠不足 ${warnH}h，白天记得给自己留点恢复时间`,
+        ev: lack.map(r => `${dstr(r.date)} 睡了 ${totalSleep(r)}h（夜 ${nightOf(r)}h${napOf(r) ? ' + 午休 ' + napOf(r) + 'h' : ''}）`).join('、')
       });
     } else {
       items.push({
         color: 'var(--ok)', icon: '✨',
-        text: `近7天没有睡眠不足（少于 ${warnH}h）的日子，保持住`,
-        ev: `近7天共 ${cur7.length} 天有睡眠记录`
+        text: `近7天没有总睡眠不足（少于 ${warnH}h）的日子，保持住`,
+        ev: `近7天共 ${cur7.length} 天有睡眠记录（口径：夜间+午休）`
       });
     }
   }
@@ -3665,7 +3696,7 @@ function renderSleepSvg(data) {
   const goal = getSleepGoal(), warnH = Math.max(4, goal - 2);
   const C = { border: cssv('--border'), text3: cssv('--text3'), ok: cssv('--ok'), warn: cssv('--warn'), main: cssv('--c-todo') };
   const dates = data.map(r => r.date.slice(5));
-  const hours = data.map(r => +r.sleep_hours > 0 ? +(+r.sleep_hours).toFixed(2) : null);
+  const hours = data.map(r => totalSleep(r) > 0 ? totalSleep(r) : null);   // 总睡眠（含午休）
   const scores = data.map(r => +r.sleep_score > 0 ? Math.round(+r.sleep_score) : null);
   if (!hours.some(v => v)) { ecEmpty(ch, '数据不足'); return; }
   ch.setOption({
@@ -3676,7 +3707,7 @@ function renderSleepSvg(data) {
         let s = ps[0].axisValue;
         ps.forEach(p => {
           if (p.value == null) return;
-          s += `<br/>${p.marker}${p.seriesName}：${p.seriesName === '睡眠时长' ? p.value + ' h' : p.value + ' 分'}`;
+          s += `<br/>${p.marker}${p.seriesName}：${p.seriesName === '总睡眠' ? p.value + ' h' : p.value + ' 分'}`;
         });
         return s;
       }
@@ -3688,7 +3719,7 @@ function renderSleepSvg(data) {
     ],
     series: [
       {
-        name: '睡眠时长', type: 'line', smooth: .4, data: hours, connectNulls: true,
+        name: '总睡眠', type: 'line', smooth: .4, data: hours, connectNulls: true,
         lineStyle: { width: 2.5, color: C.main }, itemStyle: { color: C.main }, symbolSize: 5,
         areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: hexA(C.main, .25) }, { offset: 1, color: hexA(C.main, 0) }] } },
         markLine: {
@@ -3714,7 +3745,7 @@ function renderSleepSvg(data) {
 
 function renderSleepSvgFallback(data) {
   const svg = document.getElementById('sleepSvg');
-  const vals = data.map(r => +r.sleep_hours || 0);
+  const vals = data.map(r => totalSleep(r));
   const validPts = vals.filter(v=>v>0);
   if (validPts.length < 2) { svg.innerHTML='<text x="50%" y="50%" text-anchor="middle" fill="var(--text3)" font-size="12">数据不足</text>'; return; }
   const W=600, H=140, pl=34, pr=10, pt=12, pb=28;
@@ -3972,9 +4003,9 @@ function renderHeatmap(records) {
 function renderSleepQuality(records) {
   const svg=document.getElementById('sqSvg');
   const segs=[
-    {label:'充足 ≥7h',count:records.filter(r=>+r.sleep_hours>=7).length,color:'var(--ok)'},
-    {label:'一般 5~7h',count:records.filter(r=>{const h=+r.sleep_hours;return h>=5&&h<7;}).length,color:'var(--warn)'},
-    {label:'不足 <5h', count:records.filter(r=>r.sleep_hours&&+r.sleep_hours<5).length,color:'var(--bad)'},
+    {label:'充足 ≥7h',count:records.filter(r=>totalSleep(r)>=7).length,color:'var(--ok)'},
+    {label:'一般 5~7h',count:records.filter(r=>{const h=totalSleep(r);return h>=5&&h<7;}).length,color:'var(--warn)'},
+    {label:'不足 <5h', count:records.filter(r=>totalSleep(r)>0&&totalSleep(r)<5).length,color:'var(--bad)'},
   ];
   const total=segs.reduce((a,s)=>a+s.count,0)||1;
   const cx=72,cy=62,r=48,ir=30;
@@ -4116,6 +4147,8 @@ function toast(msg) {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
       <div><label style="font-size:.7rem;color:var(--text3)">入睡</label><input id="eh_sleep" type="time" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
       <div><label style="font-size:.7rem;color:var(--text3)">起床</label><input id="eh_wake" type="time" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">夜间时长(h)</label><input id="eh_night" type="number" step="0.01" min="0" max="24" placeholder="7.5" title="手环夜间睡眠时长，留空则按入睡→起床自动估算" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
+      <div><label style="font-size:.7rem;color:var(--text3)">午休/零星睡眠(h)</label><input id="eh_nap" type="number" step="0.1" min="0" max="6" placeholder="0.5" title="计入当日总睡眠" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
       <div><label style="font-size:.7rem;color:var(--text3)">睡眠得分</label><input id="eh_sleep_score" type="number" min="0" max="100" placeholder="83" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
       <div><label style="font-size:.7rem;color:var(--text3)">深睡</label><input id="eh_deep_sleep" type="time" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
       <div><label style="font-size:.7rem;color:var(--text3)">浅睡</label><input id="eh_light_sleep" type="time" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
@@ -4257,6 +4290,8 @@ function editHistRecord(r) {
     : '';
   document.getElementById('eh_sleep').value = r.sleep_time ? r.sleep_time.slice(0,5) : '';
   document.getElementById('eh_wake').value = r.wake_time ? r.wake_time.slice(0,5) : '';
+  document.getElementById('eh_night').value = r.sleep_hours ? nightOf(r) : '';
+  document.getElementById('eh_nap').value = r.nap_hours ? napOf(r) : '';
   document.getElementById('eh_sleep_score').value = r.sleep_score != null ? r.sleep_score : '';
   document.getElementById('eh_deep_sleep').value = r.deep_sleep ? r.deep_sleep.slice(0,5) : '';
   document.getElementById('eh_light_sleep').value = r.light_sleep ? r.light_sleep.slice(0,5) : '';
@@ -4316,10 +4351,15 @@ async function saveEditHist() {
   if (cyPaceEh > 0) habits['骑行配速'] = cyPaceEh;
   else delete habits['骑行配速'];
 
+  // 夜间时长：优先用手环真实时长（不因改别的字段而被「入睡→起床」估算值覆盖）
+  const nightIn = parseFloat(document.getElementById('eh_night').value);
+  const nightOut = (nightIn > 0) ? +nightIn.toFixed(2) : sleepH;
+
   const payload = {
     sleep_time:  sleepT || null,
     wake_time:   wakeT  || null,
-    sleep_hours: sleepH,
+    sleep_hours: nightOut,
+    nap_hours:   parseFloat(document.getElementById('eh_nap').value) || 0,
     sleep_score: parseInt(document.getElementById('eh_sleep_score').value) || null,
     deep_sleep:  document.getElementById('eh_deep_sleep').value  || null,
     light_sleep: document.getElementById('eh_light_sleep').value || null,
@@ -5000,7 +5040,7 @@ async function fyRunAutoCheck() {
   const [wr, mr, dr] = await Promise.all([
     db.from('weekly_records').select('wk,data').eq('user_id', currentUser.id).eq('year', Y),
     db.from('monthly_records').select('month,data').eq('user_id', currentUser.id).eq('year', Y),
-    db.from('daily_records').select('date,sleep_hours,sleep_score,weight,body_fat,habits')
+    db.from('daily_records').select('date,sleep_hours,nap_hours,sleep_score,weight,body_fat,habits')
       .eq('user_id', currentUser.id).gte('date', d30s).order('date', {ascending:true})
   ]);
   const weeks = (wr.data || []).map(r => r.data || {}).filter(d => Object.keys(d).length);
@@ -5048,11 +5088,11 @@ async function fyRunAutoCheck() {
     }
   } else add('原创推文', 'warn', '本年无周度数据');
 
-  // ⑤ 睡眠（近7天）
-  const sl7 = days.slice(-7).map(d => parseFloat(d.sleep_hours)).filter(v => v > 0);
+  // ⑤ 睡眠（近7天，口径=总睡眠：夜间+午休）
+  const sl7 = days.slice(-7).map(d => totalSleep(d)).filter(v => v > 0);
   if (sl7.length >= 4) {
     const avg = sl7.reduce((s, v) => s + v, 0) / sl7.length;
-    add('睡眠', avg < 6.5 ? 'warn' : 'ok', `近7天平均 ${avg.toFixed(1)}h`);
+    add('睡眠', avg < 6.5 ? 'warn' : 'ok', `近7天平均 ${avg.toFixed(1)}h（含午休）`);
   } else add('睡眠', 'warn', '近7天睡眠数据不足');
 
   // ⑥ 读书（近2月 ≥1本/月）
