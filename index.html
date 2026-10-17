@@ -520,6 +520,7 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
 .htable tr.wm-has td{background:rgba(99,102,241,.055)}
 .htable tr.wm-has td:first-child{color:#818cf8}
 .wm-note{font-size:.68rem;color:var(--text3);margin-top:.6rem;line-height:1.8}
+.wm-auto-dot{color:var(--text3);opacity:.6;font-size:.62rem;margin-left:2px;vertical-align:super;cursor:help}
 .c-ok{color:var(--ok)!important}.c-bad{color:var(--bad)!important}
 .c-warn{color:var(--warn)!important}.c-txt{color:var(--text)!important;font-weight:400}
 
@@ -907,6 +908,10 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
       <button class="btn btn-ghost btn-sm" onclick="wmChangeYear('weekly',-1)">← 上一年</button>
       <span id="weeklyYearLabel" style="font-size:.8rem;color:var(--text2);min-width:70px;text-align:center"></span>
       <button class="btn btn-ghost btn-sm" onclick="wmChangeYear('weekly',1)">下一年 →</button>
+      <button class="btn btn-sm" style="background:var(--c-checkin);color:#fff;margin-left:.5rem"
+        onclick="autoAggWeekly(false)"
+        title="按每日记录的起床时间与运动数据，自动填「早起天数(7:30前)/抬头日(6:30前)/跑步天数」等统计字段，只补空缺、不覆盖手填值">⟳ 自动汇总</button>
+      <button class="btn btn-ghost btn-sm" onclick="autoAggWeekly(true)" title="用每日记录重算并覆盖这几个统计字段">重算</button>
     </div>
     <div class="ph-actions" id="histActionsMonth" style="display:none">
       <button class="btn btn-ghost btn-sm" onclick="wmChangeYear('monthly',-1)">← 上一年</button>
@@ -2289,6 +2294,107 @@ function wmChangeYear(type, delta) {
   type === 'weekly' ? loadWeeklyRecords() : loadMonthlyRecords();
 }
 
+// ══════════════════════════
+//  周度自动汇总：从每日记录推导统计字段
+//  口径：早起 = 起床早于 07:30 · 抬头日 = 早于 06:30 · 跑步天数 = 当天有跑步记录
+//  另有：午睡天数(nap>0) · 读书天数(有书名或页数) · 出勤(有健身房记录的天数)
+//  只接管「空值」或「上次自动算出来的值」，手填过的值不会被覆盖（除非点「重算」）
+// ══════════════════════════
+const AUTO_WK_KEYS = ['early', 'head', 'run', 'nap', 'read', 'gym'];
+
+// 第 N 周的起止日期（与 wmWeekRange 同口径，输出 YYYY-MM-DD 便于和 date 比较）
+function wkRangeDates(year, wk) {
+  const jan1 = new Date(year, 0, 1);
+  const dow = (jan1.getDay() + 6) % 7;
+  const s = new Date(year, 0, 1 - dow + (wk - 1) * 7);
+  const e = new Date(s); e.setDate(e.getDate() + 6);
+  const f = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return [f(s), f(e)];
+}
+
+// "07:12" / "07:12:00" → 分钟数
+function hmToMin(t) {
+  if (!t) return null;
+  const m = String(t).match(/^(\d{1,2}):(\d{2})/);
+  return m ? (+m[1]) * 60 + (+m[2]) : null;
+}
+
+// 单周聚合：无任何每日记录时返回 null（不造空行）
+function computeWeekAgg(startISO, endISO, recs) {
+  const days = recs.filter(r => r.date >= startISO && r.date <= endISO);
+  if (!days.length) return null;
+  const out = { early: 0, head: 0, run: 0, nap: 0, read: 0, gym: 0 };
+  days.forEach(r => {
+    const wm = hmToMin(r.wake_time);
+    // 只认 03:00~12:00 之间的起床时间，防止误填（如 00:30）把早起刷满
+    if (wm != null && wm >= 180 && wm <= 720) {
+      if (wm < 7 * 60 + 30) out.early++;
+      if (wm < 6 * 60 + 30) out.head++;
+    }
+    if (+r.running > 0) out.run++;
+    if (+r.nap_hours > 0) out.nap++;
+    const h = r.habits || {};
+    if (+h['读了页数'] > 0 || (h['今日书名'] && String(h['今日书名']).trim())) out.read++;
+    if (r.gym && String(r.gym).trim()) out.gym++;
+  });
+  return out;
+}
+
+// 汇总并写库；force=true 覆盖手填值；silent=true 不弹提示（页面加载时静默跑）
+async function syncWeeklyAuto(force, silent) {
+  if (!currentUser) return 0;
+  const { data: recs, error } = await db.from('daily_records')
+    .select('date,wake_time,nap_hours,running,gym,habits')
+    .eq('user_id', currentUser.id)
+    .gte('date', (weeklyYear - 1) + '-12-20')
+    .lte('date', weeklyYear + '-12-31');
+  if (error) { if (!silent) toast('读取每日记录失败：' + (error.message || '')); return 0; }
+  if (!recs || !recs.length) { if (!silent) toast('这一年还没有每日记录，无从汇总'); return 0; }
+
+  const byWk = new Map();
+  cachedWeekly.forEach(r => byWk.set(r.wk, Object.assign({}, r.data || {})));
+  const rows = [], changes = [];
+  for (let wk = 1; wk <= 53; wk++) {
+    const range = wkRangeDates(weeklyYear, wk);
+    const agg = computeWeekAgg(range[0], range[1], recs);
+    if (!agg) continue;
+    const cur  = byWk.get(wk) || {};
+    const last = cur._agg || {};          // 上次自动汇总的快照
+    const next = Object.assign({}, cur);
+    const snap = Object.assign({}, last);
+    const hit  = [];
+    AUTO_WK_KEYS.forEach(k => {
+      const v = next[k];
+      const isEmpty = (v === undefined || v === null || v === '');
+      const mine = (last[k] !== undefined && v === last[k]);
+      if (!force && !isEmpty && !mine) return;   // 手填值：不碰
+      if (v !== agg[k]) { hit.push(`${k} ${isEmpty ? '—' : v}→${agg[k]}`); next[k] = agg[k]; }
+      snap[k] = agg[k];
+    });
+    if (!hit.length) continue;
+    next._agg = snap;
+    byWk.set(wk, next);
+    rows.push({ user_id: currentUser.id, year: weeklyYear, wk: wk, data: next, updated_at: new Date().toISOString() });
+    changes.push('W' + wk + '：' + hit.join('，'));
+  }
+  if (!rows.length) { if (!silent) toast('已是最新，无需更新'); return 0; }
+
+  const { error: e2 } = await db.from('weekly_records').upsert(rows, { onConflict: 'user_id,year,wk' });
+  if (e2) { if (!silent) toast('写入失败：' + (e2.message || '')); return 0; }
+  cachedWeekly = cachedWeekly.filter(r => !rows.some(x => x.wk === r.wk))
+    .concat(rows.map(r => ({ user_id: r.user_id, year: r.year, wk: r.wk, data: r.data })));
+  if (!silent) { toast(`✓ 已汇总 ${rows.length} 周`); console.log('[周度自动汇总]', changes); }
+  return rows.length;
+}
+
+async function autoAggWeekly(force) {
+  if (force && !confirm('重算会用每日记录覆盖「早起/抬头/跑步/午睡/读书/出勤」这 6 个字段（手写的数值也会被覆盖，文字类字段不受影响）。继续？')) return;
+  showLoading(force ? '正在重算…' : '正在汇总…');
+  const n = await syncWeeklyAuto(!!force, false);
+  hideLoading();
+  if (n) renderWeeklyTable();
+}
+
 async function loadWeeklyRecords() {
   showLoading('加载周度记录…');
   document.getElementById('weeklyYearLabel').textContent = weeklyYear + '年';
@@ -2303,6 +2409,8 @@ async function loadWeeklyRecords() {
     return;
   }
   cachedWeekly = data || [];
+  // 静默按每日记录补全统计字段（早起/抬头/跑步/午睡/读书/出勤），手填值不覆盖
+  try { await syncWeeklyAuto(false, true); } catch (e) { console.warn('周度自动汇总失败', e); }
   renderWeeklyTable();
 }
 
@@ -2343,8 +2451,10 @@ function renderWeeklyTable() {
     const cells = WEEK_FIELDS.map(f => {
       const v = d ? d[f.k] : undefined;
       const shown = (v !== undefined && v !== null && v !== '') ? (f.suffix ? v + f.suffix : v) : '/';
+      const isAuto = !!(d && d._agg && d._agg[f.k] !== undefined);
+      const autoDot = isAuto ? '<span class="wm-auto-dot" title="由每日记录自动汇总，会随打卡自动更新">∘</span>' : '';
       const txtStyle = f.type === 'text' ? 'max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + shown : '';
-      return `<td${txtStyle ? ' style="' + txtStyle + '"' : ''}>${shown}</td>`;
+      return `<td${txtStyle ? ' style="' + txtStyle + '"' : ''}>${shown}${autoDot}</td>`;
     }).join('');
     rows += `<tr class="${has ? 'wm-has' : ''}${an ? ' wm-anom' : ''}" style="cursor:pointer" onclick="openWmEditor('weekly',${wk})">
       <td style="font-weight:600">W${wk}${an ? `<span class="wm-anom-badge" title="${an.join('；')}">⚠${an.length}</span>` : ''}</td>
@@ -2375,7 +2485,8 @@ function renderWeeklyTable() {
     <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
       <table class="htable"><thead>${thead}</thead><tbody>${rows}</tbody></table>
     </div></div>
-    <div class="wm-note">💡 点击任意一行填写该周数据 · 有数据的周次会淡紫高亮 · 保存后自动更新</div>`;
+    <div class="wm-note">💡 点击任意一行填写该周数据 · 有数据的周次会淡紫高亮 · 保存后自动更新<br>
+      早起天数（7:30 前起床）/ 抬头日（6:30 前）/ 跑步天数（当天有跑步记录）/ 午睡 / 读书 / 出勤 会按每日记录自动汇总，带 <span class="wm-auto-dot">∘</span> 的值会随打卡自动更新；手填过的值不会被自动覆盖</div>`;
   renderWeeklyCharts();
 }
 
@@ -2679,6 +2790,17 @@ async function saveWmRecord() {
     }
     data[f.k] = v;
   });
+  // 周度：保留「自动汇总」的归属标记 —— 没被手动改过的统计字段继续跟随每日记录自动更新
+  if (type === 'weekly') {
+    const old = (cachedWeekly.find(r => r.wk === key) || {}).data || {};
+    const oldSnap = old._agg || {};
+    const snap = {};
+    AUTO_WK_KEYS.forEach(k => {
+      if (oldSnap[k] === undefined) return;            // 本来就不是自动算的
+      if (String(old[k]) === String(data[k])) snap[k] = oldSnap[k];  // 未改动 → 仍归自动管
+    });
+    if (Object.keys(snap).length) data._agg = snap;
+  }
   const payload = {
     user_id: currentUser.id,
     year: type === 'weekly' ? weeklyYear : monthlyYear,
