@@ -917,6 +917,10 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
       <button class="btn btn-ghost btn-sm" onclick="wmChangeYear('monthly',-1)">← 上一年</button>
       <span id="monthlyYearLabel" style="font-size:.8rem;color:var(--text2);min-width:70px;text-align:center"></span>
       <button class="btn btn-ghost btn-sm" onclick="wmChangeYear('monthly',1)">下一年 →</button>
+      <button class="btn btn-sm" style="background:var(--c-checkin);color:#fff;margin-left:.5rem"
+        onclick="autoAggMonthly(false)"
+        title="按每日记录自动填「早起天数(7:30前)/跑步天数与距离/健身房天数/骑行次数与距离/读书本数与书目」，只补空缺、不覆盖手填值">⟳ 自动汇总</button>
+      <button class="btn btn-ghost btn-sm" onclick="autoAggMonthly(true)" title="用每日记录重算并覆盖这些统计字段">重算</button>
     </div>
   </div>
   <div class="j-tabs" style="margin-bottom:1rem">
@@ -2395,6 +2399,87 @@ async function autoAggWeekly(force) {
   if (n) renderWeeklyTable();
 }
 
+// ── 月度自动汇总：与周度同套机制 ──
+// 早起天数(7:30前) · 跑步天数 · 跑步距离 · 健身房天数 · 骑行次数/距离 · 读书本数与书目
+const AUTO_MO_KEYS = ['early', 'run', 'km', 'gym', 'rt', 'rkm', 'books', 'titles'];
+
+function computeMonthAgg(year, month, recs) {
+  const ym = year + '-' + String(month).padStart(2, '0');
+  const days = recs.filter(r => r.date.slice(0, 7) === ym);
+  if (!days.length) return null;
+  const out = { early: 0, run: 0, km: 0, gym: 0, rt: 0, rkm: 0 };
+  const titles = [];
+  days.forEach(r => {
+    const wm = hmToMin(r.wake_time);
+    if (wm != null && wm >= 180 && wm <= 720 && wm < 7 * 60 + 30) out.early++;
+    if (+r.running > 0) { out.run++; out.km += +r.running; }
+    if (+r.cycling > 0) { out.rt++; out.rkm += +r.cycling; }
+    if (r.gym && String(r.gym).trim()) out.gym++;
+    const t = (r.habits || {})['今日书名'];
+    if (t && String(t).trim()) {
+      const name = String(t).trim();
+      if (!titles.includes(name)) titles.push(name);
+    }
+  });
+  out.km = Math.round(out.km * 100) / 100;
+  out.rkm = Math.round(out.rkm * 100) / 100;
+  if (titles.length) { out.books = titles.length; out.titles = titles.join('、'); }
+  return out;
+}
+
+async function syncMonthlyAuto(force, silent) {
+  if (!currentUser) return 0;
+  const { data: recs, error } = await db.from('daily_records')
+    .select('date,wake_time,running,cycling,gym,habits')
+    .eq('user_id', currentUser.id)
+    .gte('date', monthlyYear + '-01-01').lte('date', monthlyYear + '-12-31');
+  if (error) { if (!silent) toast('读取每日记录失败：' + (error.message || '')); return 0; }
+  if (!recs || !recs.length) { if (!silent) toast('这一年还没有每日记录，无从汇总'); return 0; }
+
+  const byM = new Map();
+  cachedMonthly.forEach(r => byM.set(r.month, Object.assign({}, r.data || {})));
+  const rows = [], changes = [];
+  for (let m = 1; m <= 12; m++) {
+    const agg = computeMonthAgg(monthlyYear, m, recs);
+    if (!agg) continue;
+    const cur  = byM.get(m) || {};
+    const last = cur._agg || {};
+    const next = Object.assign({}, cur);
+    const snap = Object.assign({}, last);
+    const hit  = [];
+    AUTO_MO_KEYS.forEach(k => {
+      const av = agg[k];
+      if (av === undefined) return;            // 该月没有此类数据（如整月没读书），不写
+      const v = next[k];
+      const isEmpty = (v === undefined || v === null || v === '');
+      const mine = (last[k] !== undefined && v === last[k]);
+      if (!force && !isEmpty && !mine) return; // 手填值：不碰
+      if (v !== av) { hit.push(`${k} ${isEmpty ? '—' : v}→${av}`); next[k] = av; }
+      snap[k] = av;
+    });
+    if (!hit.length) continue;
+    next._agg = snap;
+    byM.set(m, next);
+    rows.push({ user_id: currentUser.id, year: monthlyYear, month: m, data: next, updated_at: new Date().toISOString() });
+    changes.push(m + '月：' + hit.join('，'));
+  }
+  if (!rows.length) { if (!silent) toast('已是最新，无需更新'); return 0; }
+  const { error: e2 } = await db.from('monthly_records').upsert(rows, { onConflict: 'user_id,year,month' });
+  if (e2) { if (!silent) toast('写入失败：' + (e2.message || '')); return 0; }
+  cachedMonthly = cachedMonthly.filter(r => !rows.some(x => x.month === r.month))
+    .concat(rows.map(r => ({ user_id: r.user_id, year: r.year, month: r.month, data: r.data })));
+  if (!silent) { toast(`✓ 已汇总 ${rows.length} 个月`); console.log('[月度自动汇总]', changes); }
+  return rows.length;
+}
+
+async function autoAggMonthly(force) {
+  if (force && !confirm('重算会用每日记录覆盖「早起/跑步天数与距离/健身房天数/骑行次数与距离/读书本数与书目」这些字段（手写数值也会被覆盖，公众号/推文/粉丝等不受影响）。继续？')) return;
+  showLoading(force ? '正在重算…' : '正在汇总…');
+  const n = await syncMonthlyAuto(!!force, false);
+  hideLoading();
+  if (n) renderMonthlyTable();
+}
+
 async function loadWeeklyRecords() {
   showLoading('加载周度记录…');
   document.getElementById('weeklyYearLabel').textContent = weeklyYear + '年';
@@ -2594,6 +2679,8 @@ async function loadMonthlyRecords() {
     return;
   }
   cachedMonthly = data || [];
+  // 静默按每日记录补全统计字段（早起/跑步/健身/骑行/读书），手填值不覆盖
+  try { await syncMonthlyAuto(false, true); } catch (e) { console.warn('月度自动汇总失败', e); }
   renderMonthlyTable();
 }
 
@@ -2608,8 +2695,10 @@ function renderMonthlyTable() {
     const cells = MONTH_FIELDS.map(f => {
       const v = d ? d[f.k] : undefined;
       const shown = (v !== undefined && v !== null && v !== '') ? v : '/';
+      const isAuto = !!(d && d._agg && d._agg[f.k] !== undefined);
+      const autoDot = isAuto ? '<span class="wm-auto-dot" title="由每日记录自动汇总，会随打卡自动更新">∘</span>' : '';
       const txtStyle = f.type === 'text' ? 'max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + shown : '';
-      return `<td${txtStyle ? ' style="' + txtStyle + '"' : ''}>${shown}</td>`;
+      return `<td${txtStyle ? ' style="' + txtStyle + '"' : ''}>${shown}${autoDot}</td>`;
     }).join('');
     rows += `<tr class="${has ? 'wm-has' : ''}" style="cursor:pointer" onclick="openWmEditor('monthly',${m})">
       <td style="font-weight:600">${m}月</td>${cells}</tr>`;
@@ -2653,7 +2742,8 @@ function renderMonthlyTable() {
     <div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">
       <table class="htable"><thead>${thead}</thead><tbody>${rows}${totalRow}${avgRow}</tbody></table>
     </div></div>
-    <div class="wm-note">💡 点击某一行填写该月数据 · 合计/月均自动计算<br>🎯 年度基准（JUMP_2026 修订版）：读书 ≥ 每月 1 本 · 原创推文 ≥ 每周 3 条（约12条/月）· 粉丝年底目标 1000（月底必记） · OpenClaw ≥ 每月 30 小时 · 体脂 ≤ 17%</div>`;
+    <div class="wm-note">💡 点击某一行填写该月数据 · 合计/月均自动计算<br>
+      早起天数（7:30 前起床）/ 跑步天数与距离 / 健身房天数 / 骑行次数与距离 / 读书本数与书目 会按每日记录自动汇总，带 <span class="wm-auto-dot">∘</span> 的值会随打卡自动更新；手填过的值不会被自动覆盖<br>🎯 年度基准（JUMP_2026 修订版）：读书 ≥ 每月 1 本 · 原创推文 ≥ 每周 3 条（约12条/月）· 粉丝年底目标 1000（月底必记） · OpenClaw ≥ 每月 30 小时 · 体脂 ≤ 17%</div>`;
   renderMonthlyCharts();
 }
 
@@ -2790,12 +2880,14 @@ async function saveWmRecord() {
     }
     data[f.k] = v;
   });
-  // 周度：保留「自动汇总」的归属标记 —— 没被手动改过的统计字段继续跟随每日记录自动更新
-  if (type === 'weekly') {
-    const old = (cachedWeekly.find(r => r.wk === key) || {}).data || {};
+  // 周度/月度：保留「自动汇总」的归属标记 —— 没被手动改过的统计字段继续跟随每日记录自动更新
+  if (type === 'weekly' || type === 'monthly') {
+    const AK = type === 'weekly' ? AUTO_WK_KEYS : AUTO_MO_KEYS;
+    const list = type === 'weekly' ? cachedWeekly : cachedMonthly;
+    const old = (list.find(type === 'weekly' ? r => r.wk === key : r => r.month === key) || {}).data || {};
     const oldSnap = old._agg || {};
     const snap = {};
-    AUTO_WK_KEYS.forEach(k => {
+    AK.forEach(k => {
       if (oldSnap[k] === undefined) return;            // 本来就不是自动算的
       if (String(old[k]) === String(data[k])) snap[k] = oldSnap[k];  // 未改动 → 仍归自动管
     });
