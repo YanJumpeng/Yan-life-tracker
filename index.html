@@ -4366,7 +4366,7 @@ function toast(msg) {
 
 <!-- 编辑历史记录弹窗 -->
 <div id="editHistModal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.45);align-items:center;justify-content:center">
-  <div style="background:var(--surface);border-radius:16px;padding:1.8rem;width:90%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+  <div style="background:var(--surface);border-radius:16px;padding:1.8rem;width:90%;max-width:420px;max-height:92vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)">
     <div style="font-size:1rem;font-weight:500;margin-bottom:1.2rem;color:var(--text)">编辑记录 · <span id="editHistDate"></span> <span id="eh_updated" style="float:right;font-size:.65rem;font-weight:400;color:var(--text3)"></span></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
       <div><label style="font-size:.7rem;color:var(--text3)">入睡</label><input id="eh_sleep" type="time" style="width:100%;padding:.4rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
@@ -4666,7 +4666,7 @@ document.getElementById('editHistModal').addEventListener('click', function(e) {
 // ════════════════════════════════════════
 document.body.insertAdjacentHTML('beforeend', `
 <div id="bookModal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.45);align-items:center;justify-content:center">
-  <div style="background:var(--surface);border-radius:16px;padding:1.6rem;width:90%;max-width:420px;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+  <div style="background:var(--surface);border-radius:16px;padding:1.6rem;width:90%;max-width:420px;max-height:92vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)">
     <div style="font-size:1rem;font-weight:500;margin-bottom:1.1rem;color:var(--text)">添加书籍</div>
     <div style="display:grid;grid-template-columns:2fr 1fr;gap:.6rem;margin-bottom:.6rem">
       <div><label style="font-size:.7rem;color:var(--text3)">书名 *</label><input id="bm_title" autocomplete="off" list="bookDatalist" style="width:100%;padding:.45rem;border:1px solid var(--border);border-radius:8px;background:var(--sf2);color:var(--text)"></div>
