@@ -1882,6 +1882,7 @@ async function saveCheckin() {
   const _dstr = `${+date.slice(5,7)}月${+date.slice(8,10)}日`;
   toast(isToday ? `✓ 已保存！${_suf}` : `✓ 已补记 ${_dstr}！${_suf}`);
   if (!isToday) { try { loadAndRenderHistory(); } catch(e) {} }
+  autoAggForDate(payload.date);   // 后台静默更新所属周/月统计
   // 填了书名而书架没有这本书 → 自动建档为「在读」
   const _tb = document.getElementById('todayBook')?.value?.trim();
   if (_tb && !cachedBooks.some(b => b.title === _tb)) {
@@ -2478,6 +2479,96 @@ async function autoAggMonthly(force) {
   const n = await syncMonthlyAuto(!!force, false);
   hideLoading();
   if (n) renderMonthlyTable();
+}
+
+// 每日记录保存后：增量更新该日期所属的周/月统计（只算受影响的一周/一月，后台静默跑）
+// 口径与 syncWeeklyAuto/syncMonthlyAuto 完全一致：空值或上次自动算的值才更新，手填值不碰
+async function autoAggForDate(dateStr) {
+  if (!currentUser || !dateStr) return;
+  const year = +dateStr.slice(0, 4);
+  try {
+    // ── 周 ──
+    let wk = null;
+    for (let i = 1; i <= 53; i++) {
+      const r = wkRangeDates(year, i);
+      if (dateStr >= r[0] && dateStr <= r[1]) { wk = i; break; }
+    }
+    if (wk) {
+      const rng = wkRangeDates(year, wk);
+      const { data: wrecs } = await db.from('daily_records')
+        .select('date,wake_time,nap_hours,running,gym,habits')
+        .eq('user_id', currentUser.id).gte('date', rng[0]).lte('date', rng[1]);
+      const agg = computeWeekAgg(rng[0], rng[1], wrecs || []);
+      if (agg) {
+        const { data: row } = await db.from('weekly_records').select('data')
+          .eq('user_id', currentUser.id).eq('year', year).eq('wk', wk).maybeSingle();
+        const cur = (row && row.data) || {};
+        const last = cur._agg || {};
+        const next = Object.assign({}, cur);
+        const snap = Object.assign({}, last);
+        let changed = false;
+        AUTO_WK_KEYS.forEach(k => {
+          const v = next[k];
+          const isEmpty = (v === undefined || v === null || v === '');
+          const mine = (last[k] !== undefined && v === last[k]);
+          if (!isEmpty && !mine) return;
+          if (v !== agg[k]) { next[k] = agg[k]; changed = true; }
+          snap[k] = agg[k];
+        });
+        if (changed) {
+          next._agg = snap;
+          const { error } = await db.from('weekly_records')
+            .upsert({ user_id: currentUser.id, year: year, wk: wk, data: next, updated_at: new Date().toISOString() },
+                    { onConflict: 'user_id,year,wk' });
+          if (!error) {
+            const i = cachedWeekly.findIndex(r => r.year === year && r.wk === wk);
+            const item = { user_id: currentUser.id, year: year, wk: wk, data: next };
+            if (i >= 0) cachedWeekly[i] = item; else cachedWeekly.push(item);
+            if (histView === 'weekly' && weeklyYear === year) renderWeeklyTable();
+          }
+        }
+      }
+    }
+    // ── 月 ──
+    const mo = +dateStr.slice(5, 7);
+    const mLast = new Date(year, mo, 0).getDate();
+    const mPre = year + '-' + String(mo).padStart(2, '0');
+    const { data: mrecs } = await db.from('daily_records')
+      .select('date,wake_time,running,cycling,gym,habits')
+      .eq('user_id', currentUser.id).gte('date', mPre + '-01').lte('date', mPre + '-' + mLast);
+    const magg = computeMonthAgg(year, mo, mrecs || []);
+    if (magg) {
+      const { data: mrow } = await db.from('monthly_records').select('data')
+        .eq('user_id', currentUser.id).eq('year', year).eq('month', mo).maybeSingle();
+      const cur = (mrow && mrow.data) || {};
+      const last = cur._agg || {};
+      const next = Object.assign({}, cur);
+      const snap = Object.assign({}, last);
+      let changed = false;
+      AUTO_MO_KEYS.forEach(k => {
+        const av = magg[k];
+        if (av === undefined) return;
+        const v = next[k];
+        const isEmpty = (v === undefined || v === null || v === '');
+        const mine = (last[k] !== undefined && v === last[k]);
+        if (!isEmpty && !mine) return;
+        if (v !== av) { next[k] = av; changed = true; }
+        snap[k] = av;
+      });
+      if (changed) {
+        next._agg = snap;
+        const { error } = await db.from('monthly_records')
+          .upsert({ user_id: currentUser.id, year: year, month: mo, data: next, updated_at: new Date().toISOString() },
+                  { onConflict: 'user_id,year,month' });
+        if (!error) {
+          const i = cachedMonthly.findIndex(r => r.year === year && r.month === mo);
+          const item = { user_id: currentUser.id, year: year, month: mo, data: next };
+          if (i >= 0) cachedMonthly[i] = item; else cachedMonthly.push(item);
+          if (histView === 'monthly' && monthlyYear === year) renderMonthlyTable();
+        }
+      }
+    }
+  } catch (e) { console.warn('周/月统计自动更新失败（不影响打卡数据）', e); }
 }
 
 async function loadWeeklyRecords() {
@@ -4611,6 +4702,7 @@ async function submitAddRecord() {
     closeAddRecord();
     loadAndRenderHistory();
     alert('✅ 补录成功！');
+    autoAggForDate(payload.date);   // 后台静默更新所属周/月统计
   } catch(e) {
     console.error('[补录] catch:', e);
     alert('保存出错：' + e.message);
@@ -4739,6 +4831,7 @@ async function saveEditHist() {
   try {
     const { error } = await db.from('daily_records').update(payload).eq('id', _editHistRecord.id);
     if (error) { console.error('[编辑] error:', error); alert('保存失败: ' + (error.message||JSON.stringify(error))); return; }
+    autoAggForDate(_editHistRecord.date);   // 后台静默更新所属周/月统计
     closeEditHist();
     toast('✓ 记录已更新');
     loadAndRenderHistory();
