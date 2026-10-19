@@ -1703,12 +1703,12 @@ async function loadCheckinFor(ds) {
   })();
   const { data } = await db.from('daily_records').select('*').eq('user_id', currentUser.id).eq('date', ds).maybeSingle();
   if (data) {
-    if(data.sleep_time) document.getElementById('sleepT').value = String(data.sleep_time).slice(0,5);
-    if(data.wake_time)  document.getElementById('wakeT').value  = String(data.wake_time).slice(0,5);
+    if(data.sleep_time) document.getElementById('sleepT').value = padTime(data.sleep_time);
+    if(data.wake_time)  document.getElementById('wakeT').value  = padTime(data.wake_time);
     if(data.sleep_score != null) document.getElementById('sleepScore').value = data.sleep_score;
-    if(data.deep_sleep)  document.getElementById('deepT').value  = String(data.deep_sleep).slice(0,5);
-    if(data.light_sleep) document.getElementById('lightT').value = String(data.light_sleep).slice(0,5);
-    if(data.rem_sleep)   document.getElementById('remT').value   = String(data.rem_sleep).slice(0,5);
+    if(data.deep_sleep)  document.getElementById('deepT').value  = padTime(data.deep_sleep);
+    if(data.light_sleep) document.getElementById('lightT').value = padTime(data.light_sleep);
+    if(data.rem_sleep)   document.getElementById('remT').value   = padTime(data.rem_sleep);
     // 睡眠时长：优先保留手环真实时长；没有手环值时才按入睡→起床推算
     if (data.sleep_hours != null && +data.sleep_hours > 0) {
       document.getElementById('durT').value = fmtDurH(data.sleep_hours);
@@ -1903,7 +1903,7 @@ async function copyPrevDayValues() {
   const { data } = await db.from('daily_records').select('*').eq('user_id', currentUser.id).eq('date', ds).maybeSingle();
   if (!data) { toast(`前一天（${ds.slice(5)}）还没有记录，暂无内容可沿用`); return; }
   let n = 0;
-  if (data.wake_time && !document.getElementById('wakeT').value) { document.getElementById('wakeT').value = String(data.wake_time).slice(0,5); n++; }
+  if (data.wake_time && !document.getElementById('wakeT').value) { document.getElementById('wakeT').value = padTime(data.wake_time); n++; }
   const bw = document.getElementById('bodyWeight'), bf = document.getElementById('bodyFat');
   if (bw && !bw.value && data.weight   != null) { bw.value = data.weight;   n++; }
   if (bf && !bf.value && data.body_fat != null) { bf.value = data.body_fat; n++; }
@@ -3866,6 +3866,11 @@ function parseDurInput(v) {
   if (m) { const n = parseFloat(m[1]); return n > 4 ? Math.round((n / 60) * 100) / 100 : n; }  // 纯数字 >4 视为分钟
   return null;
 }
+// 补零成 HH:MM——type=time 输入框要求两位小时，'0:53' 会被静默拒绝导致回填为空
+function padTime(t) {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(t || ''));
+  return m ? m[1].padStart(2, '0') + ':' + m[2] : t;
+}
 function updateGoalLegend() {
   const goal = getSleepGoal(), warn = Math.max(4, goal - 2);
   const sv = c => `<svg width="12" height="2"><line x1="0" y1="1" x2="12" y2="1" stroke="${c}" stroke-width="1.5" stroke-dasharray="3,2"/></svg>`;
@@ -4696,6 +4701,8 @@ async function submitAddRecord() {
     body_fat: parseFloat(document.getElementById('add_body_fat')?.value) || null,
   };
   console.log('[补录] payload:', JSON.stringify(payload));
+  // 睡眠明细留空 → 不写入，防止 upsert 覆盖同日已有记录的值
+  ['sleep_score','deep_sleep','light_sleep','rem_sleep'].forEach(k => { if (payload[k] == null) delete payload[k]; });
   try {
     const { error } = await db.from('daily_records').upsert(payload, { onConflict: 'user_id,date' });
     if (error) { console.error('[补录] error:', error); alert('保存失败：' + error.message); return; }
@@ -4728,14 +4735,14 @@ function editHistRecord(r) {
   document.getElementById('eh_updated').textContent = r.updated_at
     ? '上次修改 ' + new Date(r.updated_at).toLocaleString('zh-CN', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})
     : '';
-  document.getElementById('eh_sleep').value = r.sleep_time ? r.sleep_time.slice(0,5) : '';
-  document.getElementById('eh_wake').value = r.wake_time ? r.wake_time.slice(0,5) : '';
+  document.getElementById('eh_sleep').value = r.sleep_time ? padTime(r.sleep_time) : '';
+  document.getElementById('eh_wake').value = r.wake_time ? padTime(r.wake_time) : '';
   document.getElementById('eh_night').value = r.sleep_hours ? nightOf(r) : '';
   document.getElementById('eh_nap').value = r.nap_hours ? napOf(r) : '';
   document.getElementById('eh_sleep_score').value = r.sleep_score != null ? r.sleep_score : '';
-  document.getElementById('eh_deep_sleep').value = r.deep_sleep ? r.deep_sleep.slice(0,5) : '';
-  document.getElementById('eh_light_sleep').value = r.light_sleep ? r.light_sleep.slice(0,5) : '';
-  document.getElementById('eh_rem_sleep').value = r.rem_sleep ? r.rem_sleep.slice(0,5) : '';
+  document.getElementById('eh_deep_sleep').value = r.deep_sleep ? padTime(r.deep_sleep) : '';
+  document.getElementById('eh_light_sleep').value = r.light_sleep ? padTime(r.light_sleep) : '';
+  document.getElementById('eh_rem_sleep').value = r.rem_sleep ? padTime(r.rem_sleep) : '';
   document.getElementById('eh_pushup').value = r.pushup || 0;
   document.getElementById('eh_squat').value = r.squat || 0;
   document.getElementById('eh_pullup').value = r.pullup || 0;
@@ -4828,6 +4835,8 @@ async function saveEditHist() {
   };
 
   console.log('[编辑] payload:', JSON.stringify(payload));
+  // 睡眠明细留空 → 不写入，防止把数据库已有值清掉
+  ['sleep_score','deep_sleep','light_sleep','rem_sleep'].forEach(k => { if (payload[k] == null) delete payload[k]; });
   try {
     const { error } = await db.from('daily_records').update(payload).eq('id', _editHistRecord.id);
     if (error) { console.error('[编辑] error:', error); alert('保存失败: ' + (error.message||JSON.stringify(error))); return; }
