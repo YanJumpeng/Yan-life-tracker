@@ -902,6 +902,7 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
       <button class="btn btn-ghost btn-sm" onclick="histChangeMonth(-1)">← 上月</button>
       <span id="histMonthLabel" style="font-size:.8rem;color:var(--text2);min-width:80px;text-align:center"></span>
       <button class="btn btn-ghost btn-sm" onclick="histChangeMonth(1)">下月 →</button>
+      <button class="btn btn-ghost btn-sm" onclick="openExport()" title="导出本月数据为 Excel（含日记/周记可选）">⬇ 导出</button>
       <button class="btn btn-sm" style="background:var(--c-checkin);color:#fff;margin-left:.5rem" onclick="openAddRecord()">＋ 补录</button>
     </div>
     <div class="ph-actions" id="histActionsWeek" style="display:none">
@@ -970,7 +971,7 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
 
 <!-- 日记 -->
 <div class="page" id="page-journal" data-page="journal">
-  <div class="page-header"><div><div class="ph-title">日记 / 周记</div></div><div class="ph-actions"><button class="btn btn-green btn-sm" id="newJBtn" onclick="newJ()">＋ 新建</button></div></div>
+  <div class="page-header"><div><div class="ph-title">日记 / 周记</div></div><div class="ph-actions"><button class="btn btn-ghost btn-sm" onclick="openExport()" title="导出所选月份的日记/周记为 Excel">⬇ 导出</button><button class="btn btn-green btn-sm" id="newJBtn" onclick="newJ()">＋ 新建</button></div></div>
   <div id="jListWrap">
     <input type="text" id="jSearch" class="form-input" placeholder="🔎 搜索标题或正文关键字…" oninput="renderJournalList()" style="width:100%;margin-bottom:.8rem">
     <div class="j-tabs">
@@ -2125,6 +2126,181 @@ function histChangeMonth(delta) {
   if (histMonth < 0)  { histMonth = 11; histYear--; }
   if (histMonth > 11) { histMonth = 0;  histYear++; }
   loadAndRenderHistory();
+}
+
+// ══════════════════════════
+//  数据导出（Excel XML Spreadsheet 2003，多工作表，纯前端无外部依赖）
+// ══════════════════════════
+document.body.insertAdjacentHTML('beforeend', `
+<div id="exportModal" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.45);align-items:center;justify-content:center">
+  <div style="background:var(--surface);border-radius:16px;padding:1.6rem;width:90%;max-width:400px;max-height:92vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)">
+    <div style="font-weight:600;margin-bottom:1rem">⬇ 导出 Excel</div>
+    <div class="form-group"><label class="form-label">月份</label>
+      <input type="month" id="expMonth" class="form-input" style="width:100%">
+    </div>
+    <div class="form-group"><label class="form-label">包含内容</label>
+      <label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;margin:.35rem 0"><input type="checkbox" id="expDaily" checked> 每日记录（所选月份）</label>
+      <label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;margin:.35rem 0"><input type="checkbox" id="expJournal" checked> 日记 / 周记 / 月记（所选月份）</label>
+      <label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;margin:.35rem 0"><input type="checkbox" id="expWeekly"> 周度汇总（所选年份全年）</label>
+      <label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;margin:.35rem 0"><input type="checkbox" id="expMonthly"> 月度汇总（所选年份全年）</label>
+    </div>
+    <button class="btn" id="expGoBtn" style="width:100%;background:var(--c-checkin);color:#fff" onclick="doExport()">导出</button>
+    <div style="font-size:.68rem;color:var(--text3);margin-top:.7rem;line-height:1.5">生成 .xls 文件，Excel / WPS 可直接打开。每日记录含睡眠、运动、体重体脂、心情与习惯明细。</div>
+  </div>
+</div>`);
+
+function openExport() {
+  const y = (typeof histYear === 'number') ? histYear : new Date().getFullYear();
+  const m = (typeof histMonth === 'number') ? histMonth : new Date().getMonth();
+  document.getElementById('expMonth').value = y + '-' + String(m + 1).padStart(2, '0');
+  document.getElementById('exportModal').style.display = 'flex';
+}
+function closeExport() { document.getElementById('exportModal').style.display = 'none'; }
+document.getElementById('exportModal').addEventListener('click', function(e) { if (e.target === this) closeExport(); });
+
+function _xesc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+}
+function _xcell(v) {
+  if (v == null || v === '') return '<Cell/>';
+  if (typeof v === 'number' && isFinite(v)) return '<Cell><Data ss:Type="Number">' + v + '</Data></Cell>';
+  return '<Cell><Data ss:Type="String" xml:space="preserve">' + _xesc(v) + '</Data></Cell>';
+}
+function _sheet(name, head, rows) {
+  const th = '<Row>' + head.map(h => '<Cell ss:StyleID="h"><Data ss:Type="String">' + _xesc(h) + '</Data></Cell>').join('') + '</Row>';
+  const trs = rows.map(cells => '<Row>' + cells.map(_xcell).join('') + '</Row>').join('');
+  return '<Worksheet ss:Name="' + _xesc(name) + '"><Table>' + th + trs + '</Table></Worksheet>';
+}
+function downloadWorkbook(filename, sheets) {
+  const xml = '<?xml version="1.0" encoding="UTF-8"?>\n<?mso-application progid="Excel.Sheet"?>\n'
+    + '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'
+    + '<Styles><Style ss:ID="h"><Font ss:Bold="1"/><Interior ss:Color="#EDF2F9" ss:Pattern="Solid"/></Style></Styles>'
+    + sheets.join('') + '</Workbook>';
+  const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+const EXPORT_HABITS = ['锻炼身体','复盘','早起','深度阅读','主动社交','整理房间','写作','学习技能','独处思考','英语学习'];
+const _n = v => { if (v == null || v === '') return ''; const n = +v; return isFinite(n) ? n : ''; };
+const _tm = v => v ? String(v).slice(0, 5) : '';
+
+function buildDailySheet(rows) {
+  const head = ['日期','星期','就寝','起床','夜间(h)','午休(h)','总睡眠(h)','得分','深睡','浅睡','REM',
+    '俯卧撑','深蹲','引体','臂曲伸','卷腹','跑步(km)','跑步配速','骑行(km)','骑行配速','健身房',
+    '体重(kg)','体脂(%)','心情','Time','今日书名','读了页数','习惯','备注'];
+  const wk = ['日','一','二','三','四','五','六'];
+  const body = (rows || []).map(r => {
+    const h = r.habits || {};
+    let wd = '';
+    if (r.date) { try { wd = '周' + wk[new Date(r.date + 'T00:00:00').getDay()]; } catch (e) {} }
+    const nap = napOf(r), night = (r.sleep_hours != null && +r.sleep_hours > 0) ? +r.sleep_hours : '';
+    const ts = totalSleep(r);
+    return [
+      r.date, wd, _tm(r.sleep_time), _tm(r.wake_time), night, nap > 0 ? nap : '', ts > 0 ? ts : '',
+      _n(r.sleep_score), _tm(r.deep_sleep), _tm(r.light_sleep), _tm(r.rem_sleep),
+      _n(r.pushup), _n(r.squat), _n(r.pullup), _n(r.dips), _n(r.crunch),
+      _n(r.running), h['跑步配速'] || '', _n(r.cycling), h['骑行配速'] || '',
+      r.gym || '', _n(r.weight), _n(r.body_fat), _n(h['mood']), _n(h['time']),
+      h['今日书名'] || '', _n(h['读了页数']),
+      EXPORT_HABITS.filter(k => h[k]).join('、'),
+      r.note || '',
+    ];
+  });
+  return _sheet('每日记录', head, body);
+}
+
+function buildJournalSheet(rows) {
+  const tmap = { daily: '日记', weekly: '周记', monthly: '月记', english: '英语' };
+  const head = ['日期', '类型', '标题', '内容'];
+  const body = (rows || []).map(j => [j.entry_date || '', tmap[j.type] || j.type || '', j.title || '', j.body || '']);
+  return _sheet('日记周记', head, body);
+}
+
+function buildAggSheet(name, rows, kind, fields) {
+  const labels = {};
+  (fields || []).forEach(f => { labels[f.k] = f.l; });
+  const present = new Set();
+  (rows || []).forEach(r => Object.keys(r.data || {}).forEach(k => { if (k !== '_agg' && k !== '_editMeta') present.add(k); }));
+  const ordered = (fields || []).map(f => f.k).filter(k => present.has(k))
+    .concat([...present].filter(k => !labels[k]));
+  const head = (kind === 'wk' ? ['周', '日期范围'] : ['月份']).concat(ordered.map(k => labels[k] || k));
+  const body = (rows || []).map(r => {
+    const d = r.data || {};
+    const base = kind === 'wk'
+      ? [r.year + ' 第' + r.wk + '周', wmWeekRange(r.year, r.wk)]
+      : [r.year + '-' + String(r.month).padStart(2, '0')];
+    return base.concat(ordered.map(k => {
+      const v = d[k];
+      if (v == null) return '';
+      if (typeof v === 'boolean') return v ? '✓' : '';
+      if (typeof v === 'object') return JSON.stringify(v);
+      const n = +v; return (typeof v === 'string' && v !== '' && isFinite(n) && /^-?\d+(\.\d+)?$/.test(String(v).trim())) ? n : v;
+    }));
+  });
+  return _sheet(name, head, body);
+}
+
+async function doExport() {
+  const ym = document.getElementById('expMonth').value;
+  if (!ym) { toast('请选择要导出的月份'); return; }
+  const want = {
+    daily: document.getElementById('expDaily').checked,
+    journal: document.getElementById('expJournal').checked,
+    weekly: document.getElementById('expWeekly').checked,
+    monthly: document.getElementById('expMonthly').checked,
+  };
+  if (!want.daily && !want.journal && !want.weekly && !want.monthly) { toast('至少勾选一项内容'); return; }
+  const ys = +ym.slice(0, 4), ms = +ym.slice(5, 7);
+  const last = new Date(ys, ms, 0).getDate();
+  const d1 = ym + '-01', d2 = ym + '-' + String(last).padStart(2, '0');
+  const btn = document.getElementById('expGoBtn');
+  btn.disabled = true; btn.textContent = '导出中…';
+  try {
+    const uid = currentUser.id;
+    const sheets = [];
+    if (want.daily) {
+      const { data, error } = await db.from('daily_records').select('*')
+        .eq('user_id', uid).gte('date', d1).lte('date', d2).order('date');
+      if (error) throw error;
+      sheets.push(buildDailySheet(data || []));
+    }
+    if (want.journal) {
+      const { data, error } = await db.from('journal_entries').select('*')
+        .eq('user_id', uid).neq('type', 'english').order('entry_date');
+      if (error) throw error;
+      // entry_date 为空的旧条目（如早期周记月记）：标题含「N月」则归入该月
+      const rows = (data || []).filter(j =>
+        (j.entry_date && j.entry_date >= d1 && j.entry_date <= d2) ||
+        (!j.entry_date && (j.title || '').includes(ms + '月')));
+      sheets.push(buildJournalSheet(rows));
+    }
+    if (want.weekly) {
+      const { data, error } = await db.from('weekly_records').select('*')
+        .eq('user_id', uid).eq('year', ys).order('wk');
+      if (error) throw error;
+      if ((data || []).length) sheets.push(buildAggSheet('周度汇总', data, 'wk', WEEK_FIELDS));
+    }
+    if (want.monthly) {
+      const { data, error } = await db.from('monthly_records').select('*')
+        .eq('user_id', uid).eq('year', ys).order('month');
+      if (error) throw error;
+      if ((data || []).length) sheets.push(buildAggSheet('月度汇总', data, 'month', MONTH_FIELDS));
+    }
+    if (!sheets.length) { toast('所选范围内没有数据'); return; }
+    downloadWorkbook('日迹数据_' + ym + '.xls', sheets);
+    closeExport();
+    toast('✓ 已导出 ' + ym + ' 的数据');
+  } catch (e) {
+    console.error('导出失败', e);
+    toast('导出失败：' + (e.message || JSON.stringify(e)));
+  } finally {
+    btn.disabled = false; btn.textContent = '导出';
+  }
 }
 
 // ══════════════════════════
