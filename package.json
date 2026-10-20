@@ -1,0 +1,8 @@
+{
+  "name": "yan-life-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "pg": "8.23.1"
+  }
+}
