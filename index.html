@@ -913,6 +913,7 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
         onclick="autoAggWeekly(false)"
         title="按每日记录的起床时间与运动数据，自动填「早起天数(7:30前)/抬头日(6:30前)/跑步天数」等统计字段，只补空缺、不覆盖手填值">⟳ 自动汇总</button>
       <button class="btn btn-ghost btn-sm" onclick="autoAggWeekly(true)" title="用每日记录重算并覆盖这几个统计字段">重算</button>
+      <button class="btn btn-ghost btn-sm" onclick="openWkDraft()" title="按这一周的每日记录生成周记草稿（每日流水 + 四条线数值 + 结账待填），可一键复制到印象笔记">📝 周记草稿</button>
     </div>
     <div class="ph-actions" id="histActionsMonth" style="display:none">
       <button class="btn btn-ghost btn-sm" onclick="wmChangeYear('monthly',-1)">← 上一年</button>
@@ -2907,6 +2908,196 @@ function parseWkSleep(s) {
   if (m) return +((+m[1]) + (m[2] ? +m[2] / 60 : 0)).toFixed(2);
   const n = parseFloat(s);
   return isNaN(n) ? null : n;
+}
+
+// ══════════════════════════
+//  周记草稿生成器（把一周数据拼成可直接粘贴的文本）
+// ══════════════════════════
+const WK_DOW = ['一', '二', '三', '四', '五', '六', '日'];
+let wkDraftYear = null, wkDraftWk = null, wkDraftName = '';
+
+// 日期 → 该年第几周（与 wkRangeDates 同口径：周一为一周之首）
+function wkNoOfDate(ds) {
+  const d = new Date(ds + 'T12:00:00');
+  const jan1 = new Date(d.getFullYear(), 0, 1);
+  const dow = (jan1.getDay() + 6) % 7;
+  const start = new Date(d.getFullYear(), 0, 1 - dow);
+  return Math.floor((d - start) / 86400000 / 7) + 1;
+}
+
+function wkDayLine(ds, r) {
+  const d = new Date(ds + 'T12:00:00');
+  const head = '周' + WK_DOW[(d.getDay() + 6) % 7] + ' ' + ds.slice(5).replace('-', '.');
+  if (!r) return head + ' ｜ （无记录）';
+  const bits = [];
+  const sl = totalSleep(r);
+  bits.push(sl ? '睡 ' + sl.toFixed(2) + 'h' : '睡 —');
+  const ex = [];
+  if (r.gym && String(r.gym).trim()) ex.push('健身');
+  if (+r.running > 0) ex.push('跑 ' + (+r.running).toFixed(1) + 'km');
+  if (+r.cycling > 0) ex.push('骑 ' + (+r.cycling).toFixed(1) + 'km');
+  const rt = ['pushup', 'squat', 'crunch', 'pullup', 'dips'].reduce((a, k) => a + (+r[k] || 0), 0);
+  if (rt) ex.push('自重 ' + rt);
+  bits.push(ex.length ? ex.join('·') : '未运动');
+  const h = r.habits || {};
+  if (h['今日书名']) bits.push('《' + h['今日书名'] + '》' + (h['读了页数'] ? h['读了页数'] + ' 页' : ''));
+  if (h['mood'] || h['time']) bits.push('心情 ' + (h['mood'] || '—') + ' · Time ' + (h['time'] || '—'));
+  return head + ' ｜ ' + bits.join(' ｜ ');
+}
+
+function buildWkDraftText(year, wk, s, e, recs) {
+  const map = {};
+  recs.forEach(r => map[r.date] = r);
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(s + 'T12:00:00'); d.setDate(d.getDate() + i);
+    days.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'));
+  }
+  // 标题：2026年10月第4周（10.19-10.25）
+  const m = +s.slice(5, 7), d1 = +s.slice(8, 10);
+  const off = (new Date(+s.slice(0, 4), m - 1, 1).getDay() + 6) % 7;
+  const title = year + '年' + m + '月第' + (Math.floor((d1 + off - 1) / 7) + 1) + '周（' +
+    s.slice(5).replace('-', '.') + '-' + e.slice(5).replace('-', '.') + '）';
+
+  let sleepSum = 0, sleepN = 0, nightSum = 0, napSum = 0, ge7 = 0, latest = '', latestM = -1;
+  let gymN = 0, runN = 0, runKm = 0, cycN = 0, cycKm = 0, readDays = 0, pages = 0, awake = 0;
+  const titles = [], wts = [], lines = [];
+  days.forEach(ds => {
+    const r = map[ds];
+    lines.push(wkDayLine(ds, r));
+    if (!r) return;
+    const sl = totalSleep(r);
+    if (sl > 0) {
+      sleepSum += sl; sleepN++; if (sl >= 7) ge7++;
+      nightSum += nightOf(r); napSum += napOf(r);
+      const st = padTime(r.sleep_time || '');
+      const bm = /^(\d{1,2}):(\d{2})/.exec(st);
+      if (bm) {
+        const mins = (+bm[1] < 12 ? +bm[1] + 24 : +bm[1]) * 60 + (+bm[2]);   // 凌晨入睡算更晚
+        if (mins > latestM) { latestM = mins; latest = bm[1].padStart(2, '0') + ':' + bm[2]; }
+      }
+    }
+    if (r.gym && String(r.gym).trim()) gymN++;
+    if (+r.running > 0) { runN++; runKm += +r.running; }
+    if (+r.cycling > 0) { cycN++; cycKm += +r.cycling; }
+    const h = r.habits || {};
+    const p = +h['读了页数'] || 0;
+    if (p > 0 || (h['今日书名'] || '').trim()) readDays++;
+    pages += p;
+    const t = (h['今日书名'] || '').trim();
+    if (t && titles.indexOf(t) < 0) titles.push(t);
+    if (+h['mood'] >= 4 || +h['time'] >= 4) awake++;
+    if (r.weight) wts.push(+r.weight);
+  });
+
+  const sleepLine = sleepN
+    ? '本周睡眠：' + (sleepSum / sleepN).toFixed(2) + 'h/天（夜 ' + (nightSum / sleepN).toFixed(2) +
+      ' + 午 ' + (napSum / sleepN).toFixed(2) + '）｜记录 ' + sleepN + '/7 天｜≥7h ' + ge7 + ' 天｜最晚入睡 ' + (latest || '—')
+    : '本周睡眠：（本周没有睡眠数据）';
+  const readLine = readDays
+    ? '本周读 ' + readDays + ' 天，共 ' + pages + ' 页' + (titles.length ? '；书目《' + titles.join('》《') + '》' : '')
+    : '本周没读书';
+  const gymLine = '出勤 ' + gymN + ' 次，跑步 ' + runN + ' 次 ' + runKm.toFixed(1) + ' km' +
+    (cycN ? '，骑行 ' + cycN + ' 次 ' + cycKm.toFixed(1) + ' km' : '') +
+    (wts.length ? '；体重 ' + wts[0] + ' → ' + wts[wts.length - 1] + ' kg' : '');
+  const prev = (cachedWeekly.filter(x => x.wk === wk - 1)[0] || {}).data || {};
+  const prevNext = prev.next ? '（上周填的）' + prev.next : '（上周没填，回看一下上周的「下周最重要一件事」）';
+
+  return [
+    title, '',
+    'A · 每日流水',
+  ].concat(lines).concat([
+    sleepLine, '',
+    'B · 四条线复盘（叙事，写状态不写口号）',
+    '读书：' + readLine,
+    '  → 这周做了没？触动的一句话？下周一个具体微调（动作，不是决心）：',
+    '健身：' + gymLine,
+    '  → 身体状态？断了是被什么打断的？：',
+    '学习：AI/OpenClaw 这周有没有并进日常输出？',
+    '  → ',
+    '工作与生活：清醒 ' + awake + ' 天 / 自动驾驶 ' + (7 - awake) + ' 天（按心情或 Time ≥4 估算，可改）',
+    '  → 这周有几天是你清醒选的？',
+    '',
+    'C · 结账',
+    '上周最重要的事：' + prevNext,
+    '在场检查：清醒 ' + awake + ' 天 / 自动驾驶 ' + (7 - awake) + ' 天',
+    '最「活着」的瞬间：',
+    '本周状态（一句话）：',
+    '下周最重要一件事：',
+  ]).join('\n');
+}
+
+function ensureDraftModal() {
+  if (document.getElementById('wkDraftModal')) return;
+  const el = document.createElement('div');
+  el.id = 'wkDraftModal';
+  el.style.cssText = 'display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.45);align-items:center;justify-content:center';
+  el.innerHTML = '<div style="background:var(--surface);border-radius:16px;padding:1.2rem;width:92%;max-width:760px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.2)">' +
+    '<div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.7rem">' +
+      '<div style="font-weight:600;font-size:.86rem">周记草稿</div>' +
+      '<button class="btn btn-ghost btn-sm" onclick="draftShift(-1)">◀</button>' +
+      '<span id="wkDraftLabel" style="font-size:.76rem;color:var(--text2);min-width:130px;text-align:center"></span>' +
+      '<button class="btn btn-ghost btn-sm" onclick="draftShift(1)">▶</button>' +
+      '<span style="flex:1"></span>' +
+      '<button class="btn btn-ghost btn-sm" onclick="closeWkDraft()">✕</button>' +
+    '</div>' +
+    '<textarea id="wkDraftText" spellcheck="false" style="flex:1;min-height:54vh;width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.73rem;line-height:1.7;padding:.8rem;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);resize:vertical"></textarea>' +
+    '<div style="display:flex;gap:.5rem;margin-top:.8rem">' +
+      '<button class="btn" style="flex:1;background:var(--c-checkin);color:#fff" onclick="copyWkDraft()">复制全文</button>' +
+      '<button class="btn btn-ghost" onclick="downloadWkDraft()">下载 .md</button>' +
+    '</div>' +
+    '<div style="font-size:.66rem;color:var(--text3);margin-top:.5rem;line-height:1.5">A 区流水与 B 区数值自动填好，叙事和判断留空给你写 · 可直接粘进印象笔记周记，或先改再复制</div>' +
+  '</div>';
+  el.addEventListener('click', e => { if (e.target === el) closeWkDraft(); });
+  document.body.appendChild(el);
+}
+
+async function openWkDraft() {
+  ensureDraftModal();
+  if (wkDraftWk == null) {
+    const t = todayLocal();
+    wkDraftYear = weeklyYear;
+    wkDraftWk = (weeklyYear === +t.slice(0, 4)) ? wkNoOfDate(t) : 1;
+  }
+  document.getElementById('wkDraftModal').style.display = 'flex';
+  await refreshWkDraft();
+}
+
+function closeWkDraft() { document.getElementById('wkDraftModal').style.display = 'none'; }
+
+async function refreshWkDraft() {
+  const ta = document.getElementById('wkDraftText'), lab = document.getElementById('wkDraftLabel');
+  const [s, e] = wkRangeDates(wkDraftYear, wkDraftWk);
+  lab.textContent = wkDraftYear + ' W' + wkDraftWk + ' · ' + s.slice(5) + ' ~ ' + e.slice(5);
+  ta.value = '生成中…';
+  const { data, error } = await db.from('daily_records').select('*')
+    .eq('user_id', currentUser.id).gte('date', s).lte('date', e).order('date');
+  if (error) { ta.value = '读取失败：' + (error.message || ''); return; }
+  ta.value = buildWkDraftText(wkDraftYear, wkDraftWk, s, e, data || []);
+  wkDraftName = '周记草稿_' + wkDraftYear + '-W' + wkDraftWk + '.md';
+}
+
+async function draftShift(d) {
+  const n = wkDraftWk + d;
+  if (n < 1 || n > 53) return;
+  wkDraftWk = n;
+  await refreshWkDraft();
+}
+
+async function copyWkDraft() {
+  const ta = document.getElementById('wkDraftText');
+  try { await navigator.clipboard.writeText(ta.value); }
+  catch (e) { ta.select(); document.execCommand('copy'); }
+  toast('✓ 已复制，可直接粘进印象笔记');
+}
+
+function downloadWkDraft() {
+  const blob = new Blob([document.getElementById('wkDraftText').value], { type: 'text/markdown;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = wkDraftName || '周记草稿.md';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
 }
 
 function renderWeeklyCharts() {
