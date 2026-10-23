@@ -2955,8 +2955,8 @@ function buildWkDraftText(year, wk, s, e, recs) {
   }
   // 标题：2026年10月第4周（10.19-10.25）
   const m = +s.slice(5, 7), d1 = +s.slice(8, 10);
-  const off = (new Date(+s.slice(0, 4), m - 1, 1).getDay() + 6) % 7;
-  const title = year + '年' + m + '月第' + (Math.floor((d1 + off - 1) / 7) + 1) + '周（' +
+  // 第 N 周 = 本月第几个「周一开始的周」（与印象笔记标题口径一致：8.3 起算 8 月第 1 周）
+  const title = year + '年' + m + '月第' + (Math.floor((d1 - 1) / 7) + 1) + '周（' +
     s.slice(5).replace('-', '.') + '-' + e.slice(5).replace('-', '.') + '）';
 
   let sleepSum = 0, sleepN = 0, nightSum = 0, napSum = 0, ge7 = 0, latest = '', latestM = -1;
