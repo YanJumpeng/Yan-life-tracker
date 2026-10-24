@@ -432,6 +432,7 @@ body{background:var(--bg);color:var(--text);font-family:'Barlow','Noto Sans SC',
 [data-page="reading"] .page-header{border-color:var(--c-reading)}
 [data-page="dashboard"] .page-header{border-color:var(--c-dash)}
 [data-page="fiveyear"] .page-header{border-color:#3C3489}
+[data-page="annual"] .page-header{border-color:#d97706}
 .nav-item[data-mod="fiveyear"].active{background:#3C3489}
 .nav-item[data-mod="english"].active{background:#1a7f5a}
 [data-page="checkin"] .ph-title{color:var(--c-checkin)}
@@ -716,6 +717,7 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
     <div class="nav-sec">
       <div class="nav-sec-lbl">统计</div>
       <div class="nav-item" data-mod="dashboard" onclick="go('dashboard',this)"><span class="nav-icon">◈</span>数据看板</div>
+      <div class="nav-item" data-mod="annual" onclick="go('annual',this)"><span class="nav-icon">✨</span>年度报告</div>
     </div>
     <div class="nav-sec">
       <div class="nav-sec-lbl">规划</div>
@@ -1155,6 +1157,19 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
 
 
   </div>
+</div>
+
+<!-- 年度报告 -->
+<div class="page" id="page-annual" data-page="annual">
+  <div class="page-header">
+    <div><div class="ph-title">年度报告</div><div class="ph-sub" id="annualSub"></div></div>
+    <div class="ph-actions">
+      <button class="btn btn-ghost btn-sm" onclick="annualChange(-1)">← 上一年</button>
+      <span id="annualYearLabel" style="font-size:.85rem;font-weight:600;color:var(--text);min-width:80px;text-align:center"></span>
+      <button class="btn btn-ghost btn-sm" onclick="annualChange(1)">下一年 →</button>
+    </div>
+  </div>
+  <div id="annualBody"></div>
 </div>
 
 <!-- 五年计划 -->
@@ -1679,6 +1694,7 @@ function go(id, el) {
   if(id==='history')   histRefresh();
   if(id==='journal')   loadAndRenderJournals();
   if(id==='reading')   loadAndRenderBooks();
+  if(id==='annual')    renderAnnual();
   if(id==='english')   loadAndRenderEnglish();
 }
 
@@ -4263,6 +4279,176 @@ async function renderDash() {
 function getSleepGoal() { const v = parseFloat(localStorage.getItem('ylt_sleep_goal')); return (v >= 4 && v <= 12) ? v : 8; }
 function getWakeGoalStr() { const t = localStorage.getItem('ylt_wake_goal'); return /^\d{1,2}:\d{2}$/.test(t || '') ? t : '08:00'; }
 function getWakeGoalH() { const p = getWakeGoalStr().split(':').map(Number); const v = p[0] + p[1] / 60; return (v >= 4 && v <= 12) ? v : 8; }
+
+// ══════════════════════════
+//  年度报告（纯前端聚合，不建新表）
+// ══════════════════════════
+let annualYear = new Date().getFullYear();
+function annualChange(dy) { annualYear += dy; renderAnnual(); }
+
+const ANNUAL_HABITS = ['锻炼身体','早起','深度阅读','复盘','写作','学习技能','主动社交','整理房间','独处思考','英语学习'];
+
+async function renderAnnual() {
+  if (!currentUser) return;
+  const y = annualYear;
+  document.getElementById('annualYearLabel').textContent = y + '年';
+  document.getElementById('annualSub').textContent = y + ' 年度报告';
+  const start = y + '-01-01', end = y + '-12-31';
+  const { data } = await db.from('daily_records').select('*')
+    .eq('user_id', currentUser.id).gte('date', start).lte('date', end).order('date', { ascending: true });
+  const records = data || [];
+  const body = document.getElementById('annualBody');
+  if (!records.length) {
+    body.innerHTML = `<div class="card" style="text-align:center;padding:3rem;color:var(--text3)">这一年还没有记录。去打卡页留下第一条吧。</div>`;
+    return;
+  }
+  const { data: bks } = await db.from('books').select('*').eq('user_id', currentUser.id);
+  const books = bks || [];
+
+  // ── 汇总 ──
+  const sl = records.map(r => totalSleep(r)).filter(v => v > 0);
+  const totalSleepH = sl.reduce((a, v) => a + v, 0);
+  const runKm = records.reduce((a, r) => a + (+r.running || 0), 0);
+  const cycKm = records.reduce((a, r) => a + (+r.cycling || 0), 0);
+  const runDays = records.filter(r => (+r.running || 0) > 0).length;
+  const gymDays = records.filter(r => String(r.gym || '').trim()).length;
+  const wg = getWakeGoalH();
+  const earlyDays = records.filter(r => { const t = r.wake_time; if (!t) return false; const p = String(t).split(':'); return (+p[0]) + (+p[1]) / 60 < wg; }).length;
+  const pages = records.reduce((a, r) => a + (parseFloat((r.habits || {})['读了页数']) || 0), 0);
+  const bookTitles = new Set(records.map(r => (r.habits || {})['今日书名']).filter(Boolean));
+  const moods = records.map(r => parseFloat((r.habits || {}).mood)).filter(v => v > 0);
+  const moodAvg = moods.length ? moods.reduce((a, v) => a + v, 0) / moods.length : 0;
+  const wts = records.filter(r => +r.weight > 0);
+  const habits = ANNUAL_HABITS.map(h => ({ h, n: records.filter(r => (r.habits || {})[h] === true).length }));
+  habits.sort((a, b) => b.n - a.n);
+
+  // ── 高光时刻 ──
+  const best = arr => arr.reduce((m, x) => x.v > m.v ? x : m, { v: -1 });
+  const longSleep = best(records.map(r => ({ r, v: totalSleep(r) })));
+  const longRun = best(records.map(r => ({ r, v: +r.running || 0 })));
+  let earlyWake = { v: 24 * 60 };
+  records.forEach(r => { const t = r.wake_time; if (!t) return; const m = /^(\d{1,2}):(\d{2})/.exec(String(t)); if (m) { const mm = (+m[1]) * 60 + (+m[2]); if (mm > 120 && mm < earlyWake.v) earlyWake = { v: mm, r }; } });
+  const fmtWake = earlyWake.r ? String(earlyWake.r.wake_time).slice(0, 5) : '—';
+  // 最长连续打卡
+  const dsSet = new Set(records.map(r => r.date));
+  let streak = 0, streakEnd = null;
+  records.forEach(r => { if (dsSet.has(prevDay(r.date))) return; let c = 0, d = r.date, last = r.date; while (dsSet.has(d)) { c++; last = d; d = prevDay(d, -1); } if (c > streak) { streak = c; streakEnd = last; } });
+  // 最自律的一周（周一为一周之始）
+  const wkScore = {};
+  records.forEach(r => {
+    const d = new Date(r.date + 'T12:00:00'), off = (d.getDay() + 6) % 7;
+    const mon = new Date(d); mon.setDate(d.getDate() - off);
+    const k = mon.toISOString().slice(0, 10);
+    const hb = ANNUAL_HABITS.filter(h => (r.habits || {})[h] === true).length;
+    const ex = ((+r.running || 0) > 0 || (+r.cycling || 0) > 0 || String(r.gym || '').trim()) ? 2 : 0;
+    wkScore[k] = (wkScore[k] || 0) + hb + ex;
+  });
+  const bestWk = Object.entries(wkScore).sort((a, b) => b[1] - a[1])[0];
+
+  const stats = [
+    { l: '记录天数', v: records.length, u: '天', color: 'var(--c-todo)' },
+    { l: '总睡眠', v: Math.round(totalSleepH).toLocaleString(), u: 'h', sub: sl.length + ' 晚 · 日均 ' + (sl.length ? (totalSleepH / sl.length).toFixed(1) : 0) + 'h', color: '#60a5fa' },
+    { l: '跑步', v: runKm.toFixed(1), u: 'km', sub: runDays + ' 次', color: 'var(--c-journal)' },
+    { l: '骑行', v: cycKm.toFixed(1), u: 'km', sub: records.filter(r => (+r.cycling || 0) > 0).length + ' 次', color: '#34d399' },
+    { l: '健身房', v: gymDays, u: '次', color: '#f59e0b' },
+    { l: wg + '点前早起', v: earlyDays, u: '天', color: 'var(--c-dash)' },
+    { l: '读书', v: Math.round(pages), u: '页', sub: bookTitles.size + ' 本书目 · 书架读完 ' + books.filter(b => b.status === '已读').length + ' 本', color: '#a78bfa' },
+    { l: '平均心情', v: moodAvg ? moodAvg.toFixed(1) : '—', u: moodAvg ? '/5' : '', color: '#f472b6' },
+  ];
+  const hi = (t, sub) => `<div class="card" style="padding:.9rem 1rem;flex:1;min-width:150px"><div style="font-size:.68rem;color:var(--text3);margin-bottom:.3rem">${t}</div><div style="font-size:1.05rem;font-weight:700;color:var(--text)">${sub}</div></div>`;
+  const hl = [];
+  if (streak > 1) hl.push(hi('🔥 最长连续打卡', streak + ' 天（截至 ' + streakEnd + '）'));
+  if (earlyWake.r) hl.push(hi('🌅 最早起床', fmtWake + ' · ' + earlyWake.r.date));
+  if (longSleep && longSleep.v > 0) hl.push(hi('😴 最长一觉', longSleep.v.toFixed(1) + 'h · ' + longSleep.r.date));
+  if (longRun && longRun.v > 0) hl.push(hi('🏃 单日最长跑', longRun.v.toFixed(1) + ' km · ' + longRun.r.date));
+  if (wts.length >= 2) hl.push(hi('⚖️ 体重', wts[0].weight + ' → ' + wts[wts.length - 1].weight + ' kg'));
+  if (bestWk) hl.push(hi('🏆 最自律的一周', bestWk[0].slice(5).replace('-', '.') + ' 那周'));
+
+  const verdict = `${y} 年，你有 ${records.length} 天在这里留下了痕迹，睡了约 ${Math.round(totalSleepH)} 个小时（≈${Math.round(totalSleepH / 24)} 个完整夜晚），跑了 ${runKm.toFixed(0)} 公里、骑了 ${cycKm.toFixed(0)} 公里、去了 ${gymDays} 次健身房，翻了 ${Math.round(pages)} 页书${bookTitles.size ? '（《' + [...bookTitles].slice(0, 3).join('》《') + (bookTitles.size > 3 ? '》…' : '》）') : ''}。${earlyWake.r ? '有至少一天，你在 ' + fmtWake + ' 就醒了。' : ''}`;
+
+  body.innerHTML = `
+    <div class="card mb" style="background:linear-gradient(135deg,rgba(217,119,6,.10),rgba(217,119,6,.02));border-color:rgba(217,119,6,.35)">
+      <div style="font-size:1rem;line-height:1.9;color:var(--text)">${verdict}</div>
+    </div>
+    <div class="g4 mb" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+      ${stats.map(s => `<div class="stat-card" style="--sc:${s.color}"><div class="sc-val-new">${s.v}<span class="sc-u-new">${s.u || ''}</span></div><div class="sc-lbl-new">${s.l}</div>${s.sub ? `<div class="sc-sub-new" style="color:${s.color}">${s.sub}</div>` : ''}</div>`).join('')}
+    </div>
+    <div class="card mb"><div class="card-head">高光时刻</div><div style="display:flex;gap:.6rem;flex-wrap:wrap">${hl.join('') || '<span style="color:var(--text3);font-size:.8rem">暂无</span>'}</div></div>
+    <div class="card mb"><div class="card-head">月均睡眠 <span style="font-weight:400;color:var(--text3);font-size:.63rem">有记录的夜 · 单位小时</span></div><div id="annSleepChart" style="width:100%;height:230px"></div></div>
+    <div class="card mb"><div class="card-head">全年运动量 <span style="font-weight:400;color:var(--text3);font-size:.63rem">跑步 / 骑行里程 · 健身房天数</span></div><div id="annSportChart" style="width:100%;height:240px"></div></div>
+    <div class="g2 mb">
+      <div class="card"><div class="card-head">体重 / 体脂</div><div id="annBodyChart" style="width:100%;height:220px"></div></div>
+      <div class="card"><div class="card-head">习惯达成率 <span style="font-weight:400;color:var(--text3);font-size:.63rem">占记录天数的比例</span></div>
+        <div style="display:flex;flex-direction:column;gap:.55rem;padding:.2rem .1rem">
+          ${habits.map(x => { const p = records.length ? Math.round(x.n / records.length * 100) : 0; return `
+            <div><div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--text2);margin-bottom:.2rem"><span>${x.h}</span><span style="color:var(--text3)">${x.n} 天 · ${p}%</span></div>
+            <div style="height:7px;background:var(--sf2);border-radius:4px;overflow:hidden"><div style="height:100%;width:${p}%;background:linear-gradient(90deg,#d97706,#fbbf24);border-radius:4px"></div></div></div>`; }).join('')}
+        </div>
+      </div>
+    </div>`;
+
+  // ── 图表 ──
+  const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
+  const byMonth = m => records.filter(r => +r.date.slice(5, 7) === m);
+  if (window.echarts) {
+    const c1 = ecInit('annSleepChart', 230);
+    if (c1) {
+      const vals = MONTHS.map(m => { const rs = byMonth(m).map(r => totalSleep(r)).filter(v => v > 0); return rs.length ? +(rs.reduce((a, v) => a + v, 0) / rs.length).toFixed(2) : null; });
+      if (!vals.some(v => v != null)) ecEmpty(c1, '暂无睡眠数据');
+      else c1.setOption({
+        grid: { left: 34, right: 12, top: 26, bottom: 24 },
+        tooltip: { trigger: 'axis', valueFormatter: v => v == null ? '-' : v + ' h' },
+        xAxis: { type: 'category', data: MONTHS.map(m => m + '月'), axisLabel: { color: cssv('--text3'), fontSize: 10 }, axisLine: { lineStyle: { color: cssv('--border') } }, axisTick: { show: false } },
+        yAxis: { type: 'value', scale: true, axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { lineStyle: { color: cssv('--border'), opacity: .5 } } },
+        series: [{ type: 'bar', data: vals, barMaxWidth: 26, itemStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#60a5fa' }, { offset: 1, color: hexA('#60a5fa', .35) }] }, borderRadius: [5, 5, 0, 0] },
+          markLine: { symbol: 'none', silent: true, lineStyle: { color: cssv('--ok'), type: 'dashed', width: 1.2 }, label: { fontSize: 9, color: cssv('--text3'), formatter: getSleepGoal() + 'h 目标' }, data: [{ yAxis: getSleepGoal() }] } }]
+      });
+    }
+    const c2 = ecInit('annSportChart', 240);
+    if (c2) {
+      const run = MONTHS.map(m => +byMonth(m).reduce((a, r) => a + (+r.running || 0), 0).toFixed(1));
+      const cyc = MONTHS.map(m => +byMonth(m).reduce((a, r) => a + (+r.cycling || 0), 0).toFixed(1));
+      const gym = MONTHS.map(m => byMonth(m).filter(r => String(r.gym || '').trim()).length);
+      if (!run.some(v => v) && !cyc.some(v => v) && !gym.some(v => v)) ecEmpty(c2, '暂无运动数据');
+      else c2.setOption({
+        grid: { left: 34, right: 34, top: 30, bottom: 24 },
+        tooltip: { trigger: 'axis' },
+        legend: { top: 0, right: 0, itemWidth: 12, itemHeight: 8, textStyle: { color: cssv('--text3'), fontSize: 9 } },
+        xAxis: { type: 'category', data: MONTHS.map(m => m + '月'), axisLabel: { color: cssv('--text3'), fontSize: 10 }, axisLine: { lineStyle: { color: cssv('--border') } }, axisTick: { show: false } },
+        yAxis: [{ type: 'value', name: 'km', nameTextStyle: { fontSize: 9, color: cssv('--text3') }, axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { lineStyle: { color: cssv('--border'), opacity: .5 } } },
+                { type: 'value', name: '天', nameTextStyle: { fontSize: 9, color: cssv('--text3') }, axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { show: false } }],
+        series: [
+          { name: '跑步', type: 'bar', stack: 's', data: run, itemStyle: { color: '#f97316', borderRadius: [0, 0, 0, 0] } },
+          { name: '骑行', type: 'bar', stack: 's', data: cyc, itemStyle: { color: '#34d399', borderRadius: [4, 4, 0, 0] } },
+          { name: '健身房', type: 'line', yAxisIndex: 1, data: gym, smooth: .4, symbolSize: 5, lineStyle: { width: 2.5, color: '#f59e0b' }, itemStyle: { color: '#f59e0b' } }
+        ]
+      });
+    }
+    const c3 = ecInit('annBodyChart', 220);
+    if (c3) {
+      const wt = MONTHS.map(m => { const vs = byMonth(m).filter(r => +r.weight > 0).map(r => +r.weight); return vs.length ? +(vs.reduce((a, v) => a + v, 0) / vs.length).toFixed(1) : null; });
+      const bf = MONTHS.map(m => { const vs = byMonth(m).filter(r => +r.body_fat > 0).map(r => +r.body_fat); return vs.length ? +(vs.reduce((a, v) => a + v, 0) / vs.length).toFixed(1) : null; });
+      if (!wt.some(v => v != null) && !bf.some(v => v != null)) ecEmpty(c3, '暂无体重/体脂数据');
+      else c3.setOption({
+        grid: { left: 38, right: 36, top: 30, bottom: 24 },
+        tooltip: { trigger: 'axis' },
+        legend: { top: 0, right: 0, itemWidth: 12, itemHeight: 8, textStyle: { color: cssv('--text3'), fontSize: 9 } },
+        xAxis: { type: 'category', data: MONTHS.map(m => m + '月'), axisLabel: { color: cssv('--text3'), fontSize: 10 }, axisLine: { lineStyle: { color: cssv('--border') } }, axisTick: { show: false } },
+        yAxis: [{ type: 'value', scale: true, name: 'kg', nameTextStyle: { fontSize: 9, color: cssv('--text3') }, axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { lineStyle: { color: cssv('--border'), opacity: .5 } } },
+                { type: 'value', scale: true, name: '%', nameTextStyle: { fontSize: 9, color: cssv('--text3') }, axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { show: false } }],
+        series: [
+          { name: '体重', type: 'line', smooth: .4, data: wt, connectNulls: true, symbolSize: 5, lineStyle: { width: 2.5, color: '#a78bfa' }, itemStyle: { color: '#a78bfa' }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: hexA('#a78bfa', .2) }, { offset: 1, color: hexA('#a78bfa', 0) }] } } },
+          { name: '体脂', type: 'line', smooth: .4, yAxisIndex: 1, data: bf, connectNulls: true, symbolSize: 5, lineStyle: { width: 2.5, color: '#f472b6' }, itemStyle: { color: '#f472b6' } }
+        ]
+      });
+    }
+  }
+}
+function prevDay(ds, dir = 1) {
+  const d = new Date(ds + 'T12:00:00');
+  d.setDate(d.getDate() - dir);
+  return d.toISOString().slice(0, 10);
+}
 
 // ══════════════════════════
 //  睡眠口径：总睡眠 = 夜间睡眠 + 午休/零星睡眠（nap_hours）
