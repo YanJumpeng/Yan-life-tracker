@@ -974,6 +974,12 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
       </div>
       <div id="trendScoreChart" style="width:100%;height:220px"></div>
     </div>
+    <div class="card" style="margin-top:1rem">
+      <div class="card-head">月度训练量
+        <span style="font-weight:400;color:var(--text3);font-size:.63rem">全年 · 总容量(t) / 训练次数</span>
+      </div>
+      <div id="trendWorkoutChart" style="width:100%;height:260px"></div>
+    </div>
   </div>
 </div>
 
@@ -2561,6 +2567,55 @@ async function loadTrendView() {
         itemStyle: { color: 'rgba(220,60,60,.9)', borderColor: '#fff', borderWidth: 1 },
         tooltip: { formatter: p => `得分 ${p.value}（<70）` }
       }]
+    });
+  }
+
+  // ④ 月度训练量（全年 · 读 monthly_records 的 wn/wvol/wdur/wkcal 聚合值）
+  const cWork = ecInit('trendWorkoutChart', 260);
+  if (cWork) {
+    const yr = new Date().getFullYear();
+    let mrecs = (cachedMonthly || []).filter(r => +r.year === yr);
+    if (!mrecs.length) {
+      const { data: mr } = await db.from('monthly_records').select('month,data')
+        .eq('user_id', currentUser.id).eq('year', yr);
+      mrecs = mr || [];
+    }
+    const byM = new Map(mrecs.map(r => [+r.month, r.data || {}]));
+    const labels = Array.from({ length: 12 }, (_, i) => (i + 1) + '月');
+    const tons = [], cnt = [], dur = [], kcal = [];
+    for (let m = 1; m <= 12; m++) {
+      const d = byM.get(m) || {};
+      tons.push(d.wvol ? +(+d.wvol / 1000).toFixed(1) : null);
+      cnt.push(d.wn || null);
+      dur.push(d.wdur || 0);
+      kcal.push(d.wkcal || 0);
+    }
+    if (!tons.some(v => v)) ecEmpty(cWork, '暂无训练量数据');
+    else cWork.setOption({
+      grid: { left: 46, right: 38, top: 30, bottom: 24 },
+      legend: { top: 0, textStyle: { color: cssv('--text3'), fontSize: 10 }, itemWidth: 14, itemHeight: 8 },
+      tooltip: {
+        trigger: 'axis', axisPointer: { type: 'shadow' },
+        formatter: ps => {
+          const i = ps[0].dataIndex;
+          if (tons[i] == null) return labels[i] + '：无记录';
+          return `${labels[i]}<br/>总容量 <b>${tons[i]} t</b>（${Math.round(tons[i] * 1000).toLocaleString()} kg）`
+            + `<br/>训练 <b>${cnt[i]}</b> 次 · ${dur[i]} 分钟 · ${kcal[i]} kcal`
+            + `<br/>次均 ${Math.round(tons[i] * 1000 / cnt[i]).toLocaleString()} kg`;
+        }
+      },
+      xAxis: { type: 'category', data: labels, axisLabel: { color: cssv('--text3'), fontSize: 9 }, axisLine: { lineStyle: { color: cssv('--border') } }, axisTick: { show: false } },
+      yAxis: [
+        { type: 'value', name: 't', nameTextStyle: { color: cssv('--text3'), fontSize: 9 }, axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { lineStyle: { color: cssv('--border'), opacity: .5 } } },
+        { type: 'value', name: '次', nameTextStyle: { color: cssv('--text3'), fontSize: 9 }, axisLabel: { color: cssv('--text3'), fontSize: 9 }, splitLine: { show: false } }
+      ],
+      series: [
+        { name: '总容量 (t)', type: 'bar', barMaxWidth: 26, data: tons,
+          itemStyle: { borderRadius: [4, 4, 0, 0], color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: hexA('#f59e0b', .92) }, { offset: 1, color: hexA('#f59e0b', .42) }] } },
+          label: { show: true, position: 'top', color: cssv('--text3'), fontSize: 9, formatter: p => p.value ? p.value : '' } },
+        { name: '训练次数', type: 'line', yAxisIndex: 1, smooth: .3, symbolSize: 5, data: cnt, connectNulls: true,
+          lineStyle: { width: 2, color: '#38bdf8' }, itemStyle: { color: '#38bdf8' } }
+      ]
     });
   }
 }
