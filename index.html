@@ -866,8 +866,13 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
     </div>
   </div>
   <div class="card mb">
-    <div class="card-head">🏋️ 健身房训练记录</div>
-    <textarea class="form-textarea" id="gymRecord" placeholder="部位:胸+三头 | 消耗:353卡 | 总重:6180kg | 时长:48min&#10;杠铃卧推 50kg×8×3&#10;上斜卧推 30kg×10×4&#10;..." style="min-height:100px;font-size:.8rem"></textarea>
+    <div class="card-head">🏋️ 健身房</div>
+    <div id="gymToggle" onclick="toggleGymToday()" style="display:flex;align-items:center;gap:.6rem;padding:.8rem .9rem;border:1px solid var(--border);border-radius:10px;background:var(--sf2);cursor:pointer;user-select:none;transition:.15s">
+      <span id="gymCheck" style="font-size:1.2rem;line-height:1;color:var(--text3)">☐</span>
+      <span id="gymTxt" style="font-size:.85rem;color:var(--text2)">今天去了健身房</span>
+      <span id="gymDetailHint" style="font-size:.7rem;color:var(--c-checkin);margin-left:auto"></span>
+    </div>
+    <p style="font-size:.68rem;color:var(--text3);margin:.5rem 0 0 .2rem;line-height:1.6">这里只记「去没去」，动作明细记在 E:\05_健身 的训练表；想补文字说明可到历史记录里点开编辑。</p>
   </div>
   <div class="card mb" id="bodyDataCard">
     <div class="card-head" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="toggleBodyCard()">
@@ -1625,13 +1630,37 @@ function shiftCheckinDate(n) {
   setCheckinDate(ds);
 }
 function resetCheckinDate() { setCheckinDate(todayLocal()); }
+
+// ── 健身房：只记「去没去」，动作明细在 E:\05_健身 训练表 / 历史编辑弹窗里 ──
+var GYM_MARK = '已训练';             // 勾选时写入的标记值
+var gymToday = false;                // 当前打卡日的勾选状态
+var gymExistingRaw = '';             // 该日已有的详细文本（勾选保存时不能被标记值覆盖）
+
+function paintGymToggle() {
+  const box = document.getElementById('gymCheck');
+  const row = document.getElementById('gymToggle');
+  const hint = document.getElementById('gymDetailHint');
+  const txt = document.getElementById('gymTxt');
+  if (!box || !row) return;
+  box.textContent = gymToday ? '☑' : '☐';
+  box.style.color = gymToday ? 'var(--c-checkin)' : 'var(--text3)';
+  row.style.borderColor = gymToday ? 'var(--c-checkin)' : 'var(--border)';
+  if (txt) txt.style.color = gymToday ? 'var(--text)' : 'var(--text2)';
+  if (hint) hint.textContent = (gymToday && gymExistingRaw && gymExistingRaw !== GYM_MARK)
+    ? '已有训练明细 ✓' : '';
+}
+function toggleGymToday() {
+  gymToday = !gymToday;
+  paintGymToggle();
+}
 function initDate() { setCheckinDate(todayLocal(), { skipLoad: true }); }
 
 // 清空打卡表单（切换日期/该日无记录时使用）
 function resetCheckinForm() {
   ['sleepT','wakeT','durT','napT','sleepScore','deepT','lightT','remT',
-   'dailyNote','gymRecord','bodyWeight','bodyFat','todayBook','bookAt','bookNote',
+   'dailyNote','bodyWeight','bodyFat','todayBook','bookAt','bookNote',
    'ru_pace','cy_pace','ru','cy'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  gymToday = false; gymExistingRaw = ''; paintGymToggle();
   const cy = document.getElementById('cy'); if (cy) cy.value = 0;
   const ru = document.getElementById('ru'); if (ru) ru.value = 0;
   const bp = document.getElementById('bookPages'); if (bp) bp.value = 0;
@@ -1746,7 +1775,9 @@ async function loadCheckinFor(ds) {
     document.getElementById('cy_pace').value = hp['骑行配速'] || 0;
     document.getElementById('ru_pace').value = hp['跑步配速'] || '';
     document.getElementById('dailyNote').value = data.note || '';
-    document.getElementById('gymRecord').value = data.gym || '';
+    gymExistingRaw = (data.gym || '').trim();
+    gymToday = !!gymExistingRaw;
+    paintGymToggle();
     if (data.weight)   { document.getElementById('bodyWeight').value = data.weight; }
     if (data.body_fat) { document.getElementById('bodyFat').value = data.body_fat; }
     if (data.weight || data.body_fat) {
@@ -1876,7 +1907,8 @@ async function saveCheckin() {
     cycling: +document.getElementById('cy').value  || 0,
     running: +document.getElementById('ru').value  || 0,
     note:    document.getElementById('dailyNote').value,
-    gym:     document.getElementById('gymRecord').value || null,
+    // 勾选即「去了」；若该日已存有动作明细，保留原文不覆盖
+    gym:     gymToday ? (gymExistingRaw && gymExistingRaw !== GYM_MARK ? gymExistingRaw : GYM_MARK) : null,
     weight:    parseFloat(document.getElementById('bodyWeight')?.value) || null,
     body_fat:  parseFloat(document.getElementById('bodyFat')?.value)    || null,
     habits,
@@ -1894,8 +1926,7 @@ async function saveCheckin() {
   const _emptyN = ['sleepT','wakeT','durT'].filter(id => !document.getElementById(id).value).length
     + (document.querySelectorAll('#habitsWrap .h-chip.on').length ? 0 : 1)
     + (!document.getElementById('bodyWeight').value ? 1 : 0)
-    + (!document.getElementById('dailyNote').value.trim() ? 1 : 0)
-    + (!document.getElementById('gymRecord').value.trim() ? 1 : 0);
+    + (!document.getElementById('dailyNote').value.trim() ? 1 : 0);
   const _suf = _emptyN > 0 ? `还有 ${_emptyN} 项未填，随时回来补` : '记录完整 🎉';
   const _dstr = `${+date.slice(5,7)}月${+date.slice(8,10)}日`;
   toast(isToday ? `✓ 已保存！${_suf}` : `✓ 已补记 ${_dstr}！${_suf}`);
@@ -2039,10 +2070,10 @@ async function loadAndRenderHistory() {
       <td style="color:var(--c-journal);font-weight:600">${r.running||'/'}</td>
       <td style="color:var(--text2)">${h['跑步配速']||'/'}</td>
       <td style="color:var(--c-history)">${r.cycling||'/'}</td>
-      <td style="color:var(--c-checkin);font-size:.75rem">${r.gym ? `<span class="gym-toggle" onclick="event.stopPropagation();toggleGym(this)" style="cursor:pointer;user-select:none">🏋️</span>` : '/'}</td>
+      <td style="color:var(--c-checkin);font-size:.75rem">${r.gym ? (r.gym === GYM_MARK ? '<span title="已训练">🏋️</span>' : `<span class="gym-toggle" onclick="event.stopPropagation();toggleGym(this)" style="cursor:pointer;user-select:none">🏋️</span>`) : '/'}</td>
       <td style="color:#a78bfa;font-weight:600">${r.weight ? r.weight+'kg' : '/'}</td>
       <td style="color:#f472b6;font-weight:600">${r.body_fat ? r.body_fat+'%' : '/'}</td>
-    </tr>` + (r.gym ? `<tr class="gym-detail" style="display:none"><td colspan="20" style="padding:.25rem .6rem .5rem 1.2rem;font-size:.72rem;color:var(--text3);white-space:pre-wrap;line-height:1.7;background:var(--sf2);border-bottom:1px solid var(--border)">${r.gym.replace(/\n/g,'<br>')}</td></tr>` : '');
+    </tr>` + ((r.gym && r.gym !== GYM_MARK) ? `<tr class="gym-detail" style="display:none"><td colspan="20" style="padding:.25rem .6rem .5rem 1.2rem;font-size:.72rem;color:var(--text3);white-space:pre-wrap;line-height:1.7;background:var(--sf2);border-bottom:1px solid var(--border)">${r.gym.replace(/\n/g,'<br>')}</td></tr>` : '');
   }).join('');
 
   // 渲染月度统计
@@ -2279,7 +2310,7 @@ function buildDailySheet(rows) {
       _n(r.sleep_score), _tm(r.deep_sleep), _tm(r.light_sleep), _tm(r.rem_sleep),
       _n(r.pushup), _n(r.squat), _n(r.pullup), _n(r.dips), _n(r.crunch),
       _n(r.running), h['跑步配速'] || '', _n(r.cycling), h['骑行配速'] || '',
-      r.gym || '', _n(r.weight), _n(r.body_fat), _n(h['mood']), _n(h['time']),
+      (r.gym === GYM_MARK ? '✓' : (r.gym || '')), _n(r.weight), _n(r.body_fat), _n(h['mood']), _n(h['time']),
       h['今日书名'] || '', _n(h['读了页数']),
       EXPORT_HABITS.filter(k => h[k]).join('、'),
       r.note || '',
