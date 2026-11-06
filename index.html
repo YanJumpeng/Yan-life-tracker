@@ -873,6 +873,15 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
       <span id="gymDetailHint" style="font-size:.7rem;color:var(--c-checkin);margin-left:auto"></span>
     </div>
     <p style="font-size:.68rem;color:var(--text3);margin:.5rem 0 0 .2rem;line-height:1.6">这里只记「去没去」，动作明细记在 E:\05_健身 的训练表；想补文字说明可到历史记录里点开编辑。</p>
+    <div id="gymDigestWrap" style="display:none;margin-top:.75rem;padding-top:.75rem;border-top:1px dashed var(--border)">
+      <input type="text" id="gymDigest" class="form-input" placeholder="粘贴训练摘要，自动识别总重/消耗/时长（也可手动填下面三项）" oninput="onGymDigest()" onpaste="setTimeout(onGymDigest,30)" style="font-size:.75rem">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-top:.55rem">
+        <div><label class="form-label" style="font-size:.66rem;margin-bottom:.2rem">总重 kg</label><input type="number" id="gymVol" class="form-input" placeholder="8920" style="font-size:.78rem"></div>
+        <div><label class="form-label" style="font-size:.66rem;margin-bottom:.2rem">消耗 kcal</label><input type="number" id="gymKcal" class="form-input" placeholder="132" style="font-size:.78rem"></div>
+        <div><label class="form-label" style="font-size:.66rem;margin-bottom:.2rem">时长 min</label><input type="number" id="gymDur" class="form-input" placeholder="32" style="font-size:.78rem"></div>
+      </div>
+      <div id="gymDigestHint" style="font-size:.66rem;color:var(--text3);margin-top:.4rem">只为月度训练量图服务；三项都空就只记「去了」。</div>
+    </div>
   </div>
   <div class="card mb" id="bodyDataCard">
     <div class="card-head" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between" onclick="toggleBodyCard()">
@@ -928,7 +937,7 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
       <button class="btn btn-ghost btn-sm" onclick="wmChangeYear('monthly',1)">下一年 →</button>
       <button class="btn btn-sm" style="background:var(--c-checkin);color:#fff;margin-left:.5rem"
         onclick="autoAggMonthly(false)"
-        title="按每日记录自动填「早起天数(7:30前)/跑步天数与距离/健身房天数/骑行次数与距离/读书本数与书目」，只补空缺、不覆盖手填值">⟳ 自动汇总</button>
+        title="按每日记录自动填「早起天数(7:30前)/跑步天数与距离/健身房天数/骑行次数与距离/读书本数与书目/训练次数与总容量」，只补空缺、不覆盖手填值">⟳ 自动汇总</button>
       <button class="btn btn-ghost btn-sm" onclick="autoAggMonthly(true)" title="用每日记录重算并覆盖这些统计字段">重算</button>
     </div>
   </div>
@@ -1654,10 +1663,45 @@ function paintGymToggle() {
   if (txt) txt.style.color = gymToday ? 'var(--text)' : 'var(--text2)';
   if (hint) hint.textContent = (gymToday && gymExistingRaw && gymExistingRaw !== GYM_MARK)
     ? '已有训练明细 ✓' : '';
+  const wrap = document.getElementById('gymDigestWrap');
+  if (wrap) wrap.style.display = gymToday ? '' : 'none';
 }
 function toggleGymToday() {
   gymToday = !gymToday;
   paintGymToggle();
+}
+
+// 从健身 App 摘要里抠出总重/消耗/时长：
+//   "部位:腿 | 消耗:132卡 | 总重:8,920kg | 时长:32min" / "1h09min" 都能认
+function parseGymDigest(t) {
+  if (!t) return null;
+  const out = {};
+  let m = t.match(/总重[:：]?\s*([\d,\.]+)/);
+  if (m) out.vol = Math.round(+String(m[1]).replace(/,/g, ''));
+  m = t.match(/消耗[:：]?\s*([\d,\.]+)/);
+  if (m) out.kcal = Math.round(+String(m[1]).replace(/,/g, ''));
+  m = t.match(/时长[:：]?\s*(?:(\d+)\s*h)?\s*(\d+)?\s*(?:min|分钟)?/i);
+  if (m && (m[1] || m[2])) out.dur = (+m[1] || 0) * 60 + (+m[2] || 0);
+  return (out.vol || out.kcal || out.dur) ? out : null;
+}
+function onGymDigest() {
+  const hint = document.getElementById('gymDigestHint');
+  const p = parseGymDigest(document.getElementById('gymDigest')?.value || '');
+  if (!p) {
+    if (hint) { hint.style.color = 'var(--text3)'; hint.textContent = '没认出数字，可在下面手动填'; }
+    return;
+  }
+  if (p.vol)  document.getElementById('gymVol').value  = p.vol;
+  if (p.kcal) document.getElementById('gymKcal').value = p.kcal;
+  if (p.dur)  document.getElementById('gymDur').value  = p.dur;
+  if (hint) {
+    hint.style.color = 'var(--c-checkin)';
+    hint.textContent = '✓ 已识别：' + [
+      p.vol ? (+p.vol).toLocaleString() + ' kg' : '',
+      p.kcal ? p.kcal + ' 卡' : '',
+      p.dur ? p.dur + ' 分钟' : ''
+    ].filter(Boolean).join(' · ');
+  }
 }
 function initDate() { setCheckinDate(todayLocal(), { skipLoad: true }); }
 
@@ -1665,7 +1709,9 @@ function initDate() { setCheckinDate(todayLocal(), { skipLoad: true }); }
 function resetCheckinForm() {
   ['sleepT','wakeT','durT','napT','sleepScore','deepT','lightT','remT',
    'dailyNote','bodyWeight','bodyFat','todayBook','bookAt','bookNote',
-   'ru_pace','cy_pace','ru','cy'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+   'ru_pace','cy_pace','ru','cy','gymDigest','gymVol','gymKcal','gymDur'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const _gh = document.getElementById('gymDigestHint');
+  if (_gh) { _gh.style.color = 'var(--text3)'; _gh.textContent = '只为月度训练量图服务；三项都空就只记「去了」。'; }
   gymToday = false; gymExistingRaw = ''; paintGymToggle();
   const cy = document.getElementById('cy'); if (cy) cy.value = 0;
   const ru = document.getElementById('ru'); if (ru) ru.value = 0;
@@ -1784,6 +1830,11 @@ async function loadCheckinFor(ds) {
     gymExistingRaw = (data.gym || '').trim();
     gymToday = !!gymExistingRaw;
     paintGymToggle();
+    // 训练量（存 habits，供月度训练量图汇总）
+    const _hg = data.habits || {};
+    if (_hg['训练总量']) document.getElementById('gymVol').value  = _hg['训练总量'];
+    if (_hg['训练消耗']) document.getElementById('gymKcal').value = _hg['训练消耗'];
+    if (_hg['训练时长']) document.getElementById('gymDur').value  = _hg['训练时长'];
     if (data.weight)   { document.getElementById('bodyWeight').value = data.weight; }
     if (data.body_fat) { document.getElementById('bodyFat').value = data.body_fat; }
     if (data.weight || data.body_fat) {
@@ -1886,6 +1937,15 @@ async function saveCheckin() {
   const bookNote  = document.getElementById('bookNote')?.value?.trim();
   if (todayBook) { habits['今日书名'] = todayBook; habits['读了页数'] = bookPages; habits['读到第几页'] = bookAt; }
   if (bookNote)  habits['读书摘记'] = bookNote;
+  // 健身房训练量（可选）：只写有值的项，三项全空则只记「去了」
+  if (gymToday) {
+    const _gv = +document.getElementById('gymVol')?.value  || 0;
+    const _gk = +document.getElementById('gymKcal')?.value || 0;
+    const _gd = +document.getElementById('gymDur')?.value  || 0;
+    if (_gv) habits['训练总量'] = _gv;
+    if (_gk) habits['训练消耗'] = _gk;
+    if (_gd) habits['训练时长'] = _gd;
+  }
   
   const payload = {
     user_id: currentUser.id, date,
@@ -2738,13 +2798,13 @@ async function autoAggWeekly(force) {
 
 // ── 月度自动汇总：与周度同套机制 ──
 // 早起天数(7:30前) · 跑步天数 · 跑步距离 · 健身房天数 · 骑行次数/距离 · 读书本数与书目
-const AUTO_MO_KEYS = ['early', 'run', 'km', 'gym', 'rt', 'rkm', 'books', 'titles'];
+const AUTO_MO_KEYS = ['early', 'run', 'km', 'gym', 'rt', 'rkm', 'books', 'titles', 'wn', 'wvol', 'wkcal', 'wdur', 'wmax'];
 
 function computeMonthAgg(year, month, recs) {
   const ym = year + '-' + String(month).padStart(2, '0');
   const days = recs.filter(r => r.date.slice(0, 7) === ym);
   if (!days.length) return null;
-  const out = { early: 0, run: 0, km: 0, gym: 0, rt: 0, rkm: 0 };
+  const out = { early: 0, run: 0, km: 0, gym: 0, rt: 0, rkm: 0, wn: 0, wvol: 0, wkcal: 0, wdur: 0, wmax: 0 };
   const titles = [];
   days.forEach(r => {
     const wm = hmToMin(r.wake_time);
@@ -2752,6 +2812,17 @@ function computeMonthAgg(year, month, recs) {
     if (+r.running > 0) { out.run++; out.km += +r.running; }
     if (+r.cycling > 0) { out.rt++; out.rkm += +r.cycling; }
     if (r.gym && String(r.gym).trim()) out.gym++;
+    // 训练量：优先打卡页填的数字（habits），历史数据没有则回退解析 gym 摘要文本
+    const hp = r.habits || {};
+    let gv = +hp['训练总量'] || 0, gk = +hp['训练消耗'] || 0, gd = +hp['训练时长'] || 0;
+    if (!gv && !gk && !gd && r.gym) {
+      const pd = parseGymDigest(r.gym);
+      if (pd) { gv = pd.vol || 0; gk = pd.kcal || 0; gd = pd.dur || 0; }
+    }
+    if (gv || gk || gd) {
+      out.wn++; out.wvol += gv; out.wkcal += gk; out.wdur += gd;
+      if (gv > out.wmax) out.wmax = gv;
+    }
     const t = (r.habits || {})['今日书名'];
     if (t && String(t).trim()) {
       const name = String(t).trim();
@@ -2761,6 +2832,8 @@ function computeMonthAgg(year, month, recs) {
   out.km = Math.round(out.km * 100) / 100;
   out.rkm = Math.round(out.rkm * 100) / 100;
   if (titles.length) { out.books = titles.length; out.titles = titles.join('、'); }
+  // 整月没有任何训练量数据 → 不写这组键（保持"无记录"与"练了但没记量"可区分）
+  if (!out.wn) { ['wn', 'wvol', 'wkcal', 'wdur', 'wmax'].forEach(k => delete out[k]); }
   return out;
 }
 
@@ -2810,7 +2883,7 @@ async function syncMonthlyAuto(force, silent) {
 }
 
 async function autoAggMonthly(force) {
-  if (force && !confirm('重算会用每日记录覆盖「早起/跑步天数与距离/健身房天数/骑行次数与距离/读书本数与书目」这些字段（手写数值也会被覆盖，公众号/推文/粉丝等不受影响）。继续？')) return;
+  if (force && !confirm('重算会用每日记录覆盖「早起/跑步天数与距离/健身房天数/骑行次数与距离/读书本数与书目/训练次数与总容量」这些字段（手写数值也会被覆盖，公众号/推文/粉丝等不受影响）。继续？')) return;
   showLoading(force ? '正在重算…' : '正在汇总…');
   const n = await syncMonthlyAuto(!!force, false);
   hideLoading();
