@@ -722,6 +722,7 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
     <div class="nav-sec">
       <div class="nav-sec-lbl">规划</div>
       <div class="nav-item" data-mod="fiveyear" onclick="go('fiveyear',this)"><span class="nav-icon">◎</span>五年计划</div>
+      <div class="nav-item" data-mod="ai-map" onclick="go('fiveyear',document.querySelector('[data-mod=fiveyear]'));setTimeout(()=>fyTab('aimap'),300);document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));this.classList.add('active')"><span class="nav-icon">🤖</span>AI 能力</div>
       <div class="nav-item" data-mod="english" onclick="go('english',this)"><span class="nav-icon">🇬🇧</span>英语日记</div>
       <div class="nav-item" data-mod="hist-week" onclick="go('fiveyear',document.querySelector('[data-mod=fiveyear]'));setTimeout(()=>fyTab('hist-week'),300);document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));this.classList.add('active')"><span class="nav-icon">📅</span>周复盘历史</div>
       <div class="nav-item" data-mod="hist-month" onclick="go('fiveyear',document.querySelector('[data-mod=fiveyear]'));setTimeout(()=>fyTab('hist-month'),300);document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));this.classList.add('active')"><span class="nav-icon">📆</span>月对照历史</div>
@@ -1201,6 +1202,7 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
     <button class="btn btn-blue btn-sm fy-tab" id="fyt-weekly" onclick="fyTab('weekly')">每周复盘</button>
     <button class="btn btn-ghost btn-sm fy-tab" id="fyt-monthly" onclick="fyTab('monthly')">每月对照</button>
     <button class="btn btn-ghost btn-sm fy-tab" id="fyt-milestones" onclick="fyTab('milestones')">三年里程碑</button>
+    <button class="btn btn-ghost btn-sm fy-tab" id="fyt-aimap" onclick="fyTab('aimap')">AI 能力</button>
     <button class="btn btn-ghost btn-sm fy-tab" id="fyt-warnings" onclick="fyTab('warnings')">漂移预警</button>
     <button class="btn btn-ghost btn-sm fy-tab" id="fyt-hist-week" onclick="fyTab('hist-week')">周复盘历史</button>
     <button class="btn btn-ghost btn-sm fy-tab" id="fyt-hist-month" onclick="fyTab('hist-month')">月对照历史</button>
@@ -1242,10 +1244,16 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
         <span style="font-size:.72rem;color:var(--bad)" id="fy-biz-warn" style="display:none">⚠️ 潜在客户看不见你</span>
       </div>
     </div>
-    <div class="card mb"><div class="card-head">C · AI学习进展</div>
+    <div class="card mb"><div class="card-head">C · AI 能力建设
+      <span style="font-weight:400;color:var(--text3);font-size:.7rem"> · 不限工具，看能不能做出东西</span></div>
+      <div style="margin-bottom:.8rem">
+        <label style="font-size:.72rem;color:var(--text3)">本周推进的方向（可多选）</label>
+        <div id="fy-ai-tracks" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px"></div>
+      </div>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem">
-        <div><label style="font-size:.72rem;color:var(--text3)">本周完成任务</label><textarea id="fy-ai-done" class="form-textarea" rows="3" placeholder="做了什么，具体任务"></textarea></div>
-        <div><label style="font-size:.72rem;color:var(--text3)">卡点/问题</label><textarea id="fy-ai-block" class="form-textarea" rows="3" placeholder="卡在哪了，原因是什么"></textarea></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">本周学了 / 做了什么</label><textarea id="fy-ai-done" class="form-textarea" rows="3" placeholder="具体到能复述：用了哪个工具、解决了什么问题"></textarea></div>
+        <div><label style="font-size:.72rem;color:var(--text3)">产出物（能给别人看的）</label><textarea id="fy-ai-output" class="form-textarea" rows="3" placeholder="脚本 / 工作流 / 一条视频 / 一篇文章 / 一个能跑的网站…没有就写「无」"></textarea></div>
+        <div style="grid-column:1/-1"><label style="font-size:.72rem;color:var(--text3)">卡点 / 下一步</label><textarea id="fy-ai-block" class="form-textarea" rows="2" placeholder="卡在哪、下周先动哪一步"></textarea></div>
       </div>
     </div>
     <div class="card mb"><div class="card-head">E · 大树财经</div>
@@ -1406,7 +1414,7 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
 
   <div id="fy-panel-milestones" style="display:none">
     <p style="font-size:.8rem;color:var(--text3);margin-bottom:1rem">每月1号打开读一遍，对照自己现在的位置。</p>
-    <div class="card mb" style="border-left:3px solid #3C3489"><div style="font-size:.72rem;font-weight:500;color:var(--text3);margin-bottom:.3rem">2026 年底 · 打基础·打标签</div><div style="font-size:.85rem;line-height:1.6;margin-bottom:.5rem">推特粉丝稳步增长（年底1000）；Web3×AI标签建立；交易守纪律不犯大错；AI工作流能展示给潜在客户看；原创推文 ≥每周3条；体脂 ≤17%（身体是底盘）</div><div style="font-size:.75rem;color:var(--text3);font-style:italic">检验：有没有潜在客户主动找过我？交易账户比年初更接近回本？体脂回到17%以下了吗？</div></div>
+    <div class="card mb" style="border-left:3px solid #3C3489"><div style="font-size:.72rem;font-weight:500;color:var(--text3);margin-bottom:.3rem">2026 年底 · 打基础·打标签</div><div style="font-size:.85rem;line-height:1.6;margin-bottom:.5rem">推特粉丝稳步增长（年底1000）；Web3×AI标签建立；交易守纪律不犯大错；AI 能力能拿出来看——Agent/编程、AI 视频、知识管理三条各至少一个「能交付」的东西；原创推文 ≥每周3条；体脂 ≤17%（身体是底盘）</div><div style="font-size:.75rem;color:var(--text3);font-style:italic">检验：有没有潜在客户主动找过我？交易账户比年初更接近回本？体脂回到17%以下了吗？别人问我「你会用 AI 做什么」时，我能不能直接给个链接/成品？</div></div>
     <div class="card mb" style="border-left:3px solid #3C3489"><div style="font-size:.72rem;font-weight:500;color:var(--text3);margin-bottom:.3rem">2027 年底 · 开始变现</div><div style="font-size:.85rem;line-height:1.6;margin-bottom:.5rem">粉丝2000-3000；接到第一个咨询单；副业月收入>5000元；交易账户回本</div><div style="font-size:.75rem;color:var(--text3);font-style:italic">检验：副业月收入超过5000了吗？交易账户回本了吗？</div></div>
     <div class="card mb" style="border-left:3px solid #3C3489"><div style="font-size:.72rem;font-weight:500;color:var(--text3);margin-bottom:.3rem">2028 年底 · 收入结构成型</div><div style="font-size:.85rem;line-height:1.6;margin-bottom:.5rem">大树12万 + 副业咨询10万 + 交易10万 = 32万/年；三条腿稳定运转</div><div style="font-size:.75rem;color:var(--text3);font-style:italic">检验：收入结构从一份工资变成三条腿了吗？</div></div>
     <div class="card mb" style="border-left:3px solid var(--bad)"><div class="card-head">反愿景</div><div style="font-size:.82rem;color:var(--text3);line-height:1.7">依然在出租屋醒来，节奏是被动的，被工作推着走。晚上10点，感受是麻木的。只是某个深夜，突然想起之前的生活，觉得无趣，想要改变，但什么都没有改变。</div></div>
@@ -1420,6 +1428,32 @@ td.c-dev{box-shadow:inset 0 -2px 0 var(--bad)}
           <tr style="background:var(--ok-l)"><td style="padding:7px 10px;border:1px solid var(--border);font-weight:600">合计</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border);font-weight:600">32万</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border);font-weight:600">~2.7万</td><td style="padding:7px 10px;text-align:center;border:1px solid var(--border)"><span style="background:#E8DAEF;color:#3C3489;font-size:.72rem;padding:2px 8px;border-radius:10px">2028目标</span></td></tr>
         </tbody>
       </table>
+    </div>
+  </div>
+
+  <div id="fy-panel-aimap" style="display:none">
+    <p style="font-size:.78rem;color:var(--text3);margin-bottom:.9rem;line-height:1.7">
+      这张表替代原来那份「OpenClaw 阶段计划」——<b style="color:var(--text2)">不绑某个工具，只看每个方向现在能做什么</b>。<br>
+      状态分四档：<b>在学</b>（看得懂但做不出）→ <b>能用</b>（能自己跑通）→ <b>能交付</b>（别人能用/能看）→ <b>已归档</b>（工具过时，方法留下）。<br>
+      每月 1 号扫一眼，重点看「能交付」有没有变多，而不是又收藏了多少教程。
+    </p>
+    <div class="card mb" style="padding:0;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:.78rem;min-width:760px">
+        <thead><tr style="background:var(--sf2)">
+          <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);font-weight:500;width:132px">方向</th>
+          <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);font-weight:500;width:150px">工具 / 项目</th>
+          <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);font-weight:500;width:88px">状态</th>
+          <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);font-weight:500;width:96px">最近在用</th>
+          <th style="padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);font-weight:500">产出 / 证据</th>
+          <th style="padding:8px 10px;border-bottom:1px solid var(--border);width:34px"></th>
+        </tr></thead>
+        <tbody id="fy-aimap-body"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="fyAiMapAdd()">＋ 新增一条</button>
+      <span id="fy-aimap-stat" style="font-size:.75rem;color:var(--text3)"></span>
+      <span id="fy-aimap-saved" style="display:none;font-size:.75rem;color:var(--ok)">已保存 ✓</span>
     </div>
   </div>
 
@@ -2513,7 +2547,8 @@ const MONTH_FIELDS = [
   {k:'tw',     l:'原创推文(条)'},
   {k:'leads',  l:'潜在客户向(条)'},
   {k:'fans',   l:'月底粉丝数'},
-  {k:'oc',     l:'OpenClaw(小时)'},
+  {k:'aih',    l:'AI学习(小时)', hint:'不限工具'},
+  {k:'aiout',  l:'AI产出', type:'text', ph:'做出什么'},
   {k:'note',   l:'本月一句话', type:'text', ph:'状态，不是成绩'},
 ];
 
@@ -3188,7 +3223,7 @@ function buildWkDraftText(year, wk, s, e, recs) {
     '  → 这周做了没？触动的一句话？下周一个具体微调（动作，不是决心）：',
     '健身：' + gymLine,
     '  → 身体状态？断了是被什么打断的？：',
-    '学习：AI/OpenClaw 这周有没有并进日常输出？',
+    '学习：AI 这周用在哪了？（Claude Code / Codex / WorkBuddy / MiniMax / Obsidian…）做出什么能看的东西？',
     '  → ',
     '工作与生活：清醒 ' + awake + ' 天 / 自动驾驶 ' + (7 - awake) + ' 天（按心情或 Time ≥4 估算，可改）',
     '  → 这周有几天是你清醒选的？',
@@ -3433,7 +3468,7 @@ function renderMonthlyTable() {
       <table class="htable"><thead>${thead}</thead><tbody>${rows}${totalRow}${avgRow}</tbody></table>
     </div></div>
     <div class="wm-note">💡 点击某一行填写该月数据 · 合计/月均自动计算<br>
-      早起天数（7:30 前起床）/ 跑步天数与距离 / 健身房天数 / 骑行次数与距离 / 读书本数与书目 会按每日记录自动汇总，带 <span class="wm-auto-dot">∘</span> 的值会随打卡自动更新；手填过的值不会被自动覆盖<br>🎯 年度基准（JUMP_2026 修订版）：读书 ≥ 每月 1 本 · 原创推文 ≥ 每周 3 条（约12条/月）· 粉丝年底目标 1000（月底必记） · OpenClaw ≥ 每月 30 小时 · 体脂 ≤ 17%</div>`;
+      早起天数（7:30 前起床）/ 跑步天数与距离 / 健身房天数 / 骑行次数与距离 / 读书本数与书目 会按每日记录自动汇总，带 <span class="wm-auto-dot">∘</span> 的值会随打卡自动更新；手填过的值不会被自动覆盖<br>🎯 年度基准（JUMP_2026 修订版）：读书 ≥ 每月 1 本 · 原创推文 ≥ 每周 3 条（约12条/月）· 粉丝年底目标 1000（月底必记） · AI 学习 ≥ 每月 30 小时（不限工具：Agent/编程 · 视频 · 知识管理 · 自动化都算，看产出）· 体脂 ≤ 17%</div>`;
   renderMonthlyCharts();
 }
 
@@ -5681,18 +5716,37 @@ async function submitAddBook() {
 let fyData = { weeks:{}, months:{}, warnings:{} };
 const FY_DIR = [
   {id:'dashu', label:'大树财经 稳定吗'},
-  {id:'ai',    label:'AI学习 在推进吗'},
+  {id:'ai',    label:'AI能力 在推进吗'},
   {id:'tweet', label:'推特内容 在投资吗'},
   {id:'trade', label:'交易 有没有违纪'},
   {id:'side',  label:'副业 往前推了吗'},
+];
+// AI 能力建设：不绑单一工具（OpenClaw 只是其中一站），按「方向」看能力沉淀
+const AI_TRACKS = [
+  {id:'agent', l:'Agent / 编程', tip:'Claude Code · Codex · WorkBuddy'},
+  {id:'media', l:'AI 视频 / 图像', tip:'MiniMax · 可灵 等'},
+  {id:'pkm',   l:'知识管理',      tip:'Obsidian · 第二大脑'},
+  {id:'auto',  l:'自动化工作流',  tip:'脚本 · MCP · 定时任务'},
+  {id:'sense', l:'模型与行业认知', tip:'论文 · 评测 · 动态'},
+];
+const AI_LEVELS = ['在学', '能用', '能交付', '已归档'];
+const AI_MAP_SEED = [
+  {t:'agent', name:'Claude Code',  level:'能用',   last:'2026-11', out:'本地项目改造、数据脚本'},
+  {t:'agent', name:'Codex',        level:'在学',   last:'2026-10', out:''},
+  {t:'agent', name:'WorkBuddy',    level:'能用',   last:'2026-11', out:'数据补填、腾讯文档自动化、定时任务'},
+  {t:'agent', name:'OpenClaw',     level:'已归档', last:'2026-03', out:'当年主攻方向，方法已并入 Agent 一线'},
+  {t:'media', name:'MiniMax',      level:'在学',   last:'2026-10', out:''},
+  {t:'pkm',   name:'Obsidian',     level:'在学',   last:'2026-11', out:''},
+  {t:'auto',  name:'日迹 / MCP 自动化', level:'能用', last:'2026-11', out:'Supabase 备份、周记表云端同步'},
+  {t:'sense', name:'AI 行业动态 / 评测', level:'在学', last:'2026-11', out:''},
 ];
 const FY_WARNS = [
   {plate:'推特',  signal:'本周没发推 / 本周原创推文<3条',   action:'立刻发一条，哪怕很简单；本周补满3条'},
   {plate:'推特',  signal:'连续7天没有潜在客户向内容',   action:'这周补一条展示能力的推文'},
   {plate:'推特',  signal:'月底粉丝数没有记录',          action:'月底最后一天把粉丝数填进月对照，否则年底1000无法跟踪'},
-  {plate:'AI学习',signal:'连续5天未提到OpenClaw学习',  action:'今天做学习计划里的一个任务'},
-  {plate:'AI学习',signal:'当前阶段结束标志未达到却想跳阶段', action:'重读AI学习计划，逐条确认结束标志'},
-  {plate:'AI学习',signal:'本月OpenClaw时长没记录',     action:'月底把AI学习时长填进月度快照'},
+  {plate:'AI能力',signal:'连续5天没打开任何 AI 工具（Claude Code / Codex / WorkBuddy / …）', action:'今天用它做一件手头真事，哪怕只改一个脚本'},
+  {plate:'AI能力',signal:'这个月只有输入没有产出（收藏教程、看视频，没做出东西）', action:'挑一个最小闭环，今天先做出能看的第 1 版'},
+  {plate:'AI能力',signal:'本月 AI 学习时长没记录',     action:'月底把时长和产出填进月对照'},
   {plate:'副业',  signal:'连续2个月副业方向填⚠️或❌',  action:'本月至少做一件具体的副业动作'},
   {plate:'交易',  signal:'本月有违纪操作（做短线/追涨）', action:'复盘这次违纪的触发原因'},
   {plate:'交易',  signal:'账户持续浮亏且没有复盘记录',  action:'写一段复盘，不要逃避'},
@@ -5722,6 +5776,10 @@ async function fyLoadRemote() {
     if (!fyData.weeks)    fyData.weeks = {};
     if (!fyData.months)   fyData.months = {};
     if (!fyData.warnings) fyData.warnings = {};
+    if (!Array.isArray(fyData.aiMap)) {
+      fyData.aiMap = AI_MAP_SEED.map(r => Object.assign({}, r));
+      fySave();
+    }
     // 补丁：给已有周数据补 startDate（按实际日历周）
     const WEEK_STARTS = {'14':'2026-04-06'};
     Object.entries(WEEK_STARTS).forEach(([k,d]) => {
@@ -5736,7 +5794,7 @@ async function fySave() {
 
 // ── Tab 切换 ──
 function fyTab(name) {
-  ['weekly','monthly','milestones','warnings','hist-week','hist-month'].forEach(n => {
+  ['weekly','monthly','milestones','aimap','warnings','hist-week','hist-month'].forEach(n => {
     const p = document.getElementById('fy-panel-' + n);
     const b = document.getElementById('fyt-' + n);
     if (p) p.style.display = n === name ? '' : 'none';
@@ -5745,8 +5803,106 @@ function fyTab(name) {
     }
   });
   if (name === 'warnings') { fyBuildWarnings(); fyRunAutoCheck(); }
+  if (name === 'aimap') fyRenderAiMap();
   if (name === 'hist-week') fyRenderHistory('week');
   if (name === 'hist-month') fyRenderHistory('month');
+}
+
+// ── AI 能力建设：周方向多选 + 能力地图 ──
+function fyAttr(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function fyBuildAiTracks() {
+  const el = document.getElementById('fy-ai-tracks'); if (!el) return;
+  el.innerHTML = '';
+  AI_TRACKS.forEach(t => {
+    const b = document.createElement('button');
+    b.className = 'btn btn-ghost btn-sm';
+    b.id = 'fy-ai-tr-' + t.id;
+    b.textContent = t.l;
+    b.title = t.tip;
+    b.onclick = () => fyToggleAiTrack(t.id);
+    el.appendChild(b);
+  });
+}
+
+function fyRefreshAiTracks(tracks) {
+  const on = Array.isArray(tracks) ? tracks : [];
+  AI_TRACKS.forEach(t => {
+    const el = document.getElementById('fy-ai-tr-' + t.id); if (!el) return;
+    const hit = on.includes(t.id);
+    el.style.background  = hit ? 'var(--ok-l)' : '';
+    el.style.borderColor = hit ? 'var(--ok)' : '';
+    el.style.color       = hit ? 'var(--ok)' : '';
+    el.style.fontWeight  = hit ? '600' : '';
+  });
+}
+
+async function fyToggleAiTrack(id) {
+  const k = document.getElementById('fy-week-sel').value;
+  if (!fyData.weeks[k]) fyData.weeks[k] = {};
+  const w = fyData.weeks[k];
+  if (!w.ai) w.ai = {};
+  const cur = Array.isArray(w.ai.tracks) ? w.ai.tracks.slice() : [];
+  const i = cur.indexOf(id);
+  if (i >= 0) cur.splice(i, 1); else cur.push(id);
+  w.ai.tracks = cur;
+  fyRefreshAiTracks(cur);
+  await fySave();
+}
+
+function fyEnsureAiMap() {
+  if (!Array.isArray(fyData.aiMap)) fyData.aiMap = AI_MAP_SEED.map(r => Object.assign({}, r));
+}
+
+function fyRenderAiMap() {
+  fyEnsureAiMap();
+  const tb = document.getElementById('fy-aimap-body'); if (!tb) return;
+  const selTrack = cur => AI_TRACKS.map(t => `<option value="${t.id}"${t.id === cur ? ' selected' : ''}>${t.l}</option>`).join('');
+  const selLevel = cur => AI_LEVELS.map(l => `<option value="${l}"${l === cur ? ' selected' : ''}>${l}</option>`).join('');
+  const lvColor = lv => lv === '能交付' ? 'var(--ok)' : lv === '能用' ? 'var(--info)' : lv === '已归档' ? 'var(--text3)' : 'var(--warn)';
+  const inp = 'width:100%;padding:5px 7px;font-size:.74rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)';
+  const sel = inp + ';padding:5px 6px';
+  tb.innerHTML = fyData.aiMap.map((r, i) => `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:5px 8px"><select onchange="fyAiMapSet(${i},'t',this.value)" style="${sel}">${selTrack(r.t)}</select></td>
+      <td style="padding:5px 8px"><input value="${fyAttr(r.name)}" placeholder="工具 / 项目" onchange="fyAiMapSet(${i},'name',this.value)" style="${inp}"></td>
+      <td style="padding:5px 8px"><select onchange="fyAiMapSet(${i},'level',this.value)" style="${sel};font-weight:600;color:${lvColor(r.level)}">${selLevel(r.level)}</select></td>
+      <td style="padding:5px 8px"><input value="${fyAttr(r.last)}" placeholder="2026-11" onchange="fyAiMapSet(${i},'last',this.value)" style="${inp}"></td>
+      <td style="padding:5px 8px"><input value="${fyAttr(r.out)}" placeholder="做出什么，别人能看 / 能用" onchange="fyAiMapSet(${i},'out',this.value)" style="${inp}"></td>
+      <td style="padding:5px 4px;text-align:center"><button class="btn btn-ghost btn-sm" title="删除这条" onclick="fyAiMapDel(${i})" style="padding:2px 7px;color:var(--text3)">×</button></td>
+    </tr>`).join('');
+  const done = fyData.aiMap.filter(r => r.level === '能交付').length;
+  const live = fyData.aiMap.filter(r => r.level !== '已归档').length;
+  const st = document.getElementById('fy-aimap-stat');
+  if (st) st.textContent = `共 ${fyData.aiMap.length} 条 · 活跃 ${live} · 能交付 ${done}`;
+}
+
+async function fyAiMapSet(i, field, val) {
+  fyEnsureAiMap();
+  if (!fyData.aiMap[i]) return;
+  fyData.aiMap[i][field] = val;
+  fyRenderAiMap();
+  await fySave();
+  fyFlash('fy-aimap-saved');
+}
+
+async function fyAiMapAdd() {
+  fyEnsureAiMap();
+  fyData.aiMap.push({ t: 'agent', name: '', level: '在学', last: '', out: '' });
+  fyRenderAiMap();
+  await fySave();
+}
+
+async function fyAiMapDel(i) {
+  fyEnsureAiMap();
+  if (!fyData.aiMap[i]) return;
+  if (!confirm('删除「' + (fyData.aiMap[i].name || '这一条') + '」？')) return;
+  fyData.aiMap.splice(i, 1);
+  fyRenderAiMap();
+  await fySave();
+  fyFlash('fy-aimap-saved');
 }
 
 // ── 方向检验 ──
@@ -5891,11 +6047,15 @@ function fyRenderHistory(type) {
         tw.feel  ? `感受：${tw.feel}` : '',
       ].filter(Boolean).join('<br>');
 
-      // C AI学习
-      const ai = w.ai||{};
+      // C AI 能力
+      const ai = w.ai || {};
+      const aiTrackTxt = (Array.isArray(ai.tracks) ? ai.tracks : [])
+        .map(id => (AI_TRACKS.find(t => t.id === id) || {}).l).filter(Boolean).join(' · ');
       const aiLines = [
-        ai.done  ? `完成：${ai.done}` : '',
-        ai.block ? `卡点：${ai.block}` : '',
+        aiTrackTxt ? `方向：${aiTrackTxt}` : '',
+        ai.done    ? `做了什么：${ai.done}` : '',
+        ai.output  ? `产出：${ai.output}` : '',
+        ai.block   ? `卡点：${ai.block}` : '',
       ].filter(Boolean).join('<br>');
 
       // D 交易
@@ -5962,7 +6122,7 @@ function fyRenderHistory(type) {
           <div style="height:1px;background:var(--border);margin-bottom:.9rem"></div>
           ${dirTags ? SEC('🧭','方向检验', dirTags) : ''}
           ${twLines  ? SEC('🐦','推特运营', twLines) : ''}
-          ${aiLines  ? SEC('🤖','AI学习',   aiLines) : ''}
+          ${aiLines  ? SEC('🤖','AI 能力',  aiLines) : ''}
           ${trLines  ? SEC('📈','交易',      trLines) : ''}
           ${workLines? SEC('🏢','大树财经',  workLines) : ''}
           ${sideLines? SEC('💼','副业变现',  sideLines) : ''}
@@ -6127,7 +6287,9 @@ function fyLoadWeek() {
   const best=document.getElementById('fy-tw-best'); if(best) best.value=tw.best||'';
   const ai=w.ai||{};
   const aid=document.getElementById('fy-ai-done');   if(aid) aid.value=ai.done||'';
+  const aio=document.getElementById('fy-ai-output'); if(aio) aio.value=ai.output||'';
   const aib=document.getElementById('fy-ai-block');  if(aib) aib.value=ai.block||'';
+  fyRefreshAiTracks(ai.tracks||[]);
   const sd=w.side||{};
   const sdd=document.getElementById('fy-side-done'); if(sdd) sdd.value=sd.done||'';
   const sdn=document.getElementById('fy-side-next'); if(sdn) sdn.value=sd.next||'';
@@ -6187,8 +6349,13 @@ async function fySaveWeek() {
   w.tweet.new   = document.getElementById('fy-tw-new').value;
   w.tweet.fans  = document.getElementById('fy-tw-fans').value;
   w.tweet.best  = document.getElementById('fy-tw-best').value;
-  // ai
-  w.ai = {done:document.getElementById('fy-ai-done').value, block:document.getElementById('fy-ai-block').value};
+  // ai（保留方向多选 tracks）
+  w.ai = {
+    tracks: (w.ai || {}).tracks || [],
+    done:   (document.getElementById('fy-ai-done')   || {}).value || '',
+    output: (document.getElementById('fy-ai-output') || {}).value || '',
+    block:  (document.getElementById('fy-ai-block')  || {}).value || ''
+  };
   // side：保留 lead 按钮状态
   if (!w.side) w.side = {};
   w.side.done   = document.getElementById('fy-side-done').value;
@@ -6332,14 +6499,17 @@ async function fyRunAutoCheck() {
     else add('读书', low.length ? 'bad' : 'ok', low.length ? `最近${low.length}个月读书不足1本` : '读书达标（≥1本/月）');
   }
 
-  // ⑦ 公众号 / 粉丝 / OpenClaw 记录情况
+  // ⑦ 公众号 / 粉丝 / AI 学习与产出
   if (m2.length) {
     const art0 = m2.every(d => !d.art);
     add('公众号', art0 ? 'warn' : 'ok', art0 ? '最近两个月公众号未更新' : '公众号在更新');
     const fansM = months.slice().reverse().find(d => typeof d.fans === 'number');
     add('粉丝数', fansM ? 'ok' : 'bad', fansM ? `最近记录：${fansM.fans} 粉（年底目标 1000）` : '一次都没记录过月底粉丝数，年底1000无法跟踪');
-    const ocM = months.slice().reverse().find(d => typeof d.oc === 'number');
-    add('OpenClaw', ocM ? 'ok' : 'warn', ocM ? `最近记录：${ocM.oc}h（目标 ≥30h/月）` : '月度记录里没有 OpenClaw 时长，目标无法检验');
+    const aiM = months.slice().reverse().find(d => typeof d.aih === 'number' || typeof d.oc === 'number');
+    const aiH = aiM ? (typeof aiM.aih === 'number' ? aiM.aih : aiM.oc) : null;
+    add('AI学习', aiM ? 'ok' : 'warn', aiM ? `最近记录：${aiH}h（目标 ≥30h/月）` : '月度记录里没有 AI 学习时长，目标无法检验');
+    const outM = months.slice().reverse().find(d => d.aiout && String(d.aiout).trim() && String(d.aiout).trim() !== '无');
+    add('AI产出', outM ? 'ok' : 'warn', outM ? `最近产出：${String(outM.aiout).slice(0, 40)}` : '最近没记过 AI 产出（学了没落地）');
   }
 
   const color = lv => lv === 'bad' ? 'var(--bad)' : lv === 'warn' ? 'var(--warn)' : 'var(--ok)';
@@ -6361,7 +6531,7 @@ function fyBuildWarnings() {
   const tbody = document.getElementById('fy-warn-body'); if (!tbody) return;
   tbody.innerHTML = '';
   const plateColors = {
-    推特:'background:#D6EAF8;color:#0C447C', AI学习:'background:#D8F3DC;color:#085041',
+    推特:'background:#D6EAF8;color:#0C447C', AI能力:'background:#D8F3DC;color:#085041',
     副业:'background:#FFF3CD;color:#633806',  交易:'background:#FDEBD0;color:#712B13',
     方向:'background:#E8DAEF;color:#3C3489',  费用:'background:#FCE4D6;color:#712B13'
   };
@@ -6398,6 +6568,7 @@ async function fyInit() {
   await fyLoadRemote();
   fyBuildDirFields('fy-dir-fields', 'wd');
   fyBuildDirFields('fy-mdir-fields', 'md');
+  fyBuildAiTracks();
   fyInitWeekSel();
   fyInitMonthSel();
   fyLoadWeek();
